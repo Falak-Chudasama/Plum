@@ -1,1 +1,13 @@
 @import "tailwindcss";
+
+@theme {
+    --font-cabin: "Cabin";
+    --font-ibm-plex: "IBM Plex Sans";
+
+    --color-plum-primary: #582FA1;
+    --color-plum-secondary: #FF7D66;
+    --color-plum-bg: #F7F5FB;
+    --color-plum-surface: #EEEEEE;
+    --color-plum-border: #D1C8EB;
+    --color-plum-text: #403964;
+}

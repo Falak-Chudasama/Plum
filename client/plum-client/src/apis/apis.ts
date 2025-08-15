@@ -3,7 +3,6 @@ export default async function send() {
         method: "POST",
         headers: {
             "Content-Type": "",
-            "Authorization": "Bearer"
         }
     });
 };

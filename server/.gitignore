@@ -1,0 +1,4 @@
+.todo
+/node_modules
+.env
+/logs

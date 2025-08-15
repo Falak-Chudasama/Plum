@@ -1,0 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400..700;1,400..700&family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap');
+@import "tailwindcss";
+
+@theme {
+    --font-cabin: "Cabin";
+    --font-ibm-plex-sans: "IBM Plex Sans";
+
+    --color-plum-primary: #582FA1;
+    --color-plum-secondary: #FF7D66;
+    --color-plum-bg: #F7F5FB;
+    --color-plum-surface: #EEEEEE;
+    --color-plum-border: #D1C8EB;
+    --color-plum-text: #403964;
+}

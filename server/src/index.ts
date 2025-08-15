@@ -2,6 +2,8 @@ import dotenv from "dotenv";
 import app from "./app/app";
 import connectDB from "./config/config";
 
+// TODO: Fix loggers
+
 dotenv.config({ quiet: true });
 
 const host: string = process.env.HOST || 'localhost';

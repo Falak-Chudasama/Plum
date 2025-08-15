@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
         unique: true
     },
     name: { type: String },
+    lastName: { type: String },
     profilePicture: { type: String },
     google: {
         accessToken: {

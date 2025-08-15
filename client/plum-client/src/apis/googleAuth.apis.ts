@@ -3,7 +3,8 @@ import contants from "../constants/constants"
 export default function googleAuth() {
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?` + new URLSearchParams({
         client_id: contants.clientId,
-        redirect_uri: contants.redirectURI,
+        // redirect_uri: contants.redirectURI,
+        redirect_uri: "http://api.plum.com/user/auth/callback",
         response_type: 'code',
         scope: [
             'https://www.googleapis.com/auth/gmail.readonly',

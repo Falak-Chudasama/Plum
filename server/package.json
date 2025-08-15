@@ -1,7 +1,7 @@
 {
   "name": "plum-server",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "./src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon",
@@ -10,5 +10,21 @@
   },
   "author": "Tony Stank",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/morgan": "^1.9.10",
+    "axios": "^1.11.0",
+    "base64url": "^3.0.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "googleapis": "^156.0.0",
+    "mongoose": "^8.17.1",
+    "morgan": "^1.10.1",
+    "nodemailer": "^7.0.5",
+    "nodemon": "^3.1.10",
+    "winston": "^3.17.0"
+  }
 }

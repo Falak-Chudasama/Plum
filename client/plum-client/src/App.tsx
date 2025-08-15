@@ -1,7 +1,15 @@
+import googleAuth from "./apis/googleAuth.apis";
+import send from "./apis/apis";
+
 export default function App() {
 	return (
-		<div className='text-purple-900 font-extrabold text-9xl text-center'>
-			Plum
+		<div>
+			<button className="block" onClick={() => googleAuth()}>
+				Google Button
+			</button>
+			<button className="block m-5 cursor-pointer" onClick={() => send()}>
+				Send Email
+			</button>
 		</div>
 	);
 };

@@ -3,6 +3,7 @@ import app from "./app/app";
 import connectDB from "./config/config";
 
 // TODO: Fix loggers
+// TODO: Add https protocol
 
 dotenv.config({ quiet: true });
 

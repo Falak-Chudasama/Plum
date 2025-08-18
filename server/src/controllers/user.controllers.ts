@@ -12,8 +12,6 @@ dotenv.config({ quiet: true });
 const frontendOrigin = process.env.FRONTEND_ORIGIN!;
 const filePath = '/src/controllers/user.controllers';
 
-// TODO: add user operations, auth
-
 const findUserUtil = async (email: string): Promise<UserType | null> => {
     try {
         const user: UserType | null = await User.findOne({ email });
@@ -89,7 +87,7 @@ const loginUser = async (req: Request, res: Response) => {
     } catch (err) {
         handleError(filePath, 'loginUser', res, err, 'Logging User');
     }
-}
+};
 
 const getGoogleTokensUtil = async (email: string) => {
     try {
@@ -138,6 +136,26 @@ const updateUserGoogleTokens = async (email: string, tokens: { access_token: str
     }
 };
 
+export const refreshGoogleAccessToken = async (email: string, refreshToken: string) => {
+    try {
+        const response = await axios.post("https://oauth2.googleapis.com/token", null, {
+            params: {
+                client_id: process.env.GOOGLE_CLIENT_ID,
+                client_secret: process.env.GOOGLE_CLIENT_SECRET,
+                refresh_token: refreshToken,
+                grant_type: "refresh_token"
+            }
+        });
+
+        const { access_token, id_token } = response.data;
+
+        await updateUserGoogleTokens(email, { access_token, refresh_token: refreshToken, id_token });
+    } catch (err) {
+        handleErrorUtil(filePath, 'refreshGoogleAccessToken', err, 'Refreshing Google Tokens');
+        console.error("Error refreshing Google access token", err);
+    }
+};
+
 const googleCallback = async (req: Request, res: Response) => {
     const { code } = req.query;
     if (!code) {
@@ -174,6 +192,7 @@ const userOps = {
     loginUser,
     updateUserGoogleTokens,
     googleCallback,
+    refreshGoogleAccessToken,
     getGoogleTokensUtil
 };
 

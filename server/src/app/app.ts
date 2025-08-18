@@ -3,6 +3,7 @@ import morgan from "morgan";
 import dotenv from "dotenv";
 import cors from "cors";
 import logger from "../utils/logger.utils";
+import cookieParser from "cookie-parser";
 
 import emailRouter from "../routes/email.routes";
 import userRouter from "../routes/user.routes";
@@ -21,6 +22,7 @@ app.use(cors({
     methods: ["GET", "POST"],
     credentials: true
 }));
+app.use(cookieParser());
 app.use(morgan('combined', {
     stream: {
         write: (message) => logger.http(message.trim())

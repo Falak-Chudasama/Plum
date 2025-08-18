@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import handleError, { handleErrorUtil } from "../utils/errors.utils";
 import User from "../models/user.models";
 import logger from "../utils/logger.utils";
+import { createAuthTokens } from "../middlewares/auth.middlewares";
 
 dotenv.config({ quiet: true });
 
@@ -12,16 +13,27 @@ const filePath = '/src/controllers/user.controllers';
 
 // TODO: add user operations, auth
 
-const findUserUtil = async (email: string): Promise<boolean> => {
+const findUserUtil = async (email: string) => {
     try {
         const user = await User.findOne({ email });
-        return !!user;
+        return user;
     } catch (err) {
         handleErrorUtil(filePath, 'findUserUtil', err, 'Finding User by Email in DB');
     }
     return false;
 };
 
+const findUser = async (req: Request, res: Response) => {
+    try {
+        const user = await findUserUtil(req.body.email);
+        if (!user) {
+            return res.status(404).json({ message: `User with email '${req.body.email}' not found`, success: false });
+        }
+        return res.status(200).json({ user, success: true });
+    } catch (err) {
+        handleError(filePath, 'getTokens', res, err, 'Fetching Google Tokens')
+    }
+};
 
 /*
  * Google Auth Ops
@@ -52,6 +64,36 @@ const createUser = async (res: Response, data: any, tokens: { access_token: stri
     }
 };
 
+const loginUser = async (req: Request, res: Response) => {
+
+}
+
+const getGoogleTokensUtil = async (email: string) => {
+    try {
+        const user = await findUserUtil(email);
+        if (!user) throw Error(`User with email '${email}' was not found`);
+
+        return {
+            accessToken: user.google?.accessToken,
+            refreshToken: user.google?.refreshToken,
+            IdToken: user.google?.IdToken,
+            success: true
+        };
+    } catch (err: any) {
+        if (err?.message.endsWith('was not found')) {
+            handleErrorUtil(filePath, 'getGoogleTokens', err, 'Fetching Google Tokens', 404);
+        } else {
+            handleErrorUtil(filePath, 'getGoogleTokens', err, 'Fetching Google Tokens');
+        }
+    }
+    return {
+        accessToken: undefined,
+        refreshToken: undefined,
+        IdToken: undefined,
+        success: false
+    };
+};
+
 const updateUserGoogleTokens = async (email: string, tokens: { access_token: string, refresh_token: string, id_token: string }) => {
     try {
         const updatedUser = await User.updateOne(
@@ -74,7 +116,6 @@ const updateUserGoogleTokens = async (email: string, tokens: { access_token: str
 };
 
 const googleCallback = async (req: Request, res: Response) => {
-    // GET /api.plum.com/user/auth/callback
     const { code } = req.query;
     if (!code) {
         return res.redirect('http://' + frontendOrigin + '/signup/?warning=google_auth_cancelled');
@@ -87,24 +128,29 @@ const googleCallback = async (req: Request, res: Response) => {
             redirect_uri: process.env.REDIRECT_URI,
             grant_type: 'authorization_code',
         });
-        
+
         const { access_token, refresh_token, id_token } = tokenResponse.data;
-        
+
         const userInfo = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
             headers: { Authorization: `Bearer ${access_token}` },
         });
 
         await createUser(res, userInfo.data, { access_token, refresh_token, id_token });
-        // return access and refresh tokens of plum along with a success:true message
-        res.redirect('http://' + frontendOrigin)
+
+        createAuthTokens(userInfo.data.email, res);
+        res.redirect('http://' + frontendOrigin);
     } catch (err) {
         handleError('/src/controllers/user.controllers.ts', 'googleCallback', res, err, 'Google Callback');
     }
-}
+};
 
 const userOps = {
+    findUser,
+    findUserUtil,
     createUser,
-    googleCallback
+    updateUserGoogleTokens,
+    googleCallback,
+    getGoogleTokensUtil
 };
 
 export default userOps;

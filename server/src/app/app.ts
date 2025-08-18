@@ -1,12 +1,13 @@
-import express, { Request, Response, NextFunction } from "express";
+import express, { Request, Response } from "express";
 import morgan from "morgan";
-import axios from "axios";
 import dotenv from "dotenv";
 import cors from "cors";
 import logger from "../utils/logger.utils";
 
 import emailRouter from "../routes/email.routes";
 import userRouter from "../routes/user.routes";
+
+import authenticateUser from "../middlewares/auth.middlewares";
 
 dotenv.config({ quiet: true });
 
@@ -27,7 +28,7 @@ app.use(morgan('combined', {
 }));
 
 // Routes
-app.use('/email', emailRouter);
+app.use('/email', authenticateUser, emailRouter);
 app.use('/user', userRouter);
 
 // Requests

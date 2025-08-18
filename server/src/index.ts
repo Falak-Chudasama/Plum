@@ -14,6 +14,6 @@ const origin: string = process.env.BACKEND_ORIGIN!;
 (() => {
     app.listen(port!, host!, async () => {
         await connectDB();
-        console.log(`SERVER listening to -> ${origin}`);
+        console.log(`SERVER listening to -> ${origin} \n`);
     });
 })();

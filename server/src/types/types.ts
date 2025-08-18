@@ -1,3 +1,9 @@
+import { Request } from "express";
+
+export interface AuthenticatedRequest extends Request {
+    user: { email: string }
+};
+
 export interface HandleErrorOptionsType {
     res: Response;
     error: unknown;

@@ -3,6 +3,7 @@ import axios from "axios";
 import dotenv from "dotenv";
 import handleError, { handleErrorUtil } from "../utils/errors.utils";
 import User from "../models/user.models";
+import { UserType } from "../types/types";
 import logger from "../utils/logger.utils";
 import { createAuthTokens } from "../middlewares/auth.middlewares";
 
@@ -13,14 +14,14 @@ const filePath = '/src/controllers/user.controllers';
 
 // TODO: add user operations, auth
 
-const findUserUtil = async (email: string) => {
+const findUserUtil = async (email: string): Promise<UserType | null> => {
     try {
-        const user = await User.findOne({ email });
+        const user: UserType | null = await User.findOne({ email });
         return user;
     } catch (err) {
         handleErrorUtil(filePath, 'findUserUtil', err, 'Finding User by Email in DB');
+        return null;
     }
-    return false;
 };
 
 const findUser = async (req: Request, res: Response) => {
@@ -65,7 +66,29 @@ const createUser = async (res: Response, data: any, tokens: { access_token: stri
 };
 
 const loginUser = async (req: Request, res: Response) => {
+    try {
+        const { email, fName, lName } = req.body;
 
+        if (!email || !fName || !lName) {
+            return res.status(400).json({ message: 'Incomplete credentials submitted', success: false });
+        }
+
+        const user: UserType | null = await findUserUtil(email);
+
+        if (!user) {
+            return res.status(404).json({ message: `No user with email '${email}' found`, success: false });
+        }
+
+        if (user.name !== fName || user.lastName !== lName) {
+            return res.status(401).json({ message: `Invalid credentials submitted`, success: false });
+        }
+
+        createAuthTokens(email, res);
+
+        return res.status(200).json({ message: 'Successfully logged in', success: true });
+    } catch (err) {
+        handleError(filePath, 'loginUser', res, err, 'Logging User');
+    }
 }
 
 const getGoogleTokensUtil = async (email: string) => {
@@ -148,6 +171,7 @@ const userOps = {
     findUser,
     findUserUtil,
     createUser,
+    loginUser,
     updateUserGoogleTokens,
     googleCallback,
     getGoogleTokensUtil

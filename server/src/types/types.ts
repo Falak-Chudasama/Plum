@@ -1,4 +1,8 @@
 import { Request } from "express";
+import { InferSchemaType } from "mongoose";
+import { userSchema } from "../models/user.models";
+
+export type UserType = InferSchemaType<typeof userSchema>; 
 
 export interface AuthenticatedRequest extends Request {
     user: { email: string }

@@ -2,13 +2,15 @@ import express, { Request, Response } from "express";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import cors from "cors";
-import logger from "../utils/logger.utils";
 import cookieParser from "cookie-parser";
+
+import logger, { morganMiddleware } from "../utils/logger.utils";
 
 import emailRouter from "../routes/email.routes";
 import userRouter from "../routes/user.routes";
 
 import authenticateUser from "../middlewares/auth.middlewares";
+import authenticateUserGoogle from "../middlewares/googleAuth.middlewares";
 
 dotenv.config({ quiet: true });
 
@@ -23,14 +25,10 @@ app.use(cors({
     credentials: true
 }));
 app.use(cookieParser());
-app.use(morgan('combined', {
-    stream: {
-        write: (message) => logger.http(message.trim())
-    }
-}));
+app.use(morganMiddleware);
 
 // Routes
-app.use('/email', authenticateUser, emailRouter);
+app.use('/email', authenticateUser, authenticateUserGoogle, emailRouter);
 app.use('/user', userRouter);
 
 // Requests

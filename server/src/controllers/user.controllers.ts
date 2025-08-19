@@ -22,11 +22,12 @@ const findUserUtil = async (email: string): Promise<UserType | null> => {
     }
 };
 
+// GET api.plum.com/user/
 const findUser = async (req: Request, res: Response) => {
     try {
-        const user = await findUserUtil(req.body.email);
+        const user = await findUserUtil(req.body.userEmail);
         if (!user) {
-            return res.status(404).json({ message: `User with email '${req.body.email}' not found`, success: false });
+            return res.status(404).json({ message: `User with email '${req.body.userEmail}' not found`, success: false });
         }
         return res.status(200).json({ user, success: true });
     } catch (err) {
@@ -63,6 +64,7 @@ const createUser = async (res: Response, data: any, tokens: { access_token: stri
     }
 };
 
+// POST api.plum.com/user/auth/login
 const loginUser = async (req: Request, res: Response) => {
     try {
         const { email, fName, lName } = req.body;
@@ -115,21 +117,29 @@ const getGoogleTokensUtil = async (email: string) => {
     };
 };
 
-const updateUserGoogleTokens = async (email: string, tokens: { access_token: string, refresh_token: string, id_token: string }) => {
+const updateUserGoogleTokens = async (
+    email: string,
+    tokens: { access_token: string; refresh_token?: string; id_token?: string }
+) => {
     try {
+        const updateFields: any = {
+            'google.accessToken': tokens.access_token,
+        };
+
+        if (tokens.refresh_token) {
+            updateFields['google.refreshToken'] = tokens.refresh_token;
+        }
+        if (tokens.id_token) {
+            updateFields['google.IdToken'] = tokens.id_token;
+        }
+
         const updatedUser = await User.updateOne(
-            { email: email },
-            {
-                $set: {
-                    'google.accessToken': tokens.access_token,
-                    'google.refreshToken': tokens.refresh_token,
-                    'google.idToken': tokens.id_token,
-                }
-            }
+            { email },
+            { $set: updateFields }
         );
 
         if (updatedUser.modifiedCount === 0) {
-            throw Error('User was not updated');
+            throw new Error('User was not updated');
         }
     } catch (err) {
         handleErrorUtil(filePath, 'updateUserGoogleTokens', err, 'Updating User Google Tokens');
@@ -156,11 +166,14 @@ export const refreshGoogleAccessToken = async (email: string, refreshToken: stri
     }
 };
 
+// GET api.plum.com/user/auth/callback
 const googleCallback = async (req: Request, res: Response) => {
     const { code } = req.query;
+
     if (!code) {
-        return res.redirect('http://' + frontendOrigin + '/signup/?warning=google_auth_cancelled');
+        return res.redirect(`http://${frontendOrigin}/signup/?warning=google_auth_cancelled`);
     }
+
     try {
         const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
             code,
@@ -173,13 +186,16 @@ const googleCallback = async (req: Request, res: Response) => {
         const { access_token, refresh_token, id_token } = tokenResponse.data;
 
         const userInfo = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
-            headers: { Authorization: `Bearer ${access_token}` },
+            headers: {
+                Authorization: `Bearer ${access_token}`,
+            },
         });
 
         await createUser(res, userInfo.data, { access_token, refresh_token, id_token });
 
         createAuthTokens(userInfo.data.email, res);
-        res.redirect('http://' + frontendOrigin);
+
+        res.redirect(`http://${frontendOrigin}`);
     } catch (err) {
         handleError('/src/controllers/user.controllers.ts', 'googleCallback', res, err, 'Google Callback');
     }

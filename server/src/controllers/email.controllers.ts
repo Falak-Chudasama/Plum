@@ -1,67 +1,71 @@
 import { Request, Response } from "express";
 import axios from "axios";
 import base64url from "base64url";
+import { google } from "googleapis";
+import MailComposer from "nodemailer/lib/mail-composer";
+
 import handleError from "../utils/errors.utils";
-import { EmailType } from "../types/types";
+import { EmailType, GoogleAuthenticatedRequest } from "../types/types";
+
+const filePath: string = '/src/controllers/email.controllers.ts'
 
 // TODO: Use dynamic fields from `email` if needed
 
-async function fetchEmails(req: Request, res: Response) {}
 
-async function draftEmail(req: Request, res: Response) {}
+// GET api.plum.com/email/fetch
+const fetchEmails = async (req: Request, res: Response) => { }
 
-async function sendEmail(req: Request, res: Response) {
-    const accessToken = req.headers.authorization?.split(' ')[1];
-    if (!accessToken) {
-        return handleError(
-            "server/src/controllers/email.controllers.ts",
-            "sendEmail",
-            res,
-            "Missing access token in Authorization header",
-            "AuthorizationError",
-            401
-        );
+// POST api.plum.com/email/draft
+const draftEmail = async (req: Request, res: Response) => { }
+
+// POST api.plum.com/email/send
+const sendEmail = async (req: Request, res: Response) => {
+    const googleReq = req as GoogleAuthenticatedRequest;
+    const userEmail = googleReq.user.email;
+    const OAuth = googleReq.auth;
+    
+    const email: EmailType = req.body?.email;
+    if (!email || !email.to || !email.body || !email.contentType) {
+        return handleError(filePath, 'sendEmail', res, 'Incomplete email payload', 'InvalidRequest', 400);
     }
-
-    const email: EmailType = req.body.email;
-
-    const rawEmail = [
-        `To: ${email.to}`,
-        `Subject: ${email.subject}`,
-        `Content-Type: ${email.contentType}; charset="UTF-8"`,
-        "",
-        email.body
-    ].join("\n");
-
-    const encodedMessage = base64url(Buffer.from(rawEmail));
-
+    
+    const gmail = await google.gmail({ version: 'v1', auth: OAuth });
+    
     try {
-        const response = await axios.post(
-            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
-            { raw: encodedMessage },
-            {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    "Content-Type": "application/json",
-                },
-            }
-        );
-
-        res.status(200).json({
-            success: true,
-            message: "Email sent successfully",
-            data: response.data,
+        const mail = new MailComposer({
+            to: email.to,
+            cc: email?.cc,
+            bcc: email?.bcc,
+            subject: email?.subject || 'NO SUBJECT',
+            text: email.contentType !== 'text/html' ? email.body : undefined,
+            html: email.contentType === 'text/html' ? email.body : undefined,
+            attachments: email?.files?.map((file: { name: string; content: string | Buffer; type: string }) => ({
+                filename: file.name,
+                content: file.content,
+                contentType: file.type,
+            })),
         });
-    } catch (error) {
-        handleError(
-            "server/src/controllers/email.controllers.ts",
-            "sendEmail",
-            res,
-            error,
-            "SendingEmailFailure"
-        );
+        
+        const componsedMail = await mail.compile().build();
+        
+        const encodedMessage = Buffer.from(componsedMail)
+            .toString('base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+            
+            const result = await gmail.users.messages.send({
+                userId: 'me',
+                requestBody: {
+                    raw: encodedMessage,
+                },
+            });
+
+            res.status(200).json({ message: result, success: true });
+        } catch (err) {
+        handleError(filePath, 'sendEmail', res, err, 'Sending Email');
     }
-}
+};
 
 const emailOps = {
     sendEmail,

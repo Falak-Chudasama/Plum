@@ -1,19 +1,11 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
 import userOps from "../controllers/user.controllers";
 
 const userRouter = Router();
 
-userRouter.get('/', async (req: Request, res: Response) => {
-    await userOps.findUser(req, res);
-});
-
-userRouter.get('/login', async (req: Request, res: Response) => {
-    await userOps.loginUser(req, res);
-});
-
-// Google Ops
-userRouter.get('/auth/callback', async (req: Request, res: Response) => {
-    await userOps.googleCallback(req, res);
-});
+// api.plum.com/user/
+userRouter.get('/', userOps.findUser);
+userRouter.post('/auth/login', userOps.loginUser);
+userRouter.get('/auth/callback', userOps.googleCallback);
 
 export default userRouter;

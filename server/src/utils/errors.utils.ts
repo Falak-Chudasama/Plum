@@ -8,28 +8,26 @@ export function handleErrorUtil(
     context: string = 'UnhandledError',
     statusCode: number = 500,
     logStack: boolean = true
-): { statusCode: number, success: boolean, error: string } {
-    let message = 'Something went wrong';
-
+): { statusCode: number; success: boolean; error: string } {
     const metaPrefix = `[${context}] at ${fileLocation} > ${fnName}`;
+    let responseMessage = 'Something went wrong';
+    let logMessage: string | unknown = 'Unknown error object received';
 
     if (error instanceof Error) {
-        message = error.message;
-        logStack
-            ? logger.error(`${metaPrefix} | ${message}\n${error.stack}`)
-            : logger.error(`${metaPrefix} | ${message}`);
+        responseMessage = error.message;
+        logMessage = logStack ? `${error.message}\n${error.stack}` : error.message;
     } else if (typeof error === 'string') {
-        message = error;
-        logger.error(`${metaPrefix} | ${message}`);
-    } else {
-        logger.error(`${metaPrefix} | Unknown error object`);
+        responseMessage = error;
+        logMessage = error;
     }
+
+    logger.error(`${metaPrefix} | ${logMessage}`);
 
     return {
         statusCode,
         success: false,
-        error: message,
-    }
+        error: responseMessage,
+    };
 }
 
 export default function handleError(
@@ -41,10 +39,17 @@ export default function handleError(
     statusCode: number = 500,
     logStack: boolean = true
 ): void {
-    const err = handleErrorUtil(fileLocation, fnName, error, context, statusCode, logStack);
+    const err = handleErrorUtil(
+        fileLocation,
+        fnName,
+        error,
+        context,
+        statusCode,
+        logStack
+    );
 
     res.status(err.statusCode).json({
         success: err.success,
         error: err.error,
     });
-};
+}

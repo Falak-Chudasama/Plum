@@ -1,13 +1,10 @@
 import { NextFunction, Request, Response } from "express";
-import dotenv from "dotenv";
-import { google } from "googleapis";
 import userOps from "../controllers/user.controllers";
 import globals from "../globals/globals";
 
 import { AuthenticatedRequest, GoogleAuthenticatedRequest } from "../types/types";
 import handleError from "../utils/errors.utils";
 
-dotenv.config({ quiet: true })
 const filePath = '/src/middlewares/googleAuth.middlewares.ts';
 
 const clientID: string | undefined = process.env.GOOGLE_CLIENT_ID;
@@ -22,6 +19,7 @@ export const OAuthObjectCheck = async (email: string) => {
     if (email === globals.userGmail && globals.OAuthObject !== null) return;
     else {
         globals.userGmail = email;
+        const { google } = await import('googleapis');
         globals.OAuthObject = new google.auth.OAuth2(clientID, clientSecret, redirectUri);
     }
 

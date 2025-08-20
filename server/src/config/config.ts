@@ -1,9 +1,7 @@
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import logger from "../utils/logger.utils";
 import { handleErrorUtil } from "../utils/errors.utils";
 
-dotenv.config({ quiet: true });
 const MONGO_URI: string | undefined = process.env.MONGO_URI;
 
 if (!MONGO_URI) throw new Error('No Plum DB URI found')

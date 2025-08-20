@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
-import axios from "axios";
-import base64url from "base64url";
-import { google } from "googleapis";
+// import axios from "axios";
+// import base64url from "base64url";
 import MailComposer from "nodemailer/lib/mail-composer";
 
 import handleError from "../utils/errors.utils";
@@ -29,6 +28,7 @@ const sendEmail = async (req: Request, res: Response) => {
         return handleError(filePath, 'sendEmail', res, 'Incomplete email payload', 'InvalidRequest', 400);
     }
     
+    const { google } = await import('googleapis'); 
     const gmail = await google.gmail({ version: 'v1', auth: OAuth });
     
     try {

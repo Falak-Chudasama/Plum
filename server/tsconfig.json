@@ -6,9 +6,29 @@
         "rootDir": "./src",
         "strict": true,
         "esModuleInterop": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
+        "moduleResolution": "node",
+        "declaration": false,
+        "sourceMap": true,
+        "removeComments": true,
+        "noEmitOnError": false,
+        "incremental": true,
+        "tsBuildInfoFile": "./dist/.tsbuildinfo"
     },
-    "tsx": {
-        "esm": true
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "**/*.test.ts",
+        "**/*.spec.ts"
+    ],
+    "ts-node": {
+        "transpileOnly": true,
+        "files": true
     }
 }

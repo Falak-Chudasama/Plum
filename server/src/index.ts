@@ -1,19 +1,11 @@
 import dotenv from "dotenv";
+dotenv.config({ quiet: true });
+
 import app from "./app/app";
 import connectDB from "./config/config";
 
-// TODO: Fix loggers
 // TODO: Add https protocol
 
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('<> Unhandled Rejection:', reason);
-});
-
-process.on('uncaughtException', (err) => {
-    console.error('<> Uncaught Exception:', err);
-});
-
-dotenv.config({ quiet: true });
 
 const host: string = process.env.HOST || 'localhost';
 const port: number = Number(process.env.PORT) || 3000;

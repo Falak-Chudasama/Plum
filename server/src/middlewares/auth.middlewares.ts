@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
-import dotenv from "dotenv";
 import handleError, { handleErrorUtil } from '../utils/errors.utils';
 import { AuthenticatedRequest } from '../types/types';
-
-dotenv.config({ quiet: true });
 
 const filePath = '/src/middlewares/auth.middlewares.ts';
 

@@ -1,6 +1,4 @@
 import express, { Request, Response } from "express";
-import morgan from "morgan";
-import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
@@ -11,8 +9,6 @@ import userRouter from "../routes/user.routes";
 
 import authenticateUser from "../middlewares/auth.middlewares";
 import authenticateUserGoogle from "../middlewares/googleAuth.middlewares";
-
-dotenv.config({ quiet: true });
 
 const app = express();
 

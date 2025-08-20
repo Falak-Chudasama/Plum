@@ -12,9 +12,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@types/cookie-parser": "^1.4.9",
-    "@types/cors": "^2.8.19",
-    "@types/nodemailer": "^7.0.0",
     "axios": "^1.11.0",
     "base64url": "^3.0.1",
     "cookie-parser": "^1.4.7",
@@ -30,8 +27,13 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/morgan": "^1.9.10"
+    "@types/morgan": "^1.9.10",
+    "@types/nodemailer": "^7.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
   }
 }

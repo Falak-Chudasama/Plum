@@ -1,13 +1,10 @@
 import { Request, Response } from "express";
 import axios from "axios";
-import dotenv from "dotenv";
 import handleError, { handleErrorUtil } from "../utils/errors.utils";
 import User from "../models/user.models";
 import { UserType } from "../types/types";
 import logger from "../utils/logger.utils";
 import { createAuthTokens } from "../middlewares/auth.middlewares";
-
-dotenv.config({ quiet: true });
 
 const frontendOrigin = process.env.FRONTEND_ORIGIN!;
 const filePath = '/src/controllers/user.controllers';

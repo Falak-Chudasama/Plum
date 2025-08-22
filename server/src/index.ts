@@ -6,7 +6,6 @@ import connectDB from "./config/config";
 
 // TODO: Add https protocol
 
-
 const host: string = process.env.HOST || 'localhost';
 const port: number = Number(process.env.PORT) || 3000;
 const origin: string = process.env.BACKEND_ORIGIN!;

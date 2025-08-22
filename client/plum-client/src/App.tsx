@@ -6,8 +6,14 @@ export default function App() {
 			<button className="block" onClick={() => apis.googleAuth()}>
 				Google Button
 			</button>
+			<button className="block" onClick={() => apis.login()}>
+				Login Button
+			</button>
 			<button className="block" onClick={() => {apis.sendMail(); console.log('Sending mail')}}>
 				Send the Thought
+			</button>
+			<button className="block" onClick={() => {apis.fetchMail(); console.log('Fetching mails')}}>
+				Fetch Mails
 			</button>
 			<img src="./plum-logo.png" className="h-50 w-auto" alt="" />
 		</div>

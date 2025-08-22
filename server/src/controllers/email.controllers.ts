@@ -1,18 +1,181 @@
 import { Request, Response } from "express";
-// import axios from "axios";
-// import base64url from "base64url";
 import MailComposer from "nodemailer/lib/mail-composer";
+import { google } from "googleapis";
 
-import handleError from "../utils/errors.utils";
-import { EmailType, GoogleAuthenticatedRequest } from "../types/types";
+import handleError, { handleErrorUtil } from "../utils/errors.utils";
+import { InboundEmailType, OutboundEmailType, GoogleAuthenticatedRequest } from "../types/types";
+import models from "../models/models";
 
 const filePath: string = '/src/controllers/email.controllers.ts'
 
 // TODO: Use dynamic fields from `email` if needed
 
+const saveOutboundMail = async (payload: OutboundEmailType) => {
+    try {
+        const record = new models.OutboundEmail({
+            from: payload.from,
+            to: payload.to,
+            cc: payload.cc || [],
+            bcc: payload.bcc || [],
+            replyTo: payload.replyTo || "",
+            subject: payload.subject || "No Subject",
+            body: payload.body || "",
+            attachments: payload.attachments?.map((file) => ({
+                filename: file.filename,
+                mimeType: file.mimeType,
+                size: file.size,
+                attachmentId: file.attachmentId,
+            })) || [],
+            sentAt: new Date(),
+            category: payload.category || "Misc",
+            status: "sent",
+        });
+
+        const savedContent = await record.save();
+        return savedContent;
+    } catch (err) {
+        handleErrorUtil(filePath, 'saveOutboundMail', err, `Saving outbound mail 'from': ${payload.from} 'to': ${payload.to}`);
+        throw err;
+    }
+};
 
 // GET api.plum.com/email/fetch
-const fetchEmails = async (req: Request, res: Response) => { }
+const fetchEmails = async (req: Request, res: Response) => {
+    const googleReq = req as GoogleAuthenticatedRequest;
+    const OAuth = googleReq.auth!;
+    const gmail = google.gmail({ version: 'v1', auth: OAuth });
+
+    const numberOfEmails = Number(req.query.numberOfEmails || 10);
+
+    try {
+        const messageListResponse = await gmail.users.messages.list({
+            userId: 'me',
+            labelIds: ['INBOX'],
+            maxResults: numberOfEmails,
+        });
+
+        const messages = messageListResponse.data.messages;
+        if (!messages || messages.length === 0) {
+            return res.status(200).json({ emails: [], success: true });
+        }
+
+        const extractBody = (payload: any): { html?: string; text?: string } => {
+            let html = '';
+            let text = '';
+
+            const walk = (parts: any[]) => {
+                for (const part of parts) {
+                    if (part.mimeType === 'text/html' && part.body?.data) {
+                        html = Buffer.from(part.body.data, 'base64').toString('utf-8');
+                    } else if (part.mimeType === 'text/plain' && part.body?.data) {
+                        text = Buffer.from(part.body.data, 'base64').toString('utf-8');
+                    }
+
+                    if (part.parts) walk(part.parts);
+                }
+            };
+
+            if (payload?.parts) walk(payload.parts);
+            else if (payload?.body?.data) {
+                text = Buffer.from(payload.body.data, 'base64').toString('utf-8');
+            }
+
+            return { html, text };
+        };
+
+        const emailPromises = messages.map(async (email) => {
+            const msgData = await gmail.users.messages.get({
+                userId: 'me',
+                id: email.id!,
+                format: 'full',
+            });
+
+            const payload = msgData.data.payload;
+            const headers = payload?.headers || [];
+
+            const getHeader = (name: string) =>
+                headers.find(h => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
+
+            const from = getHeader('From').replace(/["\\]/g, '').trim();
+            const to = getHeader('To').trim();
+            const cc = getHeader('Cc').trim();
+            const bcc = getHeader('Bcc').trim();
+            const subject = getHeader('Subject').replace(/["\\]/g, '').trim();
+            const date = getHeader('Date');
+            const snippet = msgData.data.snippet || '';
+            const sizeEstimate = msgData.data.sizeEstimate || 0;
+
+            const senderEmail = from?.match(/<(.+)>/)?.[1] || from;
+            const senderName = from?.match(/(.*)<.*>/)?.[1]?.trim().replace(/["\\]/g, '') || from;
+
+            const timestamp = new Date(date).toISOString();
+
+            const jsDate = new Date(date);
+            const parsedDate = {
+                weekday: jsDate.toLocaleString('en-US', { weekday: 'long' }),
+                day: jsDate.getDate().toString().padStart(2, '0'),
+                month: jsDate.toLocaleString('en-US', { month: 'long' }),
+                year: jsDate.getFullYear().toString(),
+                time: jsDate.toTimeString().split(' ')[0],
+            };
+
+            const { html: bodyHtml, text: bodyText } = extractBody(payload);
+
+            const attachments: {
+                filename: string;
+                mimeType: string;
+                size: number;
+                attachmentId: string;
+            }[] = [];
+
+            const extractAttachments = (parts: any[]) => {
+                for (const part of parts) {
+                    if (part.filename && part.body?.attachmentId) {
+                        attachments.push({
+                            filename: part.filename,
+                            mimeType: part.mimeType,
+                            size: part.body.size,
+                            attachmentId: part.body.attachmentId,
+                        });
+                    }
+
+                    if (part.parts) extractAttachments(part.parts);
+                }
+            };
+
+            if (payload?.parts) extractAttachments(payload.parts);
+
+            return {
+                id: email.id,
+                threadId: email.threadId,
+                to,
+                cc,
+                bcc,
+                senderEmail,
+                senderName,
+                subject,
+                parsedDate,
+                snippet,
+                bodyHtml,
+                bodyText,
+                attachments,
+                timestamp,
+                sizeEstimate,
+            };
+        });
+
+        const emails = await Promise.all(emailPromises);
+
+        return res.status(200).json({
+            emails,
+            emailsCount: emails.length,
+            success: true,
+        });
+
+    } catch (err) {
+        handleError(filePath, 'fetchEmails', res, err, 'Fetching Emails via Gmail');
+    }
+};
 
 // POST api.plum.com/email/draft
 const draftEmail = async (req: Request, res: Response) => { }
@@ -20,50 +183,61 @@ const draftEmail = async (req: Request, res: Response) => { }
 // POST api.plum.com/email/send
 const sendEmail = async (req: Request, res: Response) => {
     const googleReq = req as GoogleAuthenticatedRequest;
-    const userEmail = googleReq.user.email;
     const OAuth = googleReq.auth;
-    
-    const email: EmailType = req.body?.email;
-    if (!email || !email.to || !email.body || !email.contentType) {
-        return handleError(filePath, 'sendEmail', res, 'Incomplete email payload', 'InvalidRequest', 400);
+
+    const payload = req.body as OutboundEmailType
+
+    if (!payload.from || !payload.to?.length) {
+        return handleError(
+            filePath,
+            "sendEmail",
+            res,
+            "Missing required fields: `from` and at least one `to`",
+            "InvalidRequest",
+            400
+        );
     }
-    
-    const { google } = await import('googleapis'); 
-    const gmail = await google.gmail({ version: 'v1', auth: OAuth });
-    
+
+    const gmail = google.gmail({ version: "v1", auth: OAuth });
+
     try {
         const mail = new MailComposer({
-            to: email.to,
-            cc: email?.cc,
-            bcc: email?.bcc,
-            subject: email?.subject || 'NO SUBJECT',
-            text: email.contentType !== 'text/html' ? email.body : undefined,
-            html: email.contentType === 'text/html' ? email.body : undefined,
-            attachments: email?.files?.map((file: { name: string; content: string | Buffer; type: string }) => ({
-                filename: file.name,
+            from: payload.from,
+            to: payload.to?.join(', '),
+            cc: payload?.cc?.join(', '),
+            bcc: payload?.bcc?.join(', '),
+            replyTo: payload?.replyTo || "",
+            subject: payload?.subject || "No Subject",
+            text: payload?.body || "",
+            attachments: payload?.attachments?.map((file) => ({
+                filename: file.filename,
                 content: file.content,
-                contentType: file.type,
+                contentType: file.mimeType,
             })),
         });
-        
-        const componsedMail = await mail.compile().build();
-        
-        const encodedMessage = Buffer.from(componsedMail)
-            .toString('base64')
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=+$/, '');
-            
-            const result = await gmail.users.messages.send({
-                userId: 'me',
-                requestBody: {
-                    raw: encodedMessage,
-                },
-            });
 
-            res.status(200).json({ message: result, success: true });
-        } catch (err) {
-        handleError(filePath, 'sendEmail', res, err, 'Sending Email');
+        const compiled = await mail.compile().build();
+        const raw = Buffer.from(compiled)
+            .toString("base64")
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/, "");
+
+        const result = await gmail.users.messages.send({
+            userId: "me",
+            requestBody: { raw },
+        });
+
+        const record = await saveOutboundMail(payload);
+
+        return res.status(200).json({
+            success: true,
+            message: "Email sent and recorded",
+            gmailResponse: result.data,
+            outboundRecord: record,
+        });
+    } catch (err) {
+        return handleError(filePath, "sendEmail", res, err, "Sending Email");
     }
 };
 

@@ -1,19 +1,13 @@
 import { Request } from "express";
 import { InferSchemaType } from "mongoose";
 import { userSchema } from "../models/user.models";
+import { inboundEmailSchema } from "../models/inboundEmail.models";
+import { outboundEmailSchema } from "../models/outboundEmail.models";
 import { OAuth2Client } from 'google-auth-library';
 
 export type UserType = InferSchemaType<typeof userSchema>; 
-export interface EmailType {
-    from?: string,
-    to: string | string[],
-    cc?: string | string[],
-    bcc?: string | string[],
-    subject: string,
-    contentType: 'text/plain' | 'text/html',
-    body: string,
-    files?: any,
-};
+export type InboundEmailType = InferSchemaType<typeof inboundEmailSchema>;
+export type OutboundEmailType = InferSchemaType<typeof outboundEmailSchema>;
 
 export interface AuthenticatedRequest extends Request {
     user: { email: string }

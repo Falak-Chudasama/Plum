@@ -7,17 +7,7 @@ function googleAuth() {
 };
 
 /*
-to: email.to,
-cc: email?.cc,
-bcc: email?.bcc,
-subject: email?.subject || 'NO SUBJECT',
-text: email.contentType !== 'text/html' ? email.body : undefined,
-html: email.contentType === 'text/html' ? email.body : undefined,
-attachments: email?.files?.map((file: { name: string; content: string | Buffer; type: string }) => ({
-    filename: file.name,
-    content: file.content,
-    contentType: file.type,
-}))
+
 */
 
 const dummyMail = {
@@ -32,13 +22,11 @@ async function sendMail(mail: any = '') {
         const response = await axios.post(
             `${contants.serverOrigin}/email/send`,
             { email: dummyMail },
-            {
-                withCredentials: true
-            }
+            { withCredentials: true }
             // { email: mail }
         );
-
-        console.log('✅ Email sent successfully:', response.data);
+        
+        console.log('Email sent successfully:', response.data);
         return response.data;
     } catch (err) {
         console.error(err);
@@ -46,12 +34,57 @@ async function sendMail(mail: any = '') {
     }
 };
 
-async function fetchMail() { };
+async function fetchMail(numberOfEmails: number = 4) { 
+    try {
+        const response = await axios.get(
+            `${contants.serverOrigin}/email/fetch`,
+            { 
+                params: { numberOfEmails },
+                withCredentials: true
+            }
+        );
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+
+        console.log(response.data.emails[3].bodyText);
+        return response.data;
+    } catch (err) {
+        console.error(err);
+        handleError(err);
+    }
+};
+
+async function login(email: string = 'falakchudasama7766@gmail.com', fName: string = 'Falak', lName: string = 'Chudasama') { // change defaults
+    try {
+        const result = await axios.post(
+            `${contants.serverOrigin}/user/auth/login`,
+            {
+                email,
+                fName,
+                lName
+            },
+            { withCredentials: true }
+        )
+
+        console.log('LOGIN: ')
+        console.log(result.data);
+
+        return result.data;
+    } catch (err) {
+        console.error(err);
+        handleError(err);
+    }
+}
 
 async function draftMail() { };
 
 const apis = {
     googleAuth,
+    login,
     sendMail,
     fetchMail,
     draftMail,

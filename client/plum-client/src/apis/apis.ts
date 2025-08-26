@@ -50,7 +50,7 @@ async function fetchMail(numberOfEmails: number = 4) {
             throw Error(response.data.message);
         }
 
-        console.log(response.data.emails[3].bodyText);
+        console.log(response.data.emails);
         return response.data;
     } catch (err) {
         console.error(err);

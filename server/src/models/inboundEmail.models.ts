@@ -15,7 +15,7 @@ const ParsedDateSchema = new mongoose.Schema({
     time: String,
 });
 
-const inboundEmailSchema = new mongoose.Schema({
+export const inboundEmailSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     id: { type: String, required: true, unique: true },
     threadId: { type: String, required: true },
@@ -32,9 +32,9 @@ const inboundEmailSchema = new mongoose.Schema({
     attachments: [AttachmentSchema],
     timestamp: { type: String },
     sizeEstimate: { type: Number },
-    category: { type: String }
+    categories: { type: String[] }
 }, { timestamps: true });
 
 const InboundEmail = mongoose.model('InboundEmail', inboundEmailSchema);
-export { inboundEmailSchema };
+
 export default InboundEmail;

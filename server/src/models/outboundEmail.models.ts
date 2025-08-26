@@ -7,7 +7,7 @@ const AttachmentSchema = new mongoose.Schema({
     attachmentId: String,
 });
 
-const outboundEmailSchema = new mongoose.Schema({
+export const outboundEmailSchema = new mongoose.Schema({
     from: { type: String, required: true },
     to: { type: [String], required: true },
     cc: { type: [String], default: [] },
@@ -22,5 +22,5 @@ const outboundEmailSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const OutboundEmail = mongoose.model('OutboundEmail', outboundEmailSchema);
-export { outboundEmailSchema };
+
 export default OutboundEmail;

@@ -32,7 +32,7 @@ export const inboundEmailSchema = new mongoose.Schema({
     attachments: [AttachmentSchema],
     timestamp: { type: String },
     sizeEstimate: { type: Number },
-    categories: { type: String[] }
+    categories: { type: [String] }
 }, { timestamps: true });
 
 const InboundEmail = mongoose.model('InboundEmail', inboundEmailSchema);

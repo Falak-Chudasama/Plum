@@ -4,7 +4,9 @@ import handleError, { handleErrorUtil } from "../utils/errors.utils";
 import User from "../models/user.models";
 import { UserType } from "../types/types";
 import logger from "../utils/logger.utils";
+import settingsOps from "./settings.controllers";
 import { createAuthTokens } from "../middlewares/auth.middlewares";
+import { OAuthObjectCheck } from "../middlewares/googleAuth.middlewares";
 
 const frontendOrigin = process.env.FRONTEND_ORIGIN!;
 const filePath = '/src/controllers/user.controllers';
@@ -56,6 +58,7 @@ const createUser = async (res: Response, data: any, tokens: { access_token: stri
             if (!user) throw Error('Failed to create the user named: ' + data.name);
             logger.info('User created with name: ' + data.name);
         }
+        settingsOps.add('email', data.email);
     } catch (err) {
         handleError(filePath, 'createUserUtil', res, err, 'Creating a User');
     }
@@ -81,7 +84,8 @@ const loginUser = async (req: Request, res: Response) => {
         }
 
         createAuthTokens(email, res);
-
+        settingsOps.add('email', email);
+        OAuthObjectCheck(email);
         return res.status(200).json({ message: 'Successfully logged in', success: true });
     } catch (err) {
         handleError(filePath, 'loginUser', res, err, 'Logging User');

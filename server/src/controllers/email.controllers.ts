@@ -27,7 +27,7 @@ const saveOutboundMail = async (payload: OutboundEmailType) => {
                 attachmentId: file.attachmentId,
             })) || [],
             sentAt: new Date(),
-            category: payload.category || "Misc",
+            category: payload.category,
             status: "sent",
         });
 
@@ -39,14 +39,9 @@ const saveOutboundMail = async (payload: OutboundEmailType) => {
     }
 };
 
-// GET api.plum.com/email/fetch
-const fetchEmails = async (req: Request, res: Response) => {
-    const googleReq = req as GoogleAuthenticatedRequest;
-    const OAuth = googleReq.auth!;
+const fetchEmailsUtil = async (OAuth: object, numberOfEmails: number = 10) => {
+    // @ts-ignore
     const gmail = google.gmail({ version: 'v1', auth: OAuth });
-
-    const numberOfEmails = Number(req.query.numberOfEmails || 10);
-
     try {
         const messageListResponse = await gmail.users.messages.list({
             userId: 'me',
@@ -56,7 +51,7 @@ const fetchEmails = async (req: Request, res: Response) => {
 
         const messages = messageListResponse.data.messages;
         if (!messages || messages.length === 0) {
-            return res.status(200).json({ emails: [], success: true });
+            return [];
         }
 
         const extractBody = (payload: any): { html?: string; text?: string } => {
@@ -165,13 +160,49 @@ const fetchEmails = async (req: Request, res: Response) => {
         });
 
         const emails = await Promise.all(emailPromises);
+        return emails;
+    } catch (err) {
+        handleErrorUtil(filePath, 'fetchEmailsUtil', err, 'Fetching Emails (Utility)')
+    }
+};
+
+const fetchUniqueEmails = async (emails: InboundEmailType[]): Promise<InboundEmailType[]> => {
+    try {
+        const ids = emails.map((email) => email.id);
+        const existing = await models.InboundEmail.find(
+            {
+                id: { $in: ids }
+            },
+            { id: 1 }
+        );
+
+        const existingIds = new Set(existing.map(e => e.id));
+        return emails.filter((email) => !existingIds.has(email.id));
+    } catch (err) {
+        handleErrorUtil(filePath, 'fetchUniqueEmails', err, 'Fetching Unique Emails');
+    }
+    return [];
+};
+
+// GET api.plum.com/email/fetch
+const fetchEmails = async (req: Request, res: Response) => {
+    const googleReq = req as GoogleAuthenticatedRequest;
+    const OAuth = googleReq.auth!;
+
+    const numberOfEmails = Number(req.query.numberOfEmails || 10);
+
+    try {
+        const emails = await fetchEmailsUtil(OAuth, numberOfEmails);
+
+        if (!emails) {
+            throw Error('Could not fetch emails');
+        }
 
         return res.status(200).json({
             emails,
             emailsCount: emails.length,
             success: true,
         });
-
     } catch (err) {
         handleError(filePath, 'fetchEmails', res, err, 'Fetching Emails via Gmail');
     }
@@ -244,6 +275,8 @@ const sendEmail = async (req: Request, res: Response) => {
 const emailOps = {
     sendEmail,
     fetchEmails,
+    fetchEmailsUtil,
+    fetchUniqueEmails,
     draftEmail
 };
 

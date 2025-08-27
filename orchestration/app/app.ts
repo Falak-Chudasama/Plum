@@ -6,8 +6,8 @@ import categorize from "../agents/categorizer.agents";
 
 const app = express();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(cors({
     origin: process.env.ACCEPTED_ORIGINS!.split(','),
     methods: ["GET", "POST"],
@@ -22,6 +22,8 @@ app.get('/', (req: Request, res: Response) => {
 app.post('/categorize', async (req: Request, res: Response) => {
     try {
         const { emails, categories } = req.body;
+
+        console.log('Categorizor called');
 
         if (!emails || emails.length === 0) {
             throw Error('Emails are missing in the request');

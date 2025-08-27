@@ -7,6 +7,8 @@ const model = constants.ollamaModels.qwenMed;
 
 const categorize = async (email: InboundEmailType, categories: CategoryType[]): Promise<string[] | null> => {
     try {
+        console.log('Categorizor agent called');
+
         const system = `
         You are an email categorization model.
         Below is a list of categories. Your task is to classify each email into one or two of these categories **only**. If the email doesn't clearly match any, classify it as "Other".

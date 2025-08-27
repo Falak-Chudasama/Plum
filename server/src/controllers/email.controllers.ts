@@ -10,7 +10,7 @@ const filePath: string = '/src/controllers/email.controllers.ts'
 
 // TODO: Use dynamic fields from `email` if needed
 
-const saveOutboundMail = async (payload: OutboundEmailType) => {
+const saveOutboundEmail = async (payload: OutboundEmailType) => {
     try {
         const record = new models.OutboundEmail({
             from: payload.from,
@@ -36,6 +36,17 @@ const saveOutboundMail = async (payload: OutboundEmailType) => {
     } catch (err) {
         handleErrorUtil(filePath, 'saveOutboundMail', err, `Saving outbound mail 'from': ${payload.from} 'to': ${payload.to}`);
         throw err;
+    }
+};
+
+const saveInboundEmails = async (emails: InboundEmailType[]): Promise<{ inserted: number; skipped: number }> => {
+    try {
+        if (emails.length === 0) return { inserted: 0, skipped: 0 };
+        await models.InboundEmail.insertMany(emails);
+        return { inserted: emails.length, skipped: 0 };
+    } catch (err) {
+        handleErrorUtil(filePath, "saveInboundEmails", err, "Saving inbound emails to DB");
+        return { inserted: 0, skipped: emails.length };
     }
 };
 
@@ -277,7 +288,9 @@ const emailOps = {
     fetchEmails,
     fetchEmailsUtil,
     fetchUniqueEmails,
-    draftEmail
+    draftEmail,
+    saveOutboundEmail,
+    saveInboundEmails,
 };
 
 export default emailOps;

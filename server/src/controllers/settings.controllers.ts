@@ -18,7 +18,7 @@ const add = async (key: string, value: any): Promise<boolean> => {
     try {
         const result = await SettingsModel.updateOne(
             { key },
-            { $set: value },
+            { $set: { value } },
             { upsert: true }
         );
         if (!result) throw Error('Failed to add: ' + key);

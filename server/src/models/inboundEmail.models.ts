@@ -16,7 +16,7 @@ const ParsedDateSchema = new mongoose.Schema({
 });
 
 export const inboundEmailSchema = new mongoose.Schema({
-    email: { type: String, required: true, unique: true },
+    email: { type: String, required: true },
     id: { type: String, required: true, unique: true },
     threadId: { type: String, required: true },
     to: { type: String },

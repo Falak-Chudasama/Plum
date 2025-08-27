@@ -4,6 +4,7 @@ import express, { Request, Response } from "express";
 import handleError from "../utils/errors.utils";
 import categorize from "../agents/categorizer.agents";
 import { morganMiddleware } from "../utils/logger.utils";
+import summarize from "../agents/summarizer.agents";
 
 const filePath = '/app/app.ts';
 
@@ -27,8 +28,6 @@ app.post('/categorize', async (req: Request, res: Response) => {
     try {
         const { emails, categories } = req.body;
 
-        console.log('Categorizor called');
-
         if (!emails || emails.length === 0) {
             throw Error('Emails are missing in the request');
         }
@@ -43,8 +42,24 @@ app.post('/categorize', async (req: Request, res: Response) => {
 
         res.status(200).json({ emails, success: true });
     } catch (err) {
-        // handleError(err);
-        handleError(filePath, '</categorize callback>', res, err, 'Serving Categorizing');
+        handleError(filePath, '<categorize callback>', res, err, 'Serving Categorization');
+        res.status(500).json({ message: 'Internal Server Error in OL', success: false });
+    }
+});
+
+app.post('/summarize', async (req: Request, res: Response) => {
+    try {
+        const { emails } = req.body;
+
+        if (!emails || emails.length === 0) {
+            throw Error('Emails are missing in the request');
+        }
+
+        const summary = await summarize(emails) || '<NO SUMMARY>';
+
+        res.status(200).json({ summary, success: true });
+    } catch (err) {
+        handleError(filePath, '<summarize callback>', res, err, 'Serving Summarization');
         res.status(500).json({ message: 'Internal Server Error in OL', success: false });
     }
 });

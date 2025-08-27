@@ -9,14 +9,12 @@ const model = constants.ollamaModels.qwenMed;
 
 const categorize = async (email: InboundEmailType, categories: CategoryType[]): Promise<string[] | null> => {
     try {
-        console.log('Categorizor agent called');
-
         const system = `
         You are an email categorization model.
         Below is a list of categories. Your task is to classify each email into one or two of these categories **only**. If the email doesn't clearly match any, classify it as "Other".
 
         Rules:
-        - You must choose **at least 1 and at most 3** categories.
+        - You must choose **at least 1 and at most 2** categories.
         - If the email clearly fits only one category, return just that.
         - If it fits more than one, return both — separated strictly by a comma.
         - If the email does not match any listed category, return only: Other
@@ -52,7 +50,6 @@ const categorize = async (email: InboundEmailType, categories: CategoryType[]): 
 
         return response[0].split(',').map(cat => cat.trim());
     } catch (err) {
-        // handleError(err);
         handleErrorUtil(filePath, 'categorize', err, 'Categorizing the Email');
         return null;
     }

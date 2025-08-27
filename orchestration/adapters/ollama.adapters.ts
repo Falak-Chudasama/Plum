@@ -17,8 +17,6 @@ const parseResponse = (response: string): string[] => {
 
 const ollamaGenerateUtil = async ({ model, prompt, system, temperature = 1, stream = false }: GenerateArgs) => {
     try {
-        console.log('[Ollama] Sending prompt...');
-
         const { data } = await axios.post(
             'http://localhost:11434/api/generate',
             { model, prompt, system: `${constants.primarySysPrompt} :: ${system}`, temperature, stream }
@@ -30,14 +28,8 @@ const ollamaGenerateUtil = async ({ model, prompt, system, temperature = 1, stre
 
         const parsed = parseResponse(data.response);
 
-        console.log('[Ollama] Received response');
-
-        console.log(parsed[0]);
-
         return parsed.length === 1 ? parsed[0] : parsed;
     } catch (err) {
-        console.error('[Ollama] Failed to generate response');
-        // handleError(err);
         handleErrorUtil(filePath, 'ollamaGenerateUtil', err, 'Calling Ollama to generate response (Utility)');
     }
 };

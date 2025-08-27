@@ -1,7 +1,9 @@
 import ollamaGenerate from "../adapters/ollama.adapters";
 import constants from "../constants/constants";
 import { InboundEmailType, CategoryType } from "../types/types";
-import handleError from "../utils/errors.utils";
+import { handleErrorUtil } from "../utils/errors.utils";
+
+const filePath = '/agents/categorizer.agents.ts';
 
 const model = constants.ollamaModels.qwenMed;
 
@@ -50,7 +52,8 @@ const categorize = async (email: InboundEmailType, categories: CategoryType[]): 
 
         return response[0].split(',').map(cat => cat.trim());
     } catch (err) {
-        handleError(err);
+        // handleError(err);
+        handleErrorUtil(filePath, 'categorize', err, 'Categorizing the Email');
         return null;
     }
 };

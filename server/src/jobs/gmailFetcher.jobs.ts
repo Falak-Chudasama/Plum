@@ -8,7 +8,7 @@ import globals from "../globals/globals";
 
 const filePath = '/src/jobs/gmailFetcher.jobs.ts';
 const delay = 15 * 60 * 1000;
-const n = 15;
+const n = 20;
 
 const main = async (email: string, OAuth: any) => {
     try {

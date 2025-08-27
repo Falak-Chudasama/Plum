@@ -1,8 +1,10 @@
 import axios from "axios";
-import handleError from "../utils/errors.utils";
+import { handleErrorUtil } from "../utils/errors.utils";
 import { GenerateArgs } from "../types/types";
 import constants from "../constants/constants";
 import TaskQueue from "../core/TaskQueue";
+
+const filePath = '/adapters/ollama.adapters.ts';
 
 const ollamaQueue = new TaskQueue();
 
@@ -35,7 +37,8 @@ const ollamaGenerateUtil = async ({ model, prompt, system, temperature = 1, stre
         return parsed.length === 1 ? parsed[0] : parsed;
     } catch (err) {
         console.error('[Ollama] Failed to generate response');
-        handleError(err);
+        // handleError(err);
+        handleErrorUtil(filePath, 'ollamaGenerateUtil', err, 'Calling Ollama to generate response (Utility)');
     }
 };
 
@@ -44,7 +47,7 @@ const ollamaGenerate = async ({ model, prompt, system, temperature = 1, stream =
         const result = await ollamaQueue.add(ollamaGenerateUtil, { model, prompt, system, temperature, stream });
         return result;
     } catch (err) {
-        handleError(err);
+        handleErrorUtil(filePath, 'ollamaGenerateUtil', err, 'Calling Ollama to generate response (Utility)');
         return null;
     }
 };

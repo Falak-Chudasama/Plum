@@ -2,6 +2,9 @@ import axios from "axios";
 import handleError from "../utils/errors.utils";
 import { GenerateArgs } from "../types/types";
 import constants from "../constants/constants";
+import TaskQueue from "../core/TaskQueue";
+
+const ollamaQueue = new TaskQueue();
 
 const parseResponse = (response: string): string[] => {
     return response
@@ -10,7 +13,7 @@ const parseResponse = (response: string): string[] => {
         .filter(chunk => chunk !== '').reverse();
 };
 
-const ollamaGenerate = async ({ model, prompt, system, temperature = 1, stream = false }: GenerateArgs) => {
+const ollamaGenerateUtil = async ({ model, prompt, system, temperature = 1, stream = false }: GenerateArgs) => {
     try {
         console.log('[Ollama] Sending prompt...');
 
@@ -33,6 +36,16 @@ const ollamaGenerate = async ({ model, prompt, system, temperature = 1, stream =
     } catch (err) {
         console.error('[Ollama] Failed to generate response');
         handleError(err);
+    }
+};
+
+const ollamaGenerate = async ({ model, prompt, system, temperature = 1, stream = false }: GenerateArgs): Promise<string | null> => {
+    try {
+        const result = await ollamaQueue.add(ollamaGenerateUtil, { model, prompt, system, temperature, stream });
+        return result;
+    } catch (err) {
+        handleError(err);
+        return null;
     }
 };
 

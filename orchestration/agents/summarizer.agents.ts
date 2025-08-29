@@ -2,6 +2,7 @@ import ollamaGenerate from "../adapters/ollama.adapters";
 import constants from "../constants/constants";
 import { InboundEmailType } from "../types/types";
 import { handleErrorUtil } from "../utils/errors.utils";
+import logger from "../utils/logger.utils";
 
 const filePath = '/agents/summarizer.agents.ts';
 
@@ -38,13 +39,16 @@ const summarize = async (emails: InboundEmailType[]): Promise<string | null> => 
             )}
         `
 
+        logger.info('Summarizer Agent Called');
         const response = await ollamaGenerate({ model, prompt, system, temperature: 0.2 });
 
         if (!response) {
             throw Error('Error getting response from ollama');
         }
 
-        return response[0];
+        console.log(response);
+
+        return response;
     } catch (err) {
         handleErrorUtil(filePath, 'summarize', err, 'Summarizing the Emails');
         return null;

@@ -3,6 +3,7 @@ import path from 'path';
 import { createLogger, format, transports, Logger } from 'winston';
 import morgan from 'morgan';
 import { Request, Response } from 'express';
+import chalk from 'chalk';
 
 const logDir = path.resolve('logs');
 if (!fs.existsSync(logDir)) {
@@ -11,7 +12,7 @@ if (!fs.existsSync(logDir)) {
 
 const { combine, timestamp, printf, colorize, uncolorize } = format;
 
-const createUnifiedFormatter = (truncate: boolean) => {
+const createUnifiedFormatter = (truncate: boolean, useColors: boolean = false) => {
     return printf(({ timestamp, level, message, stack, http }) => {
         if (http) {
             const msg = message as string;
@@ -29,7 +30,31 @@ const createUnifiedFormatter = (truncate: boolean) => {
         }
 
         const logMessage = stack || message;
-        return `${timestamp} | ${level.toUpperCase()} | ${logMessage}`;
+        const levelUpper = level.toUpperCase();
+        
+        if (useColors) {
+            let coloredTag = '';
+            switch (levelUpper) {
+                case 'INFO':
+                    coloredTag = chalk.green(`[${levelUpper}]`);
+                    break;
+                case 'WARN':
+                case 'WARNING':
+                    coloredTag = chalk.yellow(`[${levelUpper}]`);
+                    break;
+                case 'ERROR':
+                    coloredTag = chalk.red(`[${levelUpper}]`);
+                    break;
+                case 'DEBUG':
+                    coloredTag = chalk.blue(`[${levelUpper}]`);
+                    break;
+                default:
+                    coloredTag = chalk.gray(`[${levelUpper}]`);
+            }
+            return `${timestamp} ${coloredTag} ${logMessage}`;
+        } else {
+            return `${timestamp} [${levelUpper}] ${logMessage}`;
+        }
     });
 };
 
@@ -38,9 +63,8 @@ const logger: Logger = createLogger({
     transports: [
         new transports.Console({
             format: combine(
-                colorize(),
                 timestamp({ format: 'DD-MMM-YYYY h:mm:ss A' }),
-                createUnifiedFormatter(true)
+                createUnifiedFormatter(true, true)
             ),
         }),
         new transports.File({
@@ -48,7 +72,7 @@ const logger: Logger = createLogger({
             format: combine(
                 timestamp({ format: 'DD-MMM-YYYY h:mm:ss A' }),
                 uncolorize(),
-                createUnifiedFormatter(false)
+                createUnifiedFormatter(false, false)
             ),
         }),
         new transports.File({
@@ -58,7 +82,7 @@ const logger: Logger = createLogger({
                 timestamp({ format: 'DD-MMM-YYYY h:mm:ss A' }),
                 uncolorize(),
                 format.errors({ stack: true }),
-                createUnifiedFormatter(false)
+                createUnifiedFormatter(false, false)
             ),
         }),
     ],

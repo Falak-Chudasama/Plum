@@ -1,8 +1,9 @@
-import { OAuth2Client } from 'google-auth-library';
-
-const globals: { userGmail: string, OAuthObject: OAuth2Client | null } = {
+const globals = {
     userGmail: '',
-    OAuthObject: null
+    OAuthObject: null,
+    date: '',
+    gmailFetcherJobRunning: false,
+    summarizingJobRunning: false
 };
 
 export default globals

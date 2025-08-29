@@ -2,6 +2,7 @@ import ollamaGenerate from "../adapters/ollama.adapters";
 import constants from "../constants/constants";
 import { InboundEmailType, CategoryType } from "../types/types";
 import { handleErrorUtil } from "../utils/errors.utils";
+import logger from "../utils/logger.utils";
 
 const filePath = '/agents/categorizer.agents.ts';
 
@@ -42,6 +43,7 @@ const categorize = async (email: InboundEmailType, categories: CategoryType[]): 
         body: ${email.bodyText}
         `
 
+        logger.info('Categorizer Agent Called');
         const response = await ollamaGenerate({ model, prompt, system, temperature: 0.0 });
 
         if (!response) {

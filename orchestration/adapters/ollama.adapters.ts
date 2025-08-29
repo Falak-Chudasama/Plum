@@ -3,6 +3,7 @@ import { handleErrorUtil } from "../utils/errors.utils";
 import { GenerateArgs } from "../types/types";
 import constants from "../constants/constants";
 import TaskQueue from "../core/TaskQueue";
+import logger from "../utils/logger.utils";
 
 const filePath = '/adapters/ollama.adapters.ts';
 
@@ -17,9 +18,11 @@ const parseResponse = (response: string): string[] => {
 
 const ollamaGenerateUtil = async ({ model, prompt, system, temperature = 1, stream = false }: GenerateArgs) => {
     try {
+        logger.info('Ollama API Called');
         const { data } = await axios.post(
             'http://localhost:11434/api/generate',
-            { model, prompt, system: `${constants.primarySysPrompt} :: ${system}`, temperature, stream }
+            { model, prompt, system: `${constants.primarySysPrompt} :: ${system}`, temperature, stream },
+            { timeout: 30 * 60 * 1000 }
         );
 
         if (!data || !data.response) {
@@ -28,6 +31,7 @@ const ollamaGenerateUtil = async ({ model, prompt, system, temperature = 1, stre
 
         const parsed = parseResponse(data.response);
 
+        logger.info('Successfully got Ollama Response');
         return parsed.length === 1 ? parsed[0] : parsed;
     } catch (err) {
         handleErrorUtil(filePath, 'ollamaGenerateUtil', err, 'Calling Ollama to generate response (Utility)');

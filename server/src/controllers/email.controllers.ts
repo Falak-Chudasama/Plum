@@ -195,6 +195,16 @@ const fetchUniqueEmails = async (emails: InboundEmailType[]): Promise<InboundEma
     return [];
 };
 
+const fetchEmailsDate = async (email: string, day: string, month: string, year: string): Promise<InboundEmailType[]> => {
+    try {
+        const emails = await models.InboundEmail.find({ email, "parsedDate.day": day, "parsedDate.month": month, "parsedDate.year": year });
+        return emails ?? [];
+    } catch (err) {
+        handleErrorUtil(filePath, 'fetchEmailsDate', err, 'Fetching Emails by Date');
+    }
+    return [];
+};
+
 // GET api.plum.com/email/fetch
 const fetchEmails = async (req: Request, res: Response) => {
     const googleReq = req as GoogleAuthenticatedRequest;
@@ -288,6 +298,7 @@ const emailOps = {
     fetchEmails,
     fetchEmailsUtil,
     fetchUniqueEmails,
+    fetchEmailsDate,
     draftEmail,
     saveOutboundEmail,
     saveInboundEmails,

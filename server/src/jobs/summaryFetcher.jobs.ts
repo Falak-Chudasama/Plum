@@ -30,7 +30,6 @@ const main = async () => {
             date.toLocaleString("en-US", { month: "long" }),
             String(date.getFullYear())
         );
-        console.log('asfdhjkl');
         if (!emails || emails.length === 0) {
             globals.summarizingJobRunning = false;
             return;

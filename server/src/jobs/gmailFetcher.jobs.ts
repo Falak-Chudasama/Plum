@@ -4,6 +4,7 @@ import { handleErrorUtil } from "../utils/errors.utils";
 import orchAPIs from "../apis/orch.apis";
 import globals from "../globals/globals";
 import logger from "../utils/logger.utils";
+import utils from "../utils/utils";
 
 const filePath = '/src/jobs/gmailFetcher.jobs.ts';
 const delay = 5 * 60 * 1000;
@@ -11,8 +12,7 @@ const minN = 10;
 
 const main = async () => {
     try {
-        const n = 10;
-        // const n = Math.max(minN, Math.ceil(utils.getMinuteDifference(globals.date!, globals.time!) / 50));
+        const n = Math.max(minN, Math.ceil(utils.getMinuteDifference(globals.date!, globals.time!) / 50));
         const emails = await emailOps.fetchEmailsUtil(globals.OAuthObject, n);
         const uniqueEmails = await emailOps.fetchUniqueEmails(emails);
 

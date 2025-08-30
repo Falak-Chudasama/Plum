@@ -4,35 +4,48 @@ import { handleErrorUtil } from "../utils/errors.utils";
 import orchAPIs from "../apis/orch.apis";
 import globals from "../globals/globals";
 import logger from "../utils/logger.utils";
+import summaryOps from "../controllers/summary.controllers";
+import utils from "../utils/utils";
 
 const filePath = '/src/jobs/summaryFetcher.jobs.ts';
 const delay = 60 * 60 * 1000;
 
-const main = async (email: string, cachedDate: string) => {
+const main = async () => {
     try {
-        const date = new Date();
-        const today = `${date.getDate()}/${date.toLocaleString("en-US", { month: "long" })}/${date.getFullYear()}`
-
+        const email = globals.email!;
+        const cachedDate = globals.date!;
+        
+        const { day, month, year } = utils.getToday();
+        const today = `${day}/${month}/${year}`;
+        
         if (today === cachedDate) {
-            globals.summarizingJobRunning = false;
+            logger.info('Summary is Up to Date');
             return;
         }
-
+        const date = new Date();
         date.setDate(date.getDate() - 1);
-        // settingsOps.add('date', today);
-        // globals.date = today
         const emails = await emailOps.fetchEmailsDate(
             email,
             String(date.getDate()),
             date.toLocaleString("en-US", { month: "long" }),
             String(date.getFullYear())
         );
-        if (!emails || emails.length === 0) return;
+        console.log('asfdhjkl');
+        if (!emails || emails.length === 0) {
+            globals.summarizingJobRunning = false;
+            return;
+        };
 
-        const summary = await orchAPIs.summarize(emails);
-
-        console.log(summary);
-        // summary db operations
+        const response = await orchAPIs.summarize(emails);
+        if (response && response.success) {
+            const { summary } = response;
+            await summaryOps.create(email, summary);
+            await settingsOps.add('date', today);
+            globals.date = today;
+            logger.info(`Saved Summary Length: ${summary.length}`);
+        } else {
+            throw Error('Failed to get Summary');
+        }
     } catch (err) {
         handleErrorUtil(filePath, 'main', err, 'Fetching summary / Calling OL Api');
     }
@@ -44,23 +57,9 @@ const startSummaryFetcher = async () => {
         logger.info('Gmail Summarizer Job running');
         globals.summarizingJobRunning = true;
 
-        if (!globals.userGmail) {
-            globals.userGmail = await settingsOps.find('email');
-        }
-        if (!globals.userGmail) throw Error('Email was not known to run background jobs');
-
-        if (!globals.date) {
-            globals.date = await settingsOps.find('date');
-        }
-        if (!globals.date) throw Error('Date was not known to run background jobs');
-
-
-        const email = globals.userGmail;
-        const cachedDate = globals.date;
-
-        await main(email, cachedDate);
+        await main();
         setInterval(async () => {
-            await main(email, cachedDate);
+            await main();
         }, delay);
     } catch (err) {
         logger.warn('Gmail Summarizer Job Stopped');

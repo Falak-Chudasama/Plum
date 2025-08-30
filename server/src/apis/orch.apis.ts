@@ -22,14 +22,12 @@ const categorize = async (emails: InboundEmailType[], categories: CategoryType[]
     return null;
 };
 
-const summarize = async (emails: InboundEmailType[]): Promise<string | null> => {
+const summarize = async (emails: InboundEmailType[]): Promise<{ summary: string, success: boolean } | null> => {
     try {
         logger.info('Summarize API Called');
         const result = await axios.post(`${constants.orchOrigin}/summarize`, {
             emails
         }, { timeout: 30 * 60 * 1000 });
-
-        console.log(result.data);
 
         return result.data;
     } catch (err) {

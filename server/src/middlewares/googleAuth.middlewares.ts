@@ -16,14 +16,14 @@ if (!clientID || !clientSecret || !redirectUri) {
 }
 
 export const OAuthObjectCheck = async (email: string) => {
-    if (email === globals.userGmail && globals.OAuthObject !== null) return;
+    if (email === globals.email && globals.OAuthObject !== null) return;
     else {
-        globals.userGmail = email;
+        globals.email = email;
         const { google } = await import('googleapis');
         globals.OAuthObject = new google.auth.OAuth2(clientID, clientSecret, redirectUri);
     }
 
-    const result = await userOps.getGoogleTokensUtil(globals.userGmail);
+    const result = await userOps.getGoogleTokensUtil(globals.email);
     if (!result.success) {
         throw Error('Failed to access credentials');
     }

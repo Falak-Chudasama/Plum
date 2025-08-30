@@ -3,13 +3,15 @@ import InboundEmail from "./inboundEmail.models";
 import OutboundEmail from "./outboundEmail.models";
 import CategoryModel from "./category";
 import SettingsModel from "./settings.models";
+import SummaryModel from "./summary";
 
 const models = {
     User,
     InboundEmail,
     OutboundEmail,
     CategoryModel,
-    SettingsModel
+    SettingsModel,
+    SummaryModel
 };
 
 export default models;

@@ -2,6 +2,15 @@ import axios from "axios";
 import contants from "../constants/constants"
 import handleError from "../utils/errors.utils";
 
+const axiosAuth = axios.create({
+    baseURL: `${contants.serverOrigin}/user/`,
+    withCredentials: true
+});
+
+const axiosEmail = axios.create({
+    baseURL: `${contants.serverOrigin}/email/`,
+    withCredentials: true
+});
 
 /*
     Auth APIs
@@ -9,15 +18,7 @@ import handleError from "../utils/errors.utils";
 
 async function login(email: string = 'falak.chudasama@gmail.com', fName: string = 'Falak', lName: string = 'Chudasama') {
     try {
-        const result = await axios.post(
-            `${contants.serverOrigin}/user/auth/login`,
-            {
-                email,
-                fName,
-                lName
-            },
-            { withCredentials: true }
-        )
+        const result = await axiosAuth.post('/login', { email, fName, lName })
 
         console.log('LOGIN: ')
         console.log(result.data);
@@ -44,13 +45,9 @@ const dummyMail = {
     body: 'I had a thought, but forgot the thought, remind me the thought'
 }
 
-async function sendMail(mail: any = '') {
+async function sendMail(email: any = '') {
     try {
-        const response = await axios.post(
-            `${contants.serverOrigin}/email/send`,
-            { email: mail },
-            { withCredentials: true }
-        );
+        const response = await axiosEmail.post('/send', { email });
 
         console.log('Email sent successfully:', response.data);
         return response.data;
@@ -62,12 +59,9 @@ async function sendMail(mail: any = '') {
 
 async function fetchMail(numberOfEmails: number = 4) {
     try {
-        const response = await axios.get(
-            `${contants.serverOrigin}/email/fetch`,
-            {
-                params: { numberOfEmails },
-                withCredentials: true
-            }
+        const response = await axiosEmail.get(
+            '/fetch',
+            {params: { numberOfEmails }}
         );
 
         // @ts-ignore
@@ -79,7 +73,6 @@ async function fetchMail(numberOfEmails: number = 4) {
         console.log(response.data.emails);
         return response.data;
     } catch (err) {
-        console.error(err);
         handleError(err);
     }
 };

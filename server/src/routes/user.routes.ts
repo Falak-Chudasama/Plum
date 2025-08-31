@@ -3,7 +3,7 @@ import userOps from "../controllers/user.controllers";
 
 const userRouter = Router();
 
-// api.plum.com/user/
+// api.plum.com/user
 userRouter.get('/', userOps.findUser);
 userRouter.post('/auth/login', userOps.loginUser);
 userRouter.get('/auth/callback', userOps.googleCallback);

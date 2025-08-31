@@ -5,10 +5,17 @@
     --font-cabin: "Cabin";
     --font-ibm-plex-sans: "IBM Plex Sans";
 
-    --color-plum-primary: #582FA1;
-    --color-plum-secondary: #FF7D66;
-    --color-plum-bg: #F7F5FB;
-    --color-plum-surface: #EEEEEE;
-    --color-plum-border: #D1C8EB;
-    --color-plum-text: #403964;
+    --color-plum-primary: #7A5BB9;
+    --color-plum-secondary: #403964;
+    --color-plum-bg: #F7F2FF;
+    --color-plum-surface: #D1C8EB;
+}
+
+.auth-left-bg {
+    background: linear-gradient(180deg, rgba(64, 57, 100, 0.8) 0%, rgba(31, 28, 48, 0.8) 70%),
+        url('/plum-bg.png');
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.25);
 }

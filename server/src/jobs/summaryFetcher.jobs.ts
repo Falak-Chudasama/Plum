@@ -39,7 +39,6 @@ const main = async () => {
         if (response && response.success) {
             const { summary } = response;
             await summaryOps.create(email, summary);
-            await settingsOps.add('date', today);
             globals.date = today;
             logger.info(`Saved Summary Length: ${summary.length}`);
         } else {

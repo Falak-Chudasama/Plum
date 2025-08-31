@@ -4,6 +4,7 @@ import logger from "../utils/logger.utils";
 import { OAuthObjectCheck } from "../middlewares/googleAuth.middlewares";
 import startGmailFetcherJob from "./gmailFetcher.jobs";
 import startSummaryFetcher from "./summaryFetcher.jobs";
+import utils from "../utils/utils";
 
 const delay = 1000;
 // const delay = 2 * 60 * 1000;
@@ -30,8 +31,12 @@ const runJobs = async () => {
             await startGmailFetcherJob();
         }
         if (globals.summarizingJobRunning === false) {
-            startSummaryFetcher();
+            await startSummaryFetcher();
         }
+
+        const { seconds, minutes, hours, day, month, year } = utils.getToday();
+        await settingsOps.add('date', `${day}/${month}/${year}`);
+        await settingsOps.add('time', `${hours}:${minutes}:${seconds}`);
     }, delay);
 };
 

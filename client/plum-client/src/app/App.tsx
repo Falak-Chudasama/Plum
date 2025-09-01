@@ -19,8 +19,8 @@ export default function App() {
 
 			<Route path="/home/:id" element={<Home />} />
 			<Route path="/home" element={<Home />} />
+			<Route path="/" element={<Home />} />
 
-			<Route path="/" element={<Navigate to="/signup" replace />} />
 			<Route path="*" element={<Navigate to="/error" replace />} />
 		</Routes>
 	);

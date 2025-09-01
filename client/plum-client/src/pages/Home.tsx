@@ -1,39 +1,23 @@
-import useGmailStore from "../store/GmailStore";
-import Cookies from "js-cookie";
-import { useEffect, useState } from "react";
-import { Navigate, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import utils from "../utils/utils";
 
 function Home() {
-    const [authenticated, setAuthenticated] = useState(false);
-    const { gmail, setGmail } = useGmailStore();
-    const { id } = useParams<{ id: string }>();
-    let gmailCookie = Cookies.get('gmail');
-    gmailCookie = decodeURIComponent(gmailCookie || 'h');
-    let pictureCookie = Cookies.get('picture');
-    pictureCookie = decodeURIComponent(pictureCookie || 'h');
+    const { id } = useParams<string>();
+    const { gmailCookie } = utils.parseGmailCookies();
+    const navigate = useNavigate();
 
     useEffect(() => {
-        document.title = 'Plum';
-
-        if (gmailCookie) {
-            setGmail({ gmailId: gmailCookie, profileUrl: pictureCookie });
-        } else if (id !== gmail?.gmailId) {
-            setAuthenticated(false);
-            return;
+        if (!id && !gmailCookie) {
+            navigate(`/signup?warning=unauthorized`, { replace: true });
+        } else if (!id || id !== gmailCookie) {
+            navigate(`/home/${gmailCookie}`, { replace: true });
         }
-        setAuthenticated(true);
-    });
-
-    if (!authenticated) {
-        return <p>NOT AUTH</p>
-        // return <Navigate to={'/login?warning=invalid_gmailId'} replace />
-    }
-
-    console.log(gmailCookie);
+    }, [id, gmailCookie, navigate]);
 
     return (
-        <p>Hello {gmailCookie}</p>
-    )
+        <p>Hello</p>
+    );
 }
 
 export default Home;

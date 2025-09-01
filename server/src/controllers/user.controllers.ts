@@ -83,7 +83,7 @@ const loginUser = async (req: Request, res: Response) => {
             return res.status(401).json({ message: `Invalid credentials submitted`, success: false });
         }
 
-        createAuthTokens(email, res);
+        await createAuthTokens(email, res);
         settingsOps.add('email', email);
         OAuthObjectCheck(email);
 
@@ -195,10 +195,10 @@ const googleCallback = async (req: Request, res: Response) => {
 
         await createUser(res, userInfo.data, { access_token, refresh_token, id_token });
 
-        createAuthTokens(userInfo.data.email, res);
+        await createAuthTokens(userInfo.data.email, res);
 
         res.cookie('picture', userInfo.data.picture, {
-            httpOnly: true,
+            httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             domain: '.plum.com',

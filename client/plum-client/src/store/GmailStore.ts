@@ -1,8 +1,8 @@
 import { create } from "zustand";
 
 type Gmail = {
-    gmailId: string;
-    profileUrl: string;
+    gmailId: string | null;
+    profileUrl: string | null;
 };
 
 type GmailState = {

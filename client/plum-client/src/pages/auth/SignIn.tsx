@@ -2,19 +2,23 @@ import apis from "../../apis/apis";
 import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import components from "../../components/components";
-import { Link, Navigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import useGmailStore from "../../store/GmailStore";
+import utils from "../../utils/utils";
 
 function SignIn() {
     const { WhiteLogo } = components;
     const [loading, setLoading] = useState(false);
-    const { gmail, setGmail, removeGmail } = useGmailStore();
+    const { gmail, setGmail } = useGmailStore();
+    const navigate = useNavigate();
     const fNameRef = useRef<HTMLInputElement | null>(null);
     const lNameRef = useRef<HTMLInputElement | null>(null);
     const gmailRef = useRef<HTMLInputElement | null>(null);
+    const submitRef = useRef<HTMLButtonElement | null>(null);
 
     useEffect(() => {
         document.title = 'Plum | Login';
+        fNameRef.current?.focus();
     });
 
     const mutation = useMutation({
@@ -23,8 +27,9 @@ function SignIn() {
 
         onSuccess: (data) => {
             console.log("Login success:", data);
-            // store gmail in Zustand
-            // navigate to home
+            const { gmailCookie, pictureCookie } = utils.parseGmailCookies();
+            setGmail({ gmailId: gmailCookie, profileUrl: pictureCookie });
+            navigate(`/home/${gmailCookie}`, { replace: true });
         },
 
         onError: (err) => {
@@ -33,9 +38,10 @@ function SignIn() {
         },
     });
 
-    const handleClick = () => {
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
         if (!fNameRef.current || !lNameRef.current || !gmailRef.current) return;
-        setLoading(true);
 
         const fName = fNameRef.current.value.trim();
         const lName = lNameRef.current.value.trim();
@@ -46,7 +52,7 @@ function SignIn() {
             return;
         }
 
-        mutation.mutate({ fName, lName, gmail });
+        mutation.mutate({ gmail, fName, lName });
     }
 
     const fieldClass = 'h-13 border-3 border-plum-secondary rounded-full relative flex justify-end';
@@ -77,27 +83,25 @@ function SignIn() {
                         Your Gmail assistant
                     </h3>
                 </div>
-                <div className="min-w-90 max-w-100 h-fit grid place-items-center gap-y-4">
+                <form className="min-w-90 max-w-100 h-fit grid place-items-center gap-y-4" onSubmit={handleSubmit}>
                     <div className="w-full flex items-center justify-between gap-x-2">
                         <div className={`w-1/2 ${fieldClass}`}>
                             <p className="text-lg absolute px-1 top-[-1.1rem] left-5 bg-plum-bg">Name</p>
-                            <input ref={fNameRef} type="text" maxLength={15} className={`w-7/8 ${inputClass}`} />
+                            <input required ref={fNameRef} type="text" maxLength={15} className={`w-7/8 ${inputClass}`} />
                         </div>
                         <div className={`w-1/2 ${fieldClass}`}>
                             <p className="text-lg absolute px-1 top-[-1.1rem] left-5 bg-plum-bg">Last name</p>
-                            <input ref={lNameRef} type="text" maxLength={15} className={`w-7/8 ${inputClass}`} />
+                            <input required ref={lNameRef} type="text" maxLength={15} className={`w-7/8 ${inputClass}`} />
                         </div>
                     </div>
                     <div className="w-full">
                         <div className={`w-full ${fieldClass}`}>
                             <p className="text-lg absolute px-1 top-[-1.1rem] left-5 bg-plum-bg">Gmail address</p>
-                            <input ref={gmailRef} type="email" className={`w-14/15 ${inputClass}`} />
+                            <input required ref={gmailRef} type="email" className={`w-14/15 ${inputClass}`} />
                         </div>
                     </div>
                     <div className="grid w-full justify-items-stretch gap-y-2">
-                        <button onClick={() => {
-                            handleClick();
-                        }} className="
+                        <button type="submit" ref={submitRef} className="
                         group
                         w-full py-2 hover:bg-plum-surface-hover duration-300 border-plum-secondary border-3
                         bg-plum-surface rounded-full
@@ -119,7 +123,7 @@ function SignIn() {
                             <Link to='/signup' className="text-plum-primary underline cursor-pointer">Sign up</Link> If a new user
                         </span>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
     );

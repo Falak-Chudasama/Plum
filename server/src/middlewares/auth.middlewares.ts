@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import handleError, { handleErrorUtil } from '../utils/errors.utils';
 import { AuthenticatedRequest } from '../types/types';
+import userOps from '../controllers/user.controllers';
 
 const filePath = '/src/middlewares/auth.middlewares.ts';
 
@@ -16,11 +17,13 @@ const refreshTokenDays = Number(process.env.REFRESH_TOKEN_EXPIRY) || 15;
 const accessTokenExpiry = accessTokenDays + 'd';
 const refreshTokenExpiry = refreshTokenDays + 'd';
 
-export const createAuthTokens = (
+export const createAuthTokens = async (
     email: string,
     res: Response
 ) => {
     try {
+        const user = await userOps.findUserUtil(email);
+
         const accessToken = jwt.sign(
             { email },
             accessTokenSecret,
@@ -53,7 +56,15 @@ export const createAuthTokens = (
         });
 
         res.cookie('gmail', email, {
-            httpOnly: true,
+            httpOnly: false,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            domain: '.plum.com',
+            maxAge: Number(process.env.GMAIL_EXPIRY)! * 24 * 60 * 60 * 1000
+        });
+
+        res.cookie('picture', user!.profilePicture, {
+            httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             domain: '.plum.com',

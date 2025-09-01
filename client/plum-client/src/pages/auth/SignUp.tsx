@@ -46,9 +46,9 @@ function SignUp() {
                         handleClick();
                     }} className="
                         group
-                        py-3 px-20 hover:px-23 hover:bg-plum-surface-hover duration-300 border-plum-secondary border-3
+                        py-2 px-20 hover:px-23 hover:bg-plum-surface-hover duration-300 border-plum-secondary border-3
                         bg-plum-surface rounded-full
-                        text-2xl text-center
+                        text-2xl text-center font-medium
                         cursor-pointer shadow-plum-stock-xs hover:shadow-plum-surface-xl
                         ">
                         {loading ? (

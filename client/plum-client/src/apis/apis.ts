@@ -3,7 +3,7 @@ import contants from "../constants/constants"
 import handleError from "../utils/errors.utils";
 
 const axiosAuth = axios.create({
-    baseURL: `${contants.serverOrigin}/user/`,
+    baseURL: `${contants.serverOrigin}/user`,
     withCredentials: true
 });
 
@@ -16,21 +16,21 @@ const axiosEmail = axios.create({
     Auth APIs
 */
 
-async function login(email: string = 'falak.chudasama@somaiya.edu', fName: string = 'Falak', lName: string = 'Chudasama') {
+async function login(email: string, fName: string, lName: string) {
     try {
         const result = await axiosAuth.post('/auth/login', { email, fName, lName })
 
         console.log('LOGIN: ');
         console.log(result.data);
 
-        if (!result.data && !result.data.success) {
-            throw Error('Failed to login');
+        if (!result.data || !result.data.success) {
+            throw new Error(result.data?.message || 'Failed to login');
         }
 
         return result.data;
     } catch (err) {
-        console.error(err);
         handleError(err);
+        throw err;
     }
 }
 

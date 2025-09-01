@@ -9,6 +9,10 @@
     --color-plum-secondary: #403964;
     --color-plum-bg: #F7F2FF;
     --color-plum-surface: #D1C8EB;
+    --color-plum-surface-hover: #CFBFFB;
+
+    --shadow-plum-surface-xs: 0 0 8px 0 rgba(210, 200, 235, 1);
+    --shadow-plum-surface-xl: 0 0 12px 0 rgba(210, 200, 235, 1);
 }
 
 .auth-left-bg {

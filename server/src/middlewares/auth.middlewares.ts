@@ -52,6 +52,14 @@ export const createAuthTokens = (
             maxAge: refreshTokenDays * 24 * 60 * 60 * 1000
         });
 
+        res.cookie('gmail', email, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            domain: '.plum.com',
+            maxAge: Number(process.env.GMAIL_EXPIRY)! * 24 * 60 * 60 * 1000
+        });
+
     } catch (err) {
         handleErrorUtil(filePath, 'createAuthTokens', err, 'Creating Authentication Tokens');
     }

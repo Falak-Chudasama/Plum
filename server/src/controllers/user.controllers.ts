@@ -86,6 +86,7 @@ const loginUser = async (req: Request, res: Response) => {
         createAuthTokens(email, res);
         settingsOps.add('email', email);
         OAuthObjectCheck(email);
+
         return res.status(200).json({ message: 'Successfully logged in', success: true });
     } catch (err) {
         handleError(filePath, 'loginUser', res, err, 'Logging User');
@@ -196,7 +197,15 @@ const googleCallback = async (req: Request, res: Response) => {
 
         createAuthTokens(userInfo.data.email, res);
 
-        res.redirect(`http://${frontendOrigin}`);
+        res.cookie('picture', userInfo.data.picture, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            domain: '.plum.com',
+            maxAge: Number(process.env.GMAIL_EXPIRY!) * 24 * 60 * 60 * 1000
+        })
+
+        res.redirect(`http://${frontendOrigin}/home/${userInfo.data.email}`);
     } catch (err) {
         handleError('/src/controllers/user.controllers.ts', 'googleCallback', res, err, 'Google Callback');
     }

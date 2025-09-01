@@ -1,5 +1,11 @@
+import { useEffect } from "react";
+
 function Error() {
-    return(
+    useEffect(() => {
+        document.title = 'Plum';
+    });
+
+    return (
         <div>
             ERROR
         </div>

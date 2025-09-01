@@ -16,12 +16,16 @@ const axiosEmail = axios.create({
     Auth APIs
 */
 
-async function login(email: string = 'falak.chudasama@gmail.com', fName: string = 'Falak', lName: string = 'Chudasama') {
+async function login(email: string = 'falak.chudasama@somaiya.edu', fName: string = 'Falak', lName: string = 'Chudasama') {
     try {
-        const result = await axiosAuth.post('/login', { email, fName, lName })
+        const result = await axiosAuth.post('/auth/login', { email, fName, lName })
 
-        console.log('LOGIN: ')
+        console.log('LOGIN: ');
         console.log(result.data);
+
+        if (!result.data && !result.data.success) {
+            throw Error('Failed to login');
+        }
 
         return result.data;
     } catch (err) {

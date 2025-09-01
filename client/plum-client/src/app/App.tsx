@@ -8,18 +8,19 @@ export default function App() {
 	return (
 		<Routes>
 			<Route path="/signup" element={<SignUp />} />
-			<Route path="/signup/warning=:warning" element={<SignUp />} />
+			<Route path="/signup?warning=:warning" element={<SignUp />} />
 
 			<Route path="/login" element={<SignIn />} />
-			<Route path="/login/warning=:warning" element={<SignIn />} />
+			<Route path="/login?warning=:warning" element={<SignIn />} />
 			<Route path="/signin" element={<SignIn />} />
-			<Route path="/signin/warning=:warning" element={<SignIn />} />
+			<Route path="/signin?warning=:warning" element={<SignIn />} />
 
 			<Route path="/error" element={<Error />} />
 
 			<Route path="/home/:id" element={<Home />} />
+			<Route path="/home" element={<Home />} />
 
-			<Route path="/" element={<Navigate to="/login" replace />} />
+			<Route path="/" element={<Navigate to="/signup" replace />} />
 			<Route path="*" element={<Navigate to="/error" replace />} />
 		</Routes>
 	);

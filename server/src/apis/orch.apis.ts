@@ -6,12 +6,14 @@ import logger from "../utils/logger.utils";
 
 const filePath = '/src/apis/orch.apis.ts';
 
+const delay = 2 * 60; // two hours
+
 const categorize = async (emails: InboundEmailType[], categories: CategoryType[]): Promise<InboundEmailType[] | null> => {
     try {
         logger.info('Categorize API called');
         const result = await axios.post(`${constants.orchOrigin}/categorize`, { 
             emails, categories
-        }, { timeout: 30 * 60 * 1000 });
+        }, { timeout: delay * 60 * 1000 });
 
         if (!result.data || !result.data.success) throw Error('Failed to get categorized mails');
 
@@ -27,7 +29,7 @@ const summarize = async (emails: InboundEmailType[]): Promise<{ summary: string,
         logger.info('Summarize API Called');
         const result = await axios.post(`${constants.orchOrigin}/summarize`, {
             emails
-        }, { timeout: 30 * 60 * 1000 });
+        }, { timeout: delay * 60 * 1000 });
 
         return result.data;
     } catch (err) {

@@ -3,7 +3,7 @@ const getToday = () => {
     const pad = (n: number) => n.toString().padStart(2, '0');
     return {
         timestamp: date.getTime(),
-        day: String(date.getDate()),
+        day: pad(date.getDate()),
         weekday: date.toLocaleString('en-US', { weekday: "long" }),
         month: date.toLocaleString('en-US', { month: "long" }),
         year: String(date.getFullYear()),
@@ -43,6 +43,6 @@ const getMinuteDifference = (dateStr: string, timeStr: string): number => {
 
 const utils = {
     getToday,
-    getMinuteDifference
+    getMinuteDifference,
 };
 export default utils;

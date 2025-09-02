@@ -9,6 +9,8 @@ const filePath = '/adapters/ollama.adapters.ts';
 
 const ollamaQueue = new TaskQueue();
 
+const delay = 2 * 60; // two hours
+
 const parseResponse = (response: string): string[] => {
     return response
         .split('</think>')
@@ -22,7 +24,7 @@ const ollamaGenerateUtil = async ({ model, prompt, system, temperature = 1, stre
         const { data } = await axios.post(
             'http://localhost:11434/api/generate',
             { model, prompt, system: `${constants.primarySysPrompt} :: ${system}`, temperature, stream },
-            { timeout: 30 * 60 * 1000 }
+            { timeout: delay * 60 * 1000 }
         );
 
         if (!data || !data.response) {

@@ -5,6 +5,7 @@ import { google } from "googleapis";
 import handleError, { handleErrorUtil } from "../utils/errors.utils";
 import { InboundEmailType, OutboundEmailType, GoogleAuthenticatedRequest } from "../types/types";
 import models from "../models/models";
+import emailCleanser from "../utils/emailCleanser.utils";
 
 const filePath: string = '/src/controllers/email.controllers.ts'
 
@@ -125,7 +126,9 @@ const fetchEmailsUtil = async (OAuth: object, numberOfEmails: number = 10) => {
                 time: jsDate.toTimeString().split(' ')[0],
             };
 
-            const { html: bodyHtml, text: bodyText } = extractBody(payload);
+            const { html: bodyHtml, text } = extractBody(payload);
+
+            const bodyText = emailCleanser(text);
 
             const attachments: {
                 filename: string;

@@ -36,6 +36,7 @@ const main = async () => {
         logger.info(`Saved Categorized Emails: ${result.inserted}`);
     } catch (err) {
         handleErrorUtil(filePath, 'main', err, 'Fetching mails / Calling OL Api');
+        throw Error(err);
     }
 };
 
@@ -53,6 +54,7 @@ const startGmailFetcherJob = async () => {
         logger.warn('Gmail Fetcher Job Stopped');
         globals.gmailFetcherJobRunning = false;
         handleErrorUtil(filePath, 'startGmailFetcherJob', err, 'Starting Gmail Fetcher Job');
+        throw Error(err);
     }
 };
 

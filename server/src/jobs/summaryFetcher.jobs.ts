@@ -45,6 +45,7 @@ const main = async () => {
         }
     } catch (err) {
         handleErrorUtil(filePath, 'main', err, 'Fetching summary / Calling OL Api');
+        throw Error(err);
     }
 };
 
@@ -62,6 +63,7 @@ const startSummaryFetcher = async () => {
         logger.warn('Gmail Summarizer Job Stopped');
         globals.summarizingJobRunning = false;
         handleErrorUtil(filePath, 'summaryFetcher', err, 'Starting Gmail Fetcher Job');
+        throw Error(err);
     }
 };
 

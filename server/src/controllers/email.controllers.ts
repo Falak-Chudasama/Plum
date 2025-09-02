@@ -170,6 +170,7 @@ const fetchEmailsUtil = async (OAuth: object, numberOfEmails: number = 10) => {
                 attachments,
                 timestamp,
                 sizeEstimate,
+                isViewed: false
             };
         });
 

@@ -13,7 +13,7 @@ const constants = {
         llamaBig: 'llama3.2:3b',
         qwenSmall: 'qwen3:0.6b',
         qwenMed: 'qwen3:1.7b',
-        qwenMed2: 'qwen2.5:3b', // not yet
+        qwenMed2: 'qwen2.5:3b',
         qwenBig: 'qwen3:4b',
         deepseek: 'deepseek-r1:1.5b',
         phi: 'phi3:3.8b',

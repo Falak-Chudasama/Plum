@@ -7,7 +7,7 @@ import logger from "../utils/logger.utils";
 import utils from "../utils/utils";
 
 const filePath = '/src/jobs/gmailFetcher.jobs.ts';
-const delay = 5 * 60 * 1000;
+const delay = 10 * 60 * 1000;
 const minN = 10;
 
 const main = async () => {

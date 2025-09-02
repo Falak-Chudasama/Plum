@@ -1,4 +1,3 @@
-import settingsOps from "../controllers/settings.controllers";
 import emailOps from "../controllers/email.controllers";
 import { handleErrorUtil } from "../utils/errors.utils";
 import orchAPIs from "../apis/orch.apis";
@@ -8,7 +7,7 @@ import summaryOps from "../controllers/summary.controllers";
 import utils from "../utils/utils";
 
 const filePath = '/src/jobs/summaryFetcher.jobs.ts';
-const delay = 60 * 60 * 1000;
+const delay = 10 * 60 * 1000;
 
 const main = async () => {
     try {
@@ -26,7 +25,7 @@ const main = async () => {
         date.setDate(date.getDate() - 1);
         const emails = await emailOps.fetchEmailsDate(
             email,
-            String(date.getDate()),
+            (String(date.getDate())).padStart(2, '0'),
             date.toLocaleString("en-US", { month: "long" }),
             String(date.getFullYear())
         );

@@ -6,8 +6,7 @@ import startGmailFetcherJob from "./gmailFetcher.jobs";
 import startSummaryFetcher from "./summaryFetcher.jobs";
 import utils from "../utils/utils";
 
-const delay = 1000;
-// const delay = 2 * 60 * 1000;
+const delay = 10 * 60 * 1000;
 
 const runJobs = async () => {
     logger.info('Running Jobs');
@@ -26,6 +25,8 @@ const runJobs = async () => {
 
     await OAuthObjectCheck(email);
 
+    await startGmailFetcherJob();
+    await startSummaryFetcher();
     setInterval(async () => {
         if (globals.gmailFetcherJobRunning === false) {
             await startGmailFetcherJob();
@@ -34,10 +35,10 @@ const runJobs = async () => {
             await startSummaryFetcher();
         }
 
-        const { seconds, minutes, hours, day, month, year } = utils.getToday();
-        await settingsOps.add('date', `${day}/${month}/${year}`);
-        await settingsOps.add('time', `${hours}:${minutes}:${seconds}`);
     }, delay);
+    const { seconds, minutes, hours, day, month, year } = utils.getToday();
+    await settingsOps.add('date', `${day}/${month}/${year}`);
+    await settingsOps.add('time', `${hours}:${minutes}:${seconds}`);
 };
 
 export default runJobs;

@@ -1,5 +1,5 @@
 const constants = {
-    orchOrigin: 'http://orch.plum.com'
+    orchOrigin: 'https://orch.plum.com'
 };
 
 export default constants;

@@ -17,6 +17,6 @@ const origin: string = process.env.BACKEND_ORIGIN!;
     app.listen(port!, host!, async () => {
         await connectDB();
         logger.info(`SERVER listening to -> ${origin} \n`);
-        runJobs();
+        // runJobs();
     });
 })();

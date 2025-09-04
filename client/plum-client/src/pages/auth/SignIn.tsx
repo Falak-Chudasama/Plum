@@ -23,16 +23,14 @@ function SignIn(): JSX.Element {
 
     useEffect(() => {
         document.title = "Plum | Login";
-        // Focus the first name input only once on mount
         fNameRef.current?.focus();
-    }, []); // <-- run once
+    }, []);
 
     const mutation = useMutation({
         mutationFn: ({ fName, lName, gmail }: { fName: string; lName: string; gmail: string }) =>
             apis.login(gmail, fName, lName),
 
         onSuccess: (data) => {
-            // stop loading
             setLoading(false);
             console.log("Login success:", data);
             const { gmailCookie, pictureCookie } = utils.parseGmailCookies();
@@ -41,7 +39,6 @@ function SignIn(): JSX.Element {
         },
 
         onError: (err) => {
-            // stop loading
             setLoading(false);
             console.error("Login failed:", err);
             alert("Login failed. Please try again.");
@@ -62,13 +59,13 @@ function SignIn(): JSX.Element {
             return;
         }
 
-        // set loading and trigger mutation
         setLoading(true);
         mutation.mutate({ gmail: gmailVal, fName, lName });
     };
 
-    const fieldClass = "h-13 border-3 rounded-full relative flex justify-end duration-300";
-    const inputClass = "text-lg font-medium bg-transparent outline-none focus:outline-none duration-300";
+    const fieldClass = "h-13 border-3 rounded-full relative flex justify-end duration-400";
+    const inputClass = "text-lg font-medium bg-transparent outline-none focus:outline-none duration-400";
+    const textClass = "text-lg absolute px-1 top-[-1.1rem] left-5 bg-plum-bg duration-400";
 
     return (
         <div className="h-screen w-screen bg-plum-bg p-4 flex items-center justify-between overflow-hidden relative select-none">
@@ -105,7 +102,7 @@ function SignIn(): JSX.Element {
                         {/* first name field */}
                         <div className={`w-1/2 ${fNameActive ? "border-plum-primary" : "border-plum-secondary"} ${fieldClass}`}>
                             <p
-                                className={`text-lg absolute px-1 top-[-1.1rem] left-5 bg-plum-bg ${
+                                className={`${textClass} ${
                                     fNameActive ? "text-plum-primary" : "text-plum-secondary"
                                 }`}
                             >
@@ -126,7 +123,7 @@ function SignIn(): JSX.Element {
                         {/* last name field */}
                         <div className={`w-1/2 ${lNameActive ? "border-plum-primary" : "border-plum-secondary"} ${fieldClass}`}>
                             <p
-                                className={`text-lg absolute px-1 top-[-1.1rem] left-5 bg-plum-bg ${
+                                className={`${textClass} ${
                                     lNameActive ? "text-plum-primary" : "text-plum-secondary"
                                 }`}
                             >
@@ -149,7 +146,7 @@ function SignIn(): JSX.Element {
                         {/* email field */}
                         <div className={`w-full ${emailActive ? "border-plum-primary" : "border-plum-secondary"} ${fieldClass}`}>
                             <p
-                                className={`text-lg absolute px-1 top-[-1.1rem] left-5 bg-plum-bg ${
+                                className={`${textClass} ${
                                     emailActive ? "text-plum-primary" : "text-plum-secondary"
                                 }`}
                             >

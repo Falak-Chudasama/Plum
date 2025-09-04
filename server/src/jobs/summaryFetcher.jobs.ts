@@ -8,8 +8,10 @@ import utils from "../utils/utils";
 
 const filePath = '/src/jobs/summaryFetcher.jobs.ts';
 const delay = 10 * 60 * 1000;
+let mainIsRunning = false;
 
 const main = async () => {
+    mainIsRunning = true;
     try {
         const email = globals.email!;
         const cachedDate = globals.date!;
@@ -33,7 +35,7 @@ const main = async () => {
             globals.summarizingJobRunning = false;
             return;
         };
-
+        
         const response = await orchAPIs.summarize(emails);
         if (response && response.success) {
             const { summary } = response;
@@ -47,6 +49,7 @@ const main = async () => {
         handleErrorUtil(filePath, 'main', err, 'Fetching summary / Calling OL Api');
         throw Error(err);
     }
+    mainIsRunning = false;
 };
 
 const startSummaryFetcher = async () => {
@@ -55,9 +58,9 @@ const startSummaryFetcher = async () => {
         logger.info('Gmail Summarizer Job running');
         globals.summarizingJobRunning = true;
 
-        await main();
+        if (!mainIsRunning) await main();
         setInterval(async () => {
-            await main();
+            if (!mainIsRunning) await main();
         }, delay);
     } catch (err) {
         logger.warn('Gmail Summarizer Job Stopped');

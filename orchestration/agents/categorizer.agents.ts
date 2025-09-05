@@ -6,7 +6,7 @@ import logger from "../utils/logger.utils";
 
 const filePath = '/agents/categorizer.agents.ts';
 
-const model = constants.ollamaModels.qwenBig;
+const model = constants.ollamaModels.phi;
 
 const categorize = async (email: InboundEmailType, categories: CategoryType[]): Promise<string[] | null> => {
     try {

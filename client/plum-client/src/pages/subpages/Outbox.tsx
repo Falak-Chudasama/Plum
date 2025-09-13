@@ -1,15 +1,15 @@
 import { useEffect } from "react";
 
-function Chats() {
+function Outbox() {
 
     useEffect(() => {
-        document.title = 'Plum | Chats';
+        document.title = 'Plum | Outbox';
     }, [])
 
     return(
         <div>
-            Chat
+            Outbox
         </div>
     );
 }
-export default Chats
+export default Outbox

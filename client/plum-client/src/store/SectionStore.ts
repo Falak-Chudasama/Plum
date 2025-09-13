@@ -2,12 +2,12 @@ import { create } from "zustand";
 
 type SectionState = {
     section: string | null,
-    setSection: (section: string | null) => void;
+    setSection: (section: string) => void;
     removeSection: () => void;
 };
 
 const SectionStore = create<SectionState>((set) => ({
-    section: null,
+    section: 'mails',
     setSection: (section) => { set({ section }) },
     removeSection: () => { set({ section: null }) }
 }));

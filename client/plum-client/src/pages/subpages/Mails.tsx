@@ -122,7 +122,7 @@ function TabNavigator() {
                     Threads
                 </p>
             </div>
-            <div className="w-full relative mt-1 h-1.5 rounded-full bg-plum-bg-bold">
+            <div className="w-full relative mt-1 h-1.25 rounded-full bg-plum-bg-bold">
                 <div className={`h-full top-0 absolute bg-plum-secondary rounded-full transition-all duration-300`}
                     style={{
                         left: indicatorStyle.left,

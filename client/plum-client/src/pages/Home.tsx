@@ -5,7 +5,7 @@ import components from "../components/components";
 import Mails from "./subpages/Mails";
 import Chats from "./subpages/Chat";
 import Outbox from "./subpages/Outbox";
-import SectionStore from "../store/SectionStore";
+import SubpageStore from "../store/SubpageStore";
 
 const { PlumLogo } = components;
 const { gmailCookie, pictureCookie } = utils.parseGmailCookies();
@@ -27,7 +27,7 @@ function Header() {
 }
 
 function SideButtons() {
-    const { section, setSection } = SectionStore();
+    const { subpage, setSubpage } = SubpageStore();
     const [mailsHover, setMailsHover] = useState(false);
     const [chatsHover, setChatsHover] = useState(false);
     const [outboxHover, setOutboxHover] = useState(false);
@@ -42,35 +42,35 @@ function SideButtons() {
 
     return (
         <div className="mt-8 duration-200 select-none">
-            <div className={`${containerClass} ${section === 'mails' ? "text-plum-secondary" : "text-plum-primary"} ${mailsHover ? 'translate-x-0' : '-translate-x-[calc(100%-3rem)]'}`}
+            <div className={`${containerClass} ${subpage === 'mails' ? "text-plum-secondary" : "text-plum-primary"} ${mailsHover ? 'translate-x-0' : '-translate-x-[calc(100%-3rem)]'}`}
                 onMouseEnter={() => setMailsHover(true)}
                 onMouseLeave={() => setMailsHover(false)}
-                onClick={() => setSection('mails')}
+                onClick={() => setSubpage('mails')}
                 >
                     Mails
-                <button className={`${btnClass} ${section === 'mails' ? 'bg-plum-secondary' : 'bg-plum-primary'}`} onClick={() => setSection('mails')}>
+                <button className={`${btnClass} ${subpage === 'mails' ? 'bg-plum-secondary' : 'bg-plum-primary'}`} onClick={() => setSubpage('mails')}>
                     <img src="/mails-icon.svg" className={`${iconClass} h-4`} alt="mail icon" />
                 </button>
             </div>
             
-            <div className={`${containerClass} ${section === 'chats' ? "text-plum-secondary" : "text-plum-primary"} ${chatsHover ? 'translate-x-0' : '-translate-x-[calc(100%-3rem)]'}`}
+            <div className={`${containerClass} ${subpage === 'chats' ? "text-plum-secondary" : "text-plum-primary"} ${chatsHover ? 'translate-x-0' : '-translate-x-[calc(100%-3rem)]'}`}
                 onMouseEnter={() => setChatsHover(true)}
                 onMouseLeave={() => setChatsHover(false)}
-                onClick={() => setSection('chats')}
+                onClick={() => setSubpage('chats')}
                 >
                     Chats
-                <button className={`${btnClass} ${section === 'chats' ? 'bg-plum-secondary' : 'bg-plum-primary'}`} onClick={() => setSection('chats')}>
+                <button className={`${btnClass} ${subpage === 'chats' ? 'bg-plum-secondary' : 'bg-plum-primary'}`} onClick={() => setSubpage('chats')}>
                     <img src="/chats-icon.svg" className={`${iconClass} h-5`} alt="chat icon" />
                 </button>
             </div>
             
-            <div className={`${containerClass} ${section === 'outbox' ? "text-plum-secondary" : "text-plum-primary"} ${outboxHover ? 'translate-x-0' : '-translate-x-[calc(100%-3rem)]'}`}
+            <div className={`${containerClass} ${subpage === 'outbox' ? "text-plum-secondary" : "text-plum-primary"} ${outboxHover ? 'translate-x-0' : '-translate-x-[calc(100%-3rem)]'}`}
                 onMouseEnter={() => setOutboxHover(true)}
                 onMouseLeave={() => setOutboxHover(false)}
-                onClick={() => setSection('outbox')}
+                onClick={() => setSubpage('outbox')}
                 >
                     Outbox
-                <button className={`${btnClass} ${section === 'outbox' ? 'bg-plum-secondary' : 'bg-plum-primary'}`} onClick={() => setSection('outbox')}>
+                <button className={`${btnClass} ${subpage === 'outbox' ? 'bg-plum-secondary' : 'bg-plum-primary'}`} onClick={() => setSubpage('outbox')}>
                     <img src="/outbox-icon.svg" className={`${iconClass} h-5.5 mt-1 ml-[-3px]`} alt="outbox icon" />
                 </button>
             </div>
@@ -81,7 +81,7 @@ function SideButtons() {
 function Home() {
     const { id } = useParams<string>();
     const navigate = useNavigate();
-    const { section } = SectionStore();
+    const { subpage: section } = SubpageStore();
     const [subpage, setSubpage] = useState(<Mails />);
 
     useEffect(() => {
@@ -100,7 +100,7 @@ function Home() {
         } else if (section === 'outbox') {
             setSubpage(<Outbox />);
         }
-    }, [section])
+    }, [subpage])
 
     return (
         <div>

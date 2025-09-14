@@ -1,15 +1,15 @@
 import { create } from "zustand";
 
 type DateState = {
-    date: string | null,
-    setDate: (date: string | null) => void;
+    date: Date,
+    setDate: (date: Date) => void;
     removeDate: () => void;
 };
 
 const DateStore = create<DateState>((set) => ({
-    date: null,
+    date: new Date(),
     setDate: (date) => { set({ date }) },
-    removeDate: () => { set({ date: null }) }
+    removeDate: () => { set({ date: new Date() }) }
 }));
 
 export default DateStore;

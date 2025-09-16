@@ -33,5 +33,6 @@ const constants = {
         phi3: 'phi3:3.8b',
         phi4: 'phi4-mini-reasoning'
     },
+    msOrigin: 'https://microservices.plum.com'
 };
 export default constants;

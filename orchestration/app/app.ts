@@ -26,21 +26,15 @@ app.get('/', (req: Request, res: Response) => {
 
 app.post('/categorize', async (req: Request, res: Response) => {
     try {
-        const { emails, categories } = req.body;
+        const { emails } = req.body;
 
         if (!emails || emails.length === 0) {
             throw Error('Emails are missing in the request');
         }
-        if (!categories || categories.length === 0) {
-            throw Error('Categories are missing in the request');
-        }
 
-        for (let email of emails) {
-            const emailCategories = await categorize(email, categories) || ['Other'];
-            email.categories = emailCategories;
-        }
+        const categorizedMails = await categorize(emails);
 
-        res.status(200).json({ emails, success: true });
+        res.status(200).json({ emails: categorizedMails, success: true });
     } catch (err) {
         handleError(filePath, '<categorize callback>', res, err, 'Serving Categorization');
         res.status(500).json({ message: 'Internal Server Error in OL', success: false });

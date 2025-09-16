@@ -1,7 +1,7 @@
 import axios from "axios";
 import fs from "fs";
 import https from "https";
-import { InboundEmailType, CategoryType } from "../types/types";
+import { InboundEmailType } from "../types/types";
 import { handleErrorUtil } from "../utils/errors.utils";
 import constants from "../constants/constants";
 import logger from "../utils/logger.utils";
@@ -32,16 +32,16 @@ const orchAxios = axios.create({
 
 const delay = 2 * 60;
 
-const categorize = async (emails: InboundEmailType[], categories: CategoryType[]): Promise<InboundEmailType[] | null> => {
+const categorize = async (emails: InboundEmailType[]): Promise<InboundEmailType[] | null> => {
     try {
         logger.info('Categorize API called');
-        const result = await orchAxios.post(`${constants.orchOrigin}/categorize`, { emails, categories }, {
+        const result = await orchAxios.post(`${constants.orchOrigin}/categorize`, { emails }, {
             timeout: delay * 60 * 1000,
         });
 
         if (!result.data || !result.data.success) throw Error('Failed to get categorized mails');
 
-        return result.data;
+        return result.data.emails;
     } catch (err) {
         handleErrorUtil(filePath, 'categorize', err, 'Calling Orch API to categorize emails');
     }

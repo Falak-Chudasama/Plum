@@ -1,42 +1,14 @@
 import emailOps from "../controllers/email.controllers";
-import msAPIs from "../apis/ms.apis";
 import { handleErrorUtil } from "../utils/errors.utils";
 import globals from "../globals/globals";
 import logger from "../utils/logger.utils";
 import utils from "../utils/utils";
-import { InboundEmailType } from "../types/types";
+import orchAPIs from "../apis/orch.apis";
 
 const filePath = '/src/jobs/gmailFetcher.jobs.ts';
 const delay = 10 * 60 * 1000;
 const minN = 10;
-const k = 2;
-const similarityLimit = 0.9;
 let mainIsRunning = false;
-
-const categorize = async (mails: InboundEmailType[]) => {
-    try {
-        for (let i = 0; i < mails.length; i++) {
-            const mail = mails[i];
-            const categories = await msAPIs.catogSearch(
-                `
-                Subject: ${mail.subject}
-                Body: ${mail.bodyText}
-                `, k
-            );
-            if (!categories) throw Error('Failed to categorize the mail (check if MS is running)');
-            if (categories[1].distance <= similarityLimit) {
-                mail.categories = categories.map((cat) => cat.text.split('::')[0]);
-            } else if (categories[0].distance <= similarityLimit) {
-                mail.categories = categories[0].text.split('::')[0];
-            } else {
-                mail.categories = ['Other'];
-            }
-        }
-        return mails;
-    } catch (err) {
-        handleErrorUtil(filePath, 'categorize', err, 'Categorizing the inbound mails');
-    }
-};
 
 const main = async () => {
     mainIsRunning = true;
@@ -56,7 +28,7 @@ const main = async () => {
         
         logger.info(`Detected ${uniqueEmails.length} new inbox mails`);
 
-        const categorizedEmails = await categorize(uniqueEmails);
+        const categorizedEmails = await orchAPIs.categorize(uniqueEmails);
         if (!categorizedEmails) throw Error('Emails were not categorized - Make sure MS is running');
 
         const result = await emailOps.saveInboundEmails(categorizedEmails);

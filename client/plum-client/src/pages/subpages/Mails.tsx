@@ -139,8 +139,18 @@ function Mail() {
 }
 
 function Main() {
+    // Make API calls
+    const { tab } = MailsTabsStore();
+    const [displayTab, setDisplayTab] = useState(tab);
+
+    useEffect(() => {
+        setDisplayTab(tab);
+    }, [tab]);
+
     return (
-        <div></div>
+        <div>
+            { `Selected Tab: ${displayTab}` }
+        </div>
     );
 }
 

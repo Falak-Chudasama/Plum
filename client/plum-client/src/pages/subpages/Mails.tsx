@@ -48,10 +48,9 @@ function DayNavigator() {
     function handleDateChange(addDay: boolean = false) {
         if (isToday && addDay) return;
         setDayDate(new Date(day.setDate(day.getDate() + (addDay ? 1 : -1))));
-        const today = new Date();
     }
 
-    const btnClass = `text-plum-bg text-lg font-medium px-3 rounded-full hover:px-5 duration-225`;
+    const btnClass = `text-plum-bg text-lg font-medium px-3 rounded-xl hover:px-5 duration-225`;
 
     return (
         <div className="mt-8 select-none">

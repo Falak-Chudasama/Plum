@@ -10,7 +10,7 @@ const filePath = '/src/jobs/gmailFetcher.jobs.ts';
 const delay = 10 * 60 * 1000;
 const minN = 10;
 const k = 2;
-const similarityLimit = 0.85;
+const similarityLimit = 0.9;
 let mainIsRunning = false;
 
 const categorize = async (mails: InboundEmailType[]) => {

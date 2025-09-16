@@ -24,7 +24,7 @@ function SignUp() {
             ">
                 <WhiteLogo />
                 <p className="text-3xl font-light text-plum-bg absolute bottom-10">
-                    I can auto-sort,<br /> summarize, and reply to<br />your emails
+                    I can categorize,<br /> summarize, and reply to<br />your emails
                 </p>
             </div>
             <div className="h-fit w-[50%] 

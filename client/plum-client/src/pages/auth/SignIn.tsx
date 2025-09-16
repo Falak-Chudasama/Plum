@@ -77,7 +77,7 @@ function SignIn(): JSX.Element {
             >
                 <WhiteLogo />
                 <p className="text-3xl font-light text-plum-bg absolute bottom-10">
-                    I can auto-sort,
+                    I can categorize,
                     <br /> summarize, and reply to
                     <br />
                     your emails

@@ -23,7 +23,7 @@ const ollamaGenerateUtil = async ({ model, prompt, system, temperature = 1, stre
         logger.info('Ollama API Called');
         const { data } = await axios.post(
             'http://localhost:11434/api/generate',
-            { model, prompt, system: `${constants.primarySysPrompt} :: ${system}`, temperature, stream },
+            { model, prompt, system: `${system}`, temperature, stream },
             { timeout: delay * 60 * 1000 }
         );
 

@@ -6,7 +6,7 @@ import logger from "../utils/logger.utils";
 
 const filePath = '/agents/summarizer.agents.ts';
 
-const model = constants.ollamaModels.phi;
+const model = constants.ollamaModels.gemmaBig;
 
 const summarize = async (emails: InboundEmailType[]): Promise<string | null> => {
     try {

@@ -22,7 +22,7 @@ const constants = {
     ollamaModels: {
         gemmaTiny: 'gemma3:270m',
         gemmaSmall: 'gemma3:1b',
-        gemmaBig: 'gemma3:4b', // not yet
+        gemmaBig: 'gemma3:4b',
         llamaSmall: 'llama3.2:1b', // not yet
         llamaBig: 'llama3.2:3b',
         qwenSmall: 'qwen3:0.6b',
@@ -30,7 +30,8 @@ const constants = {
         qwenMed2: 'qwen2.5:3b', // not yet
         qwenBig: 'qwen3:4b',
         deepseek: 'deepseek-r1:1.5b',
-        phi: 'phi3:3.8b',
+        phi3: 'phi3:3.8b',
+        phi4: 'phi4-mini-reasoning'
     },
 };
 export default constants;

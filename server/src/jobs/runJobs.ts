@@ -4,6 +4,7 @@ import logger from "../utils/logger.utils";
 import { OAuthObjectCheck } from "../middlewares/googleAuth.middlewares";
 import startGmailFetcherJob from "./gmailFetcher.jobs";
 import startSummaryFetcher from "./summaryFetcher.jobs";
+import startCategoriesFeedingJob from "./categoriesFeedingJob.jobs";
 import utils from "../utils/utils";
 
 const minutesDelay = 10;
@@ -28,6 +29,9 @@ const runJobs = async () => {
     logger.info(`Waiting ${minutesDelay} minutes...`);
     setInterval(async () => {
         try {
+            if (globals.categoriesFeedingJobRunning === false) {
+                await startCategoriesFeedingJob();
+            }
             if (globals.gmailFetcherJobRunning === false) {
                 await startGmailFetcherJob();
             }

@@ -6,7 +6,7 @@ import logger from "../utils/logger.utils";
 
 const filePath = '/agents/categorizer.agents.ts';
 
-const model = constants.ollamaModels.phi;
+const model = constants.ollamaModels.deepseek;
 
 const categorize = async (email: InboundEmailType, categories: CategoryType[]): Promise<string[] | null> => {
     try {
@@ -53,7 +53,9 @@ const categorize = async (email: InboundEmailType, categories: CategoryType[]): 
             throw Error('Error getting response from ollama');
         }
 
-        return response[0].split(',').map(cat => cat.trim());
+        const set = new Set(categories.map((val) => val.category));
+
+        return response[0].split(',').map(cat => cat.trim()).filter((val) => set.has(val)) || 'Other';
     } catch (err) {
         handleErrorUtil(filePath, 'categorize', err, 'Categorizing the Email');
         return null;

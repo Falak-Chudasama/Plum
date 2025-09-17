@@ -13,6 +13,7 @@ let mainIsRunning = false;
 const main = async () => {
     mainIsRunning = true;
     try {
+        logger.info('Gmail Summarizer Job Running');
         const email = globals.email!;
         const cachedDate = globals.date!;
         
@@ -45,7 +46,9 @@ const main = async () => {
         } else {
             throw Error('Failed to get Summary');
         }
+        logger.info('Gmail Summarizer Job Finished');
     } catch (err) {
+        logger.warn('Gmail Summarizer Job Stopped');
         handleErrorUtil(filePath, 'main', err, 'Fetching summary / Calling OL Api');
         throw Error(err);
     }
@@ -55,7 +58,7 @@ const main = async () => {
 const startSummaryFetcher = async () => {
     try {
         if (globals.summarizingJobRunning === true) return;
-        logger.info('Gmail Summarizer Job running');
+        logger.info('Gmail Summarizer Job Loop Running');
         globals.summarizingJobRunning = true;
 
         if (!mainIsRunning) await main();
@@ -63,7 +66,7 @@ const startSummaryFetcher = async () => {
             if (!mainIsRunning) await main();
         }, delay);
     } catch (err) {
-        logger.warn('Gmail Summarizer Job Stopped');
+        logger.warn('Gmail Summarizer Job Loop Stopped');
         globals.summarizingJobRunning = false;
         handleErrorUtil(filePath, 'summaryFetcher', err, 'Starting Gmail Fetcher Job');
         throw Error(err);

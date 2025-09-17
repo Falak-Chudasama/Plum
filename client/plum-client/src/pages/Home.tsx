@@ -100,7 +100,7 @@ function Home() {
         } else if (section === 'outbox') {
             setSubpage(<Outbox />);
         }
-    }, [subpage])
+    }, [section])
 
     return (
         <div>

@@ -1,9 +1,9 @@
 import { create } from "zustand";
-import { type Category } from "../types/types";
+import { type CategoryType } from "../types/types";
 
 type CategoryState = {
-    category: Category[],
-    setCategory: (category: Category[]) => void;
+    category: CategoryType[],
+    setCategory: (category: CategoryType[]) => void;
     removeCategory: () => void;
 };
 

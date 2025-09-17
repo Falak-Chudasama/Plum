@@ -1,3 +1,4 @@
+import { Request, Response } from "express";
 import CategoryModel from "../models/category";
 import { CategoryType } from "../types/types";
 import { handleErrorUtil } from "../utils/errors.utils";
@@ -29,9 +30,21 @@ const create = async (category: CategoryType): Promise<boolean> => {
     }
 };
 
+const findByEmail = async (req: Request, res: Response) => {
+    const { email } = req.params;
+    try {
+        const categories = await CategoryModel.find({ email }) || [];
+        return res.status(200).json({ categories, success: true });
+    } catch (err) {
+        handleErrorUtil(filePath, "find", err, "Finding/Fetching Categories from DB");
+        return res.status(500).json({ error: "Failed to fetch categories", success: false });
+    }
+};
+
 const categoryOps = {
     find,
-    create
+    create,
+    findByEmail
 };
 
 export default categoryOps;

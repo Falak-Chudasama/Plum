@@ -13,6 +13,19 @@
     --color-plum-surface: #D1C8EB;
     --color-plum-surface-hover: #CFBFFB;
 
+    --color-plum-cat-red-dark: #E53935;
+    --color-plum-cat-red-light: #FFD7DC;
+    --color-plum-cat-green-dark: #43A047;
+    --color-plum-cat-green-light: #DAFFDC;
+    --color-plum-cat-blue-dark: #1E88E5;
+    --color-plum-cat-blue-light: #DDEFFF;
+    --color-plum-cat-orange-dark: #FF9000;
+    --color-plum-cat-orange-light: #FFF0D5;
+    --color-plum-cat-purple-dark: #7A5BB9;
+    --color-plum-cat-purple-light: #E0CCFF;
+    --color-plum-cat-gray-dark: #616161;
+    --color-plum-cat-gray-light: #E4E4E4;
+
     --shadow-plum-surface-xs: 0 0 8px 0 rgba(210, 200, 235, 1);
     --shadow-plum-surface-xl: 0 0 12px 0 rgba(210, 200, 235, 1);
 }

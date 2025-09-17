@@ -10,6 +10,10 @@ export const categorySchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    email: {
+        type: String,
+        default: ''
+    },
     alert: {
         type: Boolean,
         default: false

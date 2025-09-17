@@ -1,10 +1,3 @@
-export type Category = {
-    title: string,
-    description: string,
-    colors: [],
-    alert: boolean
-};
-
 export interface Attachment {
     filename: string;
     mimeType: string;
@@ -46,5 +39,7 @@ export interface InboundEmailType {
 export interface CategoryType {
     category: string,
     description: string,
-    alert: boolean
+    alert: boolean,
+    email: string,
+    color: string
 };

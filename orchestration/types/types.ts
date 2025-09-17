@@ -47,5 +47,7 @@ export interface InboundEmailType {
 export interface CategoryType {
     category: string,
     description: string,
-    alert: boolean
+    alert: boolean,
+    email: string,
+    color: string,
 };

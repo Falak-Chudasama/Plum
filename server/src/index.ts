@@ -6,6 +6,7 @@ import connectDB from "./config/config";
 
 import logger from "./utils/logger.utils";
 import runJobs from "./jobs/runJobs";
+import categoryOps from "./controllers/category.controllers";
 
 const host: string = process.env.HOST || 'localhost';
 const port: number = Number(process.env.PORT) || 3000;

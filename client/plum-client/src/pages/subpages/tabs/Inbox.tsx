@@ -25,7 +25,7 @@ function Inbox() {
         bodyText: "Hi team,\n\nPlease find attached the Q3 report.",
         timestamp: new Date("2025-09-16T10:45:00Z").toISOString(),
         sizeEstimate: 2048000,
-        categories: ["Reports", "Finance"],
+        categories: ["Assignment", "Session"],
         createdAt: new Date(),
         updatedAt: new Date(),
     };

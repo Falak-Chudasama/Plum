@@ -1,14 +1,45 @@
 import { useMemo } from "react";
-import { type InboundEmailType, type Category } from "../types/types";
+import { type InboundEmailType, type CategoryType } from "../types/types";
 
 const textLim1 = 60;
 const textLim2 = 90;
 
+const colorMap = {
+    red: {
+        dark: 'plum-cat-red-dark',
+        light: 'plum-cat-red-light'
+    },
+    green: {
+        dark: 'plum-cat-green-dark',
+        light: 'plum-cat-green-light'
+    },
+    blue: {
+        dark: 'plum-cat-blue-dark',
+        light: 'plum-cat-blue-light'
+    },
+    orange: {
+        dark: 'plum-cat-orange-dark',
+        light: 'plum-cat-orange-light'
+    },
+    purple: {
+        dark: 'plum-cat-purple-dark',
+        light: 'plum-cat-purple-light'
+    },
+    gray: {
+        dark: 'plum-cat-gray-dark',
+        light: 'plum-cat-gray-light'
+    },
+};
+
 function CategoryComp({ title }: { title: string }) {
+    // const { dark, light } = colorMap[category.color];
+    const dark = '#E53935'
+    const light = '#FFD7DC'
+
     return (
-        <div className="font-cabin bg-red-200 border-red-700 border-2 pl-1.5 pr-2 text-sm font-medium rounded-full flex items-center gap-x-2">
-            <div className="h-3 w-3 rounded-full bg-red-700" />
-            <p className="text-red-700">{title}</p>
+        <div className={`font-cabin bg-[${light}] border-[${dark}] border-2 pl-1.5 pr-2 text-sm font-medium rounded-full flex items-center gap-x-2`}>
+            <div className={`h-3 w-3 rounded-full bg-[${dark}]`} />
+            <p className={`text-[${dark}]`}>{title}</p>
         </div>
     );
 }
@@ -50,7 +81,7 @@ export default function Mail({ mail, showCategs = true }: MailProps) {
 
     const categories: string[] =
         showCategs && Array.isArray((mail as InboundEmailType).categories) && (mail as InboundEmailType).categories!.length
-            ? (mail as any).categories.map((c: Category | string) =>
+            ? (mail as any).categories.map((c: CategoryType | string) =>
                 typeof c === "string" ? c : (c as any).title ?? JSON.stringify(c)
             )
             : showCategs

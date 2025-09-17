@@ -1,11 +1,11 @@
+import { type JSX } from "react";
 import { useEffect, useState, useRef } from "react";
 import DateStore from "../../store/DateStore";
 import MailsTabsStore from "../../store/MailsTabsStore";
-import { type InboundEmailType, type ParsedDate } from "../../types/types";
-// import Inbox from "./tabs/Inbox";
-// import Categorized from "./tabs/Categorized";
-// import Summary from "./tabs/Summary";
-// import Threads from "./tabs/Threads";
+import Inbox from "./tabs/Inbox";
+import Categorized from "./tabs/Categorized";
+import Summary from "./tabs/Summary";
+import Threads from "./tabs/Threads";
 
 function DayNavigator() {
     const formatDate = (d: Date) => {
@@ -50,8 +50,14 @@ function DayNavigator() {
         const handleArrowKeys = (event: KeyboardEvent) => {
             const today = new Date();
             if (event.ctrlKey && event.key === 'ArrowLeft') {
+                console.log('today: ' + today);
+                console.log('day: ' + day);
+                console.log();
                 handleDateChange();
-            } else if (event.ctrlKey && event.key === 'ArrowRight' && !areSameDays(today, day)) {
+            } else if (event.ctrlKey && event.key === 'ArrowRight' && !areSameDays(today, date)) {
+                console.log('today: ' + today);
+                console.log('day: ' + day);
+                console.log();
                 handleDateChange(true);
             }
         };
@@ -60,8 +66,6 @@ function DayNavigator() {
     }, [day]);
 
     function handleDateChange(addDay: boolean = false) {
-        if (isToday && addDay) return;
-        console.log('Add Day: ' + addDay)
         setDayDate(new Date(day.setDate(day.getDate() + (addDay ? 1 : -1))));
     }
 
@@ -79,7 +83,7 @@ function DayNavigator() {
             </div>
             <div className="mt-3 flex gap-x-1.5">
                 <button onClick={() => handleDateChange()} className={`bg-plum-primary cursor-pointer ${btnClass}`}>Previous</button>
-                <button onClick={() => handleDateChange(true)} className={`${isToday ? "bg-plum-primary-dark cursor-not-allowed" : "bg-plum-primary cursor-pointer"} ${btnClass}`}>Next</button>
+                <button onClick={() => { if(!isToday) handleDateChange(true)}} className={`${isToday ? "bg-plum-primary-dark cursor-not-allowed" : "bg-plum-primary cursor-pointer"} ${btnClass}`}>Next</button>
             </div>
         </div>
     );
@@ -162,55 +166,23 @@ function TabNavigator() {
     );
 }
 
-function Mail(mail: InboundEmailType, showCategs: boolean = false) {
-    console.log(mail.senderName);
-    return (
-        <div className="w-full h-8 rounded-full flex items-center justify-between bg-plum-bg-bold hover:bg-plum-bg border-plum-secondary border-2 duration-250 cursor-pointer">
-            <p className="font-semibold text-plum-secondary">{mail.senderName}</p>
-        </div>
-    );
-}
-
 function Main() {
+    const tabs = {
+        inbox: Inbox,
+        categorized: Categorized,
+        summary: Summary,
+        threads: Threads
+    };
     const { tab } = MailsTabsStore();
-    const [displayTab, setDisplayTab] = useState(tab);
+    const [displayTab, setDisplayTab] = useState<JSX.Element>(tabs[tab]);
 
     useEffect(() => {
-        setDisplayTab(tab);
+        setDisplayTab(tabs[tab]);
     }, [tab]);
 
-    const sampleDate: ParsedDate = {
-        weekday: "Monday",
-        day: "16",
-        month: "September",
-        year: "2025",
-        time: "10:45 AM",
-    }
-    const sampleEmail: InboundEmailType = {
-        email: "john.doe@example.com",
-        id: "msg_1234567890",
-        threadId: "thread_0987654321",
-        to: "support@example.com",
-        cc: "manager@example.com",
-        bcc: "auditor@example.com",
-        senderEmail: "jane.smith@example.com",
-        senderName: "Jane Smith",
-        subject: "Quarterly Report Submission",
-        parsedDate: sampleDate,
-        snippet: "Hi team, please find attached the Q3 report...",
-        bodyHtml: "<p>Hi team,</p><p>Please find attached the Q3 report.</p>",
-        bodyText: "Hi team,\n\nPlease find attached the Q3 report.",
-        timestamp: new Date("2025-09-16T10:45:00Z").toISOString(),
-        sizeEstimate: 2048000,
-        categories: ["Reports", "Finance"],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-    };
-
     return (
-        <div className="pr-30">
-            {`Selected Tab: ${displayTab}`}
-            {/* {Mail(sampleEmail)} */}
+        <div className="pr-30 pb-5 mt-5">
+            {displayTab}
         </div>
     );
 }

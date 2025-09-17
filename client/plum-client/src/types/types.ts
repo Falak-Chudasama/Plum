@@ -1,3 +1,10 @@
+export type Category = {
+    title: string,
+    description: string,
+    colors: [],
+    alert: boolean
+};
+
 export interface Attachment {
     filename: string;
     mimeType: string;

@@ -60,7 +60,7 @@ const catogSearch = async (query: string, k: number = 3): Promise<Object> => {
 
 const catogDelAll = async (): Promise<boolean> => {
     try {
-        logger.info('Categorizies Delete All API Called')
+        logger.info('Categories Delete All API Called')
         const response = await msAxios.delete(`${constants.msOrigin}/delete-all/categorization`);
         if (!response || !response.data.success) throw Error('Failed to delete categories');
 

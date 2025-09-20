@@ -63,8 +63,10 @@ const startSummaryFetcher = async () => {
         globals.summarizingJobRunning = true;
 
         if (!mainIsRunning) await main();
+        logger.info(`C Loop. Job will begin in ${delay / 60000} minutes...`);
         setInterval(async () => {
             if (!mainIsRunning) await main();
+            logger.info(`C Loop. Job will begin in ${delay / 60000} minutes...`);
         }, delay);
     } catch (err) {
         logger.warn('C Loop. Gmail Summarizer Job Loop Stopped');

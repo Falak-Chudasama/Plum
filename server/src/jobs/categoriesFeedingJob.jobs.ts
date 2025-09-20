@@ -11,7 +11,7 @@ let mainHasFed = false;
 const main = async () => {
     mainHasFed = true;
     try {
-        logger.info('B Job. Categories Feeding Job Running');
+        logger.info('A Job. Categories Feeding Job Running');
         await msAPIs.catogDelAll();
         const categories = await categoryOps.find();
         const modifiedCategs = categories.map((cat) => {
@@ -19,10 +19,10 @@ const main = async () => {
         });
         const response = await msAPIs.catogEmbed(modifiedCategs);
         if (!response) mainHasFed = false;
-        logger.info('B Job. Categories are successfully fed');
+        logger.info('A Job. Categories are successfully fed');
     } catch (err) {
         mainHasFed = false;
-        logger.warn('B Job. Categories Feeding Job Stopped');
+        logger.warn('A Job. Categories Feeding Job Stopped');
         handleErrorUtil(filePath, 'main', err, 'Feeding Categories / Calling MS APIs');
         throw Error(err);
     }
@@ -31,15 +31,17 @@ const main = async () => {
 const startCategoriesFeedingJob = async () => {
     try {
         if (globals.categoriesFeedingJobRunning) return;
-        logger.info('B Loop. Categories Feeding Job Loop Running');
+        logger.info('A Loop. Categories Feeding Job Loop Running');
         globals.categoriesFeedingJobRunning = true;
 
         if (!mainHasFed) await main();
+        logger.info(`A Loop. Job will begin in ${delay / 60000} minutes...`);
         setInterval(async () => {
             if (!mainHasFed) await main();
+            logger.info(`A Loop. Job will begin in ${delay / 60000} minutes...`);
         }, delay);
     } catch (err) {
-        logger.warn('B Loop. Categories Feeding Job Loop Stopped');
+        logger.warn('A Loop. Categories Feeding Job Loop Stopped');
         globals.categoriesFeedingJobRunning = false;
         handleErrorUtil(filePath, 'categoriesFeedingJob', err, 'Starting Categories Feeding Job');
         throw Error(err);

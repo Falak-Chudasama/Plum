@@ -13,7 +13,7 @@ let mainIsRunning = false;
 const main = async () => {
     mainIsRunning = true;
     try {
-        logger.info('A Job. Gmail Fetcher/Categorizator Job Running');
+        logger.info('B Job. Gmail Fetcher/Categorizator Job Running');
         const n = Math.max(minN, Math.ceil(utils.getMinuteDifference(globals.date!, globals.time!) / 50));
         const emails = await emailOps.fetchEmailsUtil(globals.OAuthObject, n);
         const uniqueEmails = await emailOps.fetchUniqueEmails(emails);
@@ -24,21 +24,21 @@ const main = async () => {
         
         if (uniqueEmails.length === 0) {
             mainIsRunning = false;
-            logger.info(`A Job. Detected 0 new inbox mails`);
+            logger.info(`B Job. Detected 0 new inbox mails`);
             return;
         }
         
-        logger.info(`A Job. Detected ${uniqueEmails.length} new inbox mails`);
+        logger.info(`B Job. Detected ${uniqueEmails.length} new inbox mails`);
 
         const categorizedEmails = await orchAPIs.categorize(uniqueEmails);
         if (!categorizedEmails) throw Error('Emails were not categorized - Make sure MS is running');
         
         const result = await emailOps.saveInboundEmails(categorizedEmails);
-        logger.info(`A Job. Saved Categorized Emails: ${result.inserted}`);
-        logger.info('A Job. Gmail Fetcher/Categorizator Job Finished');
+        logger.info(`B Job. Saved Categorized Emails: ${result.inserted}`);
+        logger.info('B Job. Gmail Fetcher/Categorizator Job Finished');
     } catch (err) {
         mainIsRunning = false;
-        logger.warn('A Job. Gmail Fetcher/Categorizator Job Stopped');
+        logger.warn('B Job. Gmail Fetcher/Categorizator Job Stopped');
         handleErrorUtil(filePath, 'main', err, 'Fetching mails / Calling OL Api');
         throw Error(err);
     }
@@ -48,15 +48,17 @@ const main = async () => {
 const startGmailFetcherJob = async () => {
     try {
         if (globals.gmailFetcherJobRunning) return;
-        logger.info('A Loop. Gmail Fetcher/Categorizator Job Loop started');
+        logger.info('B Loop. Gmail Fetcher/Categorizator Job Loop started');
         globals.gmailFetcherJobRunning = true;
 
         if (!mainIsRunning) await main();
+        logger.info(`B Loop. Job will begin in ${delay / 60000} minutes...`);
         setInterval(async () => {
             if (!mainIsRunning) await main();
+            logger.info(`B Loop. Job will begin in ${delay / 60000} minutes...`);
         }, delay);
     } catch (err) {
-        logger.warn('A Loop. Gmail Fetcher/Categorizator Job Loop Stopped');
+        logger.warn('B Loop. Gmail Fetcher/Categorizator Job Loop Stopped');
         globals.gmailFetcherJobRunning = false;
         handleErrorUtil(filePath, 'startGmailFetcherJob', err, 'Starting Gmail Fetcher Job');
         throw Error(err);

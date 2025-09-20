@@ -45,7 +45,7 @@ const runJobs = async () => {
             logger.warn('Jobs were not run properly, will retry');
             logger.error(err);
         }
-        logger.info(`Waiting ${minutesDelay} minutes...`);
+        logger.info(`Waiting ${minutesDelay} minutes for jobs refreshment...`);
     }, delay);
 };
 

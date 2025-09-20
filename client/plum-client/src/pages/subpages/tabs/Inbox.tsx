@@ -1,50 +1,19 @@
 import Mail from "../../../components/Mail";
-import { type InboundEmailType, type ParsedDate } from "../../../types/types";
+import EmailsStore from "../../../store/EmailsStore";
+import type { InboundEmailType } from "../../../types/types";
+import type { JSX } from "react";
 
-function Inbox() {
-    const sampleDate: ParsedDate = {
-        weekday: "Monday",
-        day: "16",
-        month: "September",
-        year: "2025",
-        time: "17:13:03",
-    }
-    const sampleEmail: InboundEmailType = {
-        email: "john.doe@example.com",
-        id: "msg_1234567890",
-        threadId: "thread_0987654321",
-        to: "support@example.com",
-        cc: "manager@example.com",
-        bcc: "auditor@example.com",
-        senderEmail: "jane.smith@example.com",
-        senderName: "Jane Smith",
-        subject: "Invitation to Participate – International Conference on Biological Sciences - Coast, Community & Conservation",
-        parsedDate: sampleDate,
-        snippet: "Hi team, please find attached the Q3 report ",
-        bodyHtml: "<p>Hi team,</p><p>Please find attached the Q3 report.</p>",
-        bodyText: "Hi team,\n\nPlease find attached the Q3 report.",
-        timestamp: new Date("2025-09-16T10:45:00Z").toISOString(),
-        sizeEstimate: 2048000,
-        categories: ["Assignment", "Session"],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-    };
+function Inbox(): JSX.Element {
+    const { emails = [] }: { emails?: InboundEmailType[] } = EmailsStore();
 
     return (
         <div className="grid gap-y-2">
-            <Mail mail={sampleEmail} />
-            <Mail mail={sampleEmail} />
-            <Mail mail={sampleEmail} />
-            <Mail mail={sampleEmail} />
-            <Mail mail={sampleEmail} />
-            <Mail mail={sampleEmail} />
-            <Mail mail={sampleEmail} />
-            <Mail mail={sampleEmail} />
-            <Mail mail={sampleEmail} />
-            <Mail mail={sampleEmail} />
-            <Mail mail={sampleEmail} />
-            <Mail mail={sampleEmail} />
+            {emails.map((email, idx) => {
+                const key = (email as InboundEmailType).id ?? idx;
+                return <Mail key={key} mail={email} />;
+            })}
         </div>
     );
 }
-export default Inbox
+
+export default Inbox;

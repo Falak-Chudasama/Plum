@@ -1,6 +1,7 @@
 import axios from "axios";
 import contants from "../constants/constants"
 import handleError from "../utils/errors.utils";
+import utils from "../utils/utils";
 
 const axiosAuth = axios.create({
     baseURL: `${contants.serverOrigin}/user`,
@@ -20,8 +21,10 @@ async function login(email: string, fName: string, lName: string) {
     try {
         const result = await axiosAuth.post('/auth/login', { email, fName, lName })
 
-        if (!result.data || !result.data.success) {
-            throw new Error(result.data?.message || 'Failed to login');
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
         }
 
         return result.data;
@@ -40,11 +43,14 @@ async function getCategories(email: string) {
         const result = await axiosAuth.get(`/categories/${email}`)
 
         console.log('Getting Categories API called');
-
-        if (!result.data || !result.data.success) {
-            throw new Error(result.data?.message || 'Failed to get Categories');
+        
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
         }
-
+        
+        console.log('Successfully Got Categories API called');
         return result.data;
     } catch (err) {
         handleError(err);
@@ -56,16 +62,18 @@ async function getCategories(email: string) {
     Mail APIs
 */
 
-const dummyMail = {
-    to: 'falakchudasama7766@gmail.com',
-    subject: 'A thought',
-    contentType: 'text/plain',
-    body: 'I had a thought, but forgot the thought, remind me the thought'
-}
-
 async function sendMail(email: any = '') {
     try {
+        console.log('Getting Mails');
         const response = await axiosEmail.post('/send', { email });
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+
+        console.log('Successfully Got Mails');
         return response.data;
     } catch (err) {
         console.error(err);
@@ -73,7 +81,28 @@ async function sendMail(email: any = '') {
     }
 };
 
-async function fetchMail(numberOfEmails: number = 4) {
+async function fetchMailsDate(date: string, month: string, year: string) {
+    try {
+        console.log('Getting Mails by Date');
+        const { gmailCookie: email } = utils.parseGmailCookies();
+        const response = await axiosEmail.post('/fetch-by-date', {
+            email, date, month, year
+        });
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+
+        console.log('Successfully Got Mails by Date');
+        return response.data;
+    } catch (err) {
+        handleError(err);
+    }
+}
+
+async function fetchMails(numberOfEmails: number = 10) {
     try {
         const response = await axiosEmail.get(
             '/fetch',
@@ -93,13 +122,13 @@ async function fetchMail(numberOfEmails: number = 4) {
 
 async function draftMail() { };
 
-
 const apis = {
     googleAuth,
     login,
     getCategories,
     sendMail,
-    fetchMail,
+    fetchMails,
+    fetchMailsDate,
     draftMail,
 };
 

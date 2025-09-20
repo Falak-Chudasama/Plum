@@ -199,12 +199,12 @@ const fetchUniqueEmails = async (emails: InboundEmailType[]): Promise<InboundEma
     return [];
 };
 
-const fetchEmailsDate = async (email: string, day: string, month: string, year: string): Promise<InboundEmailType[]> => {
+const fetchEmailsDateUtil = async (email: string, day: string, month: string, year: string): Promise<InboundEmailType[]> => {
     try {
         const emails = await models.InboundEmail.find({ email, "parsedDate.day": day, "parsedDate.month": month, "parsedDate.year": year });
         return emails ?? [];
     } catch (err) {
-        handleErrorUtil(filePath, 'fetchEmailsDate', err, 'Fetching Emails by Date');
+        handleErrorUtil(filePath, 'fetchEmailsDateUtil', err, 'Fetching Emails by Date');
     }
     return [];
 };
@@ -230,6 +230,27 @@ const fetchEmails = async (req: Request, res: Response) => {
         });
     } catch (err) {
         handleError(filePath, 'fetchEmails', res, err, 'Fetching Emails via Gmail');
+    }
+};
+
+// GET api.plum.com/email/fetch-by-date
+const fetchEmailsDate = async (req: Request, res: Response) => {
+    const { email, date, month, year } = req.body;
+
+    try {
+        const emails = await fetchEmailsDateUtil(email, date, month, year);
+
+        if (!emails) {
+            throw Error('Could not fetch emails');
+        }
+
+        return res.status(200).json({
+            emails,
+            emailsCount: emails.length,
+            success: true,
+        });
+    } catch (err) {
+        handleError(filePath, 'fetchEmailsDate', res, err, 'Fetching Emails by Date via Gmail');
     }
 };
 
@@ -303,6 +324,7 @@ const emailOps = {
     fetchEmailsUtil,
     fetchUniqueEmails,
     fetchEmailsDate,
+    fetchEmailsDateUtil,
     draftEmail,
     saveOutboundEmail,
     saveInboundEmails,

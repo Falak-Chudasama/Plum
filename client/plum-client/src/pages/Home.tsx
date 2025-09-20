@@ -96,7 +96,11 @@ function Home() {
             return;
         }
         // API call to get the categories
-        apis.getCategories(gmailCookie);
+        async function saveCategories() {
+            const categories = await apis.getCategories(gmailCookie);
+            setCategory(categories.categories); 
+        }
+        saveCategories();
     }, [id, gmailCookie, navigate]);
 
     useEffect(() => {

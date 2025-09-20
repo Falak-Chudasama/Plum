@@ -6,6 +6,7 @@ const emailRouter = Router();
 // api.plum.com/email
 emailRouter.post('/send', emailOps.sendEmail);
 emailRouter.post('/draft', emailOps.draftEmail);
-emailRouter.get('/fetch', emailOps.fetchEmails);
+emailRouter.post('/fetch', emailOps.fetchEmails);
+emailRouter.post('/fetch-by-date', emailOps.fetchEmailsDate);
 
 export default emailRouter;

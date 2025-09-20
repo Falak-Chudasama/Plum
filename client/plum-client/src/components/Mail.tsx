@@ -1,45 +1,58 @@
 import { useMemo } from "react";
+import CategoryStore from "../store/CategoriesStore";
 import { type InboundEmailType, type CategoryType } from "../types/types";
+
+// TODO: Fix the styling of the Mail
 
 const textLim1 = 60;
 const textLim2 = 90;
 
 const colorMap = {
     red: {
-        dark: 'plum-cat-red-dark',
-        light: 'plum-cat-red-light'
+        dark: '#E53935',
+        light: '#FFD7DC'
     },
     green: {
-        dark: 'plum-cat-green-dark',
-        light: 'plum-cat-green-light'
+        dark: '#43A047',
+        light: '#DAFFDC'
     },
     blue: {
-        dark: 'plum-cat-blue-dark',
-        light: 'plum-cat-blue-light'
+        dark: '#1E88E5',
+        light: '#DDEFFF'
     },
-    orange: {
-        dark: 'plum-cat-orange-dark',
-        light: 'plum-cat-orange-light'
+    yellow: {
+        dark: '#FF9000',
+        light: '#FFF0D5'
     },
     purple: {
-        dark: 'plum-cat-purple-dark',
-        light: 'plum-cat-purple-light'
+        dark: '#7A5BB9',
+        light: '#E0CCFF'
     },
     gray: {
-        dark: 'plum-cat-gray-dark',
-        light: 'plum-cat-gray-light'
+        dark: '#616161',
+        light: '#E4E4E4'
     },
 };
 
 function CategoryComp({ title }: { title: string }) {
-    // const { dark, light } = colorMap[category.color];
-    const dark = '#E53935'
-    const light = '#FFD7DC'
+    const { category } = CategoryStore(); 
+    const color = category.map((cat) => {
+        if (cat.category === title) return cat;
+    }).filter((cat) => cat !== undefined)[0].color;
+
+    const { dark, light } = colorMap[color];
 
     return (
-        <div className={`font-cabin bg-[${light}] border-[${dark}] border-2 pl-1.5 pr-2 text-sm font-medium rounded-full flex items-center gap-x-2`}>
-            <div className={`h-3 w-3 rounded-full bg-[${dark}]`} />
-            <p className={`text-[${dark}]`}>{title}</p>
+        <div className={`font-cabin border-2 pl-1.5 pr-2 text-sm font-medium rounded-full flex items-center gap-x-2`} style={{
+            backgroundColor: light,
+            borderColor: dark
+        }}>
+            <div className={`h-3 w-3 rounded-full`} style={{
+                backgroundColor: dark
+            }} />
+            <p style={{
+                color: dark
+            }}>{title}</p>
         </div>
     );
 }
@@ -60,7 +73,7 @@ function modifiedTime(time: string): string {
     const [hoursStr, minutes] = time.split(":");
     let hours = parseInt(hoursStr, 10);
     const ampm = hours >= 12 ? "PM" : "AM";
-    
+
     hours = hours % 12;
     hours = hours ? hours : 12;
     return `${hours.toString().padStart(2, "0")}:${minutes} ${ampm}`;
@@ -85,8 +98,8 @@ export default function Mail({ mail, showCategs = true }: MailProps) {
                 typeof c === "string" ? c : (c as any).title ?? JSON.stringify(c)
             )
             : showCategs
-            ? mail.categories
-            : [];
+                ? mail.categories
+                : [];
 
     return (
         <div className="w-full h-9 px-4 rounded-full flex items-center justify-between bg-plum-bg-bold hover:bg-plum-bg border-plum-secondary border-2 duration-250 cursor-pointer">

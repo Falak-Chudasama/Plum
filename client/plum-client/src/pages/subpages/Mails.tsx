@@ -1,75 +1,128 @@
+import apis from "../../apis/apis";
 import { type JSX } from "react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import DateStore from "../../store/DateStore";
 import MailsTabsStore from "../../store/MailsTabsStore";
+import EmailsStore from "../../store/EmailsStore";
 import Inbox from "./tabs/Inbox";
 import Categorized from "./tabs/Categorized";
 import Summary from "./tabs/Summary";
 import Threads from "./tabs/Threads";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { type InboundEmailType } from "../../types/types";
 
-function DayNavigator() {
-    const formatDate = (d: Date) => {
-        const parts = d.toLocaleString("en-GB", {
-            weekday: "short",
-            day: "2-digit",
-            month: "short",
-        }).split(" ");
+type TabType = 'inbox' | 'categorized' | 'summary' | 'threads';
 
-        return parts.map((val, idx) => {
-            if (idx === 1) {
-                let suffix = "th";
-                if (val.endsWith("1") && val !== "11") suffix = "st";
-                else if (val.endsWith("2") && val !== "12") suffix = "nd";
-                else if (val.endsWith("3") && val !== "13") suffix = "rd";
-
-                return parseInt(val, 10) + suffix;
-            }
-            return val;
-        }).join(" ");
-    };
-
-    const areSameDays = (day1: Date, day2: Date): boolean => {
-        return day1.getFullYear() === day2.getFullYear() &&
-            day1.getMonth() === day2.getMonth() &&
-            day1.getDate() === day2.getDate();
-    };
-
-    const { date, setDate } = DateStore();
-    const [day, setDayDate] = useState(date);
-    const [isToday, setIsToday] = useState(areSameDays(date, day));
-    const [displayedDate, setDisplayedDate] = useState(formatDate(day));
-
+function useKeyboardNavigation(
+    onLeftArrow: () => void,
+    onRightArrow: () => void,
+    useCtrl: boolean = false
+) {
     useEffect(() => {
-        setDisplayedDate(formatDate(day));
-        setDate(day);
-        const today = new Date();
-        setIsToday(areSameDays(today, day));
-    }, [day]);
+        const handleKeyDown = (event: KeyboardEvent) => {
+            const isCtrlPressed = event.ctrlKey;
 
-    useEffect(() => {
-        const handleArrowKeys = (event: KeyboardEvent) => {
-            const today = new Date();
-            if (event.ctrlKey && event.key === 'ArrowLeft') {
-                console.log('today: ' + today);
-                console.log('day: ' + day);
-                console.log();
-                handleDateChange();
-            } else if (event.ctrlKey && event.key === 'ArrowRight' && !areSameDays(today, date)) {
-                console.log('today: ' + today);
-                console.log('day: ' + day);
-                console.log();
-                handleDateChange(true);
+            if (useCtrl && !isCtrlPressed) return;
+            if (!useCtrl && isCtrlPressed) return;
+
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                onLeftArrow();
+            } else if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                onRightArrow();
             }
         };
-        window.addEventListener('keydown', handleArrowKeys);
-        return () => window.removeEventListener('keydown', handleArrowKeys);
-    }, [day]);
 
-    function handleDateChange(addDay: boolean = false) {
-        setDayDate(new Date(day.setDate(day.getDate() + (addDay ? 1 : -1))));
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onLeftArrow, onRightArrow, useCtrl]);
+}
+
+const formatDate = (date: Date): string => {
+    const parts = date.toLocaleString("en-GB", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+    }).split(" ");
+
+    return parts.map((val, idx) => {
+        if (idx === 1) {
+            const day = parseInt(val, 10);
+            let suffix = "th";
+            if (day % 10 === 1 && day !== 11) suffix = "st";
+            else if (day % 10 === 2 && day !== 12) suffix = "nd";
+            else if (day % 10 === 3 && day !== 13) suffix = "rd";
+
+            return day + suffix;
+        }
+        return val;
+    }).join(" ");
+};
+
+const areSameDays = (day1: Date, day2: Date): boolean => {
+    return day1.getFullYear() === day2.getFullYear() &&
+        day1.getMonth() === day2.getMonth() &&
+        day1.getDate() === day2.getDate();
+};
+
+const addDays = (date: Date, days: number): Date => {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+};
+
+function DayNavigator() {
+    const { date, setDate } = DateStore();
+    const { setEmails } = EmailsStore();
+    const today = useMemo(() => new Date(), []);
+
+    const isToday = useMemo(() => areSameDays(today, date), [today, date]);
+    const displayedDate = useMemo(() => formatDate(date), [date]);
+
+    const { data: emails = [], isLoading, error } = useQuery<InboundEmailType[]>({
+        queryKey: ["emails", `${date.getDate()}/${date.getMonth()}/${date.getFullYear()}`],
+        queryFn: async () => {
+            const response = await apis.fetchMailsDate(
+                date.toLocaleString('en-GB', { day: "2-digit" }),
+                date.toLocaleString('en-GB', { month: "long" }),
+                date.toLocaleString('en-GB', { year: "numeric" }),
+            );
+            return response.emails;
+        },
+        placeholderData: keepPreviousData,
+        retry: 2,
+    });
+
+    const handlePreviousDay = useCallback(() => {
+        setDate(addDays(date, -1));
+    }, [date, setDate]);
+
+    const handleNextDay = useCallback(() => {
+        if (!isToday) {
+            setDate(addDays(date, 1));
+        }
+    }, [date, setDate, isToday]);
+
+    useKeyboardNavigation(handlePreviousDay, handleNextDay, true);
+
+    useEffect(() => {
+        if (emails) {
+            setEmails(emails);
+        }
+    }, [emails, setEmails]);
+
+    if (error) {
+        return (
+            <div className="mt-8 select-none">
+                <div className="text-red-500 p-4 rounded-lg bg-red-50">
+                    Error loading emails. Please try again.
+                </div>
+            </div>
+        );
     }
 
-    const btnClass = `text-plum-bg text-lg font-medium px-3 rounded-xl hover:px-5 duration-225`;
+    const btnClass = `text-plum-bg text-lg font-medium px-3 rounded-xl hover:px-5 duration-225 transition-all focus:outline-none focus:ring-2 focus:ring-plum-secondary focus:ring-opacity-50`;
 
     return (
         <div className="mt-8 select-none">
@@ -78,111 +131,146 @@ function DayNavigator() {
                     {displayedDate}
                 </h1>
                 <p className="text-md text-plum-bg bg-plum-secondary px-2 rounded-lg">
-                    28 Mails {/* Make it dynamic  */}
+                    {isLoading ? "Loading..." : `${emails.length} ${emails.length === 1 ? 'Mail' : 'Mails'}`}
                 </p>
             </div>
             <div className="mt-3 flex gap-x-1.5">
-                <button onClick={() => handleDateChange()} className={`bg-plum-primary cursor-pointer ${btnClass}`}>Previous</button>
-                <button onClick={() => { if(!isToday) handleDateChange(true)}} className={`${isToday ? "bg-plum-primary-dark cursor-not-allowed" : "bg-plum-primary cursor-pointer"} ${btnClass}`}>Next</button>
+                <button
+                    onClick={handlePreviousDay}
+                    className={`bg-plum-primary cursor-pointer ${btnClass}`}
+                    aria-label="Go to previous day (Ctrl+←)"
+                >
+                    Previous
+                </button>
+                <button
+                    onClick={handleNextDay}
+                    disabled={isToday}
+                    className={`${isToday
+                            ? "bg-plum-primary-dark cursor-not-allowed"
+                            : "bg-plum-primary cursor-pointer"
+                        } ${btnClass}`}
+                    aria-label={isToday ? "Cannot go to future dates" : "Go to next day (Ctrl+→)"}
+                >
+                    Next
+                </button>
             </div>
         </div>
     );
 }
 
 function TabNavigator() {
-    const tabs = ['inbox', 'categorized', 'summary', 'threads'];
+    const tabs: TabType[] = ['inbox', 'categorized', 'summary', 'threads'];
     const { tab, setTab } = MailsTabsStore();
     const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
-    const refs = {
-        inbox: useRef<HTMLParagraphElement>(null),
-        categorized: useRef<HTMLParagraphElement>(null),
-        summary: useRef<HTMLParagraphElement>(null),
-        threads: useRef<HTMLParagraphElement>(null),
-    };
 
-    const updateIndicator = () => {
-        const ref = refs[tab]?.current;
+    const refs = useRef<Record<TabType, HTMLParagraphElement | null>>({
+        inbox: null,
+        categorized: null,
+        summary: null,
+        threads: null,
+    });
+
+    const updateIndicator = useCallback(() => {
+        const ref = refs.current[tab];
         if (ref) {
             setIndicatorStyle({
                 left: ref.offsetLeft,
                 width: ref.offsetWidth,
-            })
+            });
         }
-    };
-
-    useEffect(() => {
-        const idx = tabs.indexOf(tab);
-        const handleArrowKeys = (event: KeyboardEvent) => {
-            if (!event.ctrlKey && event.key === 'ArrowLeft' && idx > 0) {
-                setTab(tabs[idx - 1]);
-            } else if (!event.ctrlKey && event.key === 'ArrowRight' && idx < tabs.length - 1) {
-                setTab(tabs[idx + 1]);
-            }
-        };
-
-        window.addEventListener('keydown', handleArrowKeys);
-        return () => window.removeEventListener('keydown', handleArrowKeys);
     }, [tab]);
+
+    const currentIndex = useMemo(() => tabs.indexOf(tab), [tab, tabs]);
+
+    const handlePreviousTab = useCallback(() => {
+        if (currentIndex > 0) {
+            setTab(tabs[currentIndex - 1]);
+        }
+    }, [currentIndex, tabs, setTab]);
+
+    const handleNextTab = useCallback(() => {
+        if (currentIndex < tabs.length - 1) {
+            setTab(tabs[currentIndex + 1]);
+        }
+    }, [currentIndex, tabs, setTab]);
+
+    useKeyboardNavigation(handlePreviousTab, handleNextTab, false);
 
     useEffect(() => {
         updateIndicator();
-    }, [tab]);
+    }, [updateIndicator]);
 
     useEffect(() => {
-        window.addEventListener("resize", updateIndicator);
-        return () => window.removeEventListener("resize", updateIndicator);
-    }, [tab]);
+        const handleResize = () => {
+            updateIndicator();
+        };
 
-    const textClass = 'text-2xl font-cabin font-semibold cursor-pointer duration-200';
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, [updateIndicator]);
+
+    const textClass = 'text-2xl font-cabin font-semibold cursor-pointer duration-200 rounded px-1';
+
+    const capitalizeTab = (tabName: string): string => {
+        return tabName.charAt(0).toUpperCase() + tabName.slice(1);
+    };
 
     return (
         <div className="w-fit mt-10 select-none relative">
-            <div className="flex gap-x-4 px-3 relative">
-                <p ref={refs.inbox} onClick={() => setTab('inbox')}
-                    className={`${textClass} ${tab === 'inbox' ? 'text-plum-secondary' : 'text-plum-primary hover:text-plum-primary-dark'} `}>
-                    Inbox
-                </p>
-                <p ref={refs.categorized} onClick={() => setTab('categorized')}
-                    className={`${textClass} ${tab === 'categorized' ? 'text-plum-secondary' : 'text-plum-primary hover:text-plum-primary-dark'} `}>
-                    Categorized
-                </p>
-                <p ref={refs.summary} onClick={() => setTab('summary')}
-                    className={`${textClass} ${tab === 'summary' ? 'text-plum-secondary' : 'text-plum-primary hover:text-plum-primary-dark'} `}>
-                    Summary
-                </p>
-                <p ref={refs.threads} onClick={() => setTab('threads')}
-                    className={`${textClass} ${tab === 'threads' ? 'text-plum-secondary' : 'text-plum-primary hover:text-plum-primary-dark'} `}>
-                    Threads
-                </p>
+            <div className="flex gap-x-4 px-3 relative" role="tablist">
+                {tabs.map((tabName) => (
+                    <p
+                        key={tabName}
+                        ref={(el) => { refs.current[tabName] = el; }}
+                        onClick={() => setTab(tabName)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setTab(tabName);
+                            }
+                        }}
+                        className={`${textClass} ${tab === tabName
+                                ? 'text-plum-secondary'
+                                : 'text-plum-primary hover:text-plum-primary-dark'
+                            }`}
+                        role="tab"
+                        tabIndex={0}
+                        aria-selected={tab === tabName}
+                        aria-label={`${capitalizeTab(tabName)} tab`}
+                    >
+                        {capitalizeTab(tabName)}
+                    </p>
+                ))}
             </div>
             <div className="w-full relative mt-1 h-1.25 rounded-full bg-plum-bg-bold">
-                <div className={`h-full top-0 absolute bg-plum-secondary rounded-full transition-all duration-300`}
+                <div
+                    className="h-full top-0 absolute bg-plum-secondary rounded-full transition-all duration-300"
                     style={{
                         left: indicatorStyle.left,
                         width: indicatorStyle.width
-                    }}></div>
+                    }}
+                    aria-hidden="true"
+                />
             </div>
         </div>
     );
 }
 
 function Main() {
-    const tabs = {
+    const tabs: Record<TabType, React.ComponentType> = {
         inbox: Inbox,
         categorized: Categorized,
         summary: Summary,
         threads: Threads
     };
-    const { tab } = MailsTabsStore();
-    const [displayTab, setDisplayTab] = useState<JSX.Element>(tabs[tab]);
 
-    useEffect(() => {
-        setDisplayTab(tabs[tab]);
-    }, [tab]);
+    const { tab } = MailsTabsStore();
+
+    const TabComponent = tabs[tab];
 
     return (
-        <div className="pr-30 pb-5 mt-5">
-            {displayTab}
+        <div className="pr-30 pb-5 mt-5" role="tabpanel">
+            <TabComponent />
         </div>
     );
 }
@@ -190,7 +278,7 @@ function Main() {
 function Mails() {
     useEffect(() => {
         document.title = 'Plum | Mails';
-    }, [])
+    }, []);
 
     return (
         <div className="w-full">
@@ -200,4 +288,5 @@ function Mails() {
         </div>
     );
 }
-export default Mails
+
+export default Mails;

@@ -1,16 +1,15 @@
 import Mail from "../../../components/Mail";
 import DateStore from "../../../store/DateStore";
 import useEmails from "../../../hooks/useEmails";
-import type { InboundEmailType } from "../../../types/types";
-import type { JSX, ReactElement } from "react";
-import NoMails from "../../../components/NoMails";
-import Loading from "../../../components/Loading";
+import type { JSX } from "react";
+import components from "../../../components/components";
 
 // TODO: Sort the mails by time in the inbox
 
 function Inbox(): JSX.Element {
     const { date } = DateStore();
     const { data: emails, isLoading } = useEmails(date);
+    const { Loading, NoMails } = components;
 
     if (isLoading) return <Loading />;
     if (!emails || emails.length === 0) return <NoMails />;

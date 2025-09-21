@@ -17,8 +17,10 @@ class Embedder:
         return self.model.encode(texts, convert_to_numpy=True, normalize_embeddings=True)
 
 # Defaults can be overridden with environment variables
-DEFAULT_CHAT_MODEL = os.getenv("CHAT_EMBED_MODEL", "nomic-ai/nomic-embed-text-v1")
+DEFAULT_CHAT_MODEL = os.getenv("CHAT_EMBED_MODEL", "BAAI/bge-large-en-v1.5")
 DEFAULT_CATEG_MODEL = os.getenv("CATEG_EMBED_MODEL", "BAAI/bge-large-en-v1.5")
+# DEFAULT_CHAT_MODEL = os.getenv("CHAT_EMBED_MODEL", "nomic-ai/nomic-embed-text-v1")
+# DEFAULT_CATEG_MODEL = os.getenv("CATEG_EMBED_MODEL", "WhereIsAI/UAE-Large-V1")
 
 # Instantiate singletons for convenience. Loading happens at import (warmup).
 chat_embedder = Embedder(DEFAULT_CHAT_MODEL)

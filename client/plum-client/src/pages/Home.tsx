@@ -6,8 +6,7 @@ import Mails from "./subpages/Mails";
 import Chats from "./subpages/Chat";
 import Outbox from "./subpages/Outbox";
 import SubpageStore from "../store/SubpageStore";
-import CategoryStore from "../store/CategoriesStore";
-import apis from "../apis/apis";
+import useCategories from "../hooks/useCategories";
 
 const { PlumLogo } = components;
 const { gmailCookie, pictureCookie } = utils.parseGmailCookies();
@@ -85,7 +84,6 @@ function Home() {
     const navigate = useNavigate();
     const { subpage: section } = SubpageStore();
     const [subpage, setSubpage] = useState(<Mails />);
-    const { setCategory } = CategoryStore();
 
     useEffect(() => {
         if (!id && !gmailCookie) {
@@ -95,14 +93,9 @@ function Home() {
             navigate(`/home/${gmailCookie}`, { replace: true });
             return;
         }
-        // API call to get the categories
-        async function saveCategories() {
-            const categories = await apis.getCategories(gmailCookie);
-            setCategory(categories.categories); 
-        }
-        saveCategories();
     }, [id, gmailCookie, navigate]);
-
+    
+    useCategories();
     useEffect(() => {
         if (section === 'mails') {
             setSubpage(<Mails />);

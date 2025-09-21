@@ -22,9 +22,9 @@ async function login(email: string, fName: string, lName: string) {
         const result = await axiosAuth.post('/auth/login', { email, fName, lName })
 
         // @ts-ignore
-        if (!response.data.success) {
+        if (!result.data.success) {
             // @ts-ignore
-            throw Error(response.data.message);
+            throw Error(result.data.message);
         }
 
         return result.data;
@@ -45,9 +45,9 @@ async function getCategories(email: string) {
         console.log('Getting Categories API called');
         
         // @ts-ignore
-        if (!response.data.success) {
+        if (!result.data.success) {
             // @ts-ignore
-            throw Error(response.data.message);
+            throw Error(result.data.message);
         }
         
         console.log('Successfully Got Categories API called');
@@ -76,8 +76,8 @@ async function sendMail(email: any = '') {
         console.log('Successfully Got Mails');
         return response.data;
     } catch (err) {
-        console.error(err);
         handleError(err);
+        throw err;
     }
 };
 
@@ -89,16 +89,15 @@ async function fetchMailsDate(date: string, month: string, year: string) {
             email, date, month, year
         });
 
-        // @ts-ignore
         if (!response.data.success) {
-            // @ts-ignore
-            throw Error(response.data.message);
+            throw new Error(response.data.message);
         }
 
         console.log('Successfully Got Mails by Date');
         return response.data;
     } catch (err) {
         handleError(err);
+        throw err;
     }
 }
 
@@ -117,6 +116,7 @@ async function fetchMails(numberOfEmails: number = 10) {
         return response.data;
     } catch (err) {
         handleError(err);
+        throw err;
     }
 };
 

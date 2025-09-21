@@ -1,15 +1,12 @@
-import apis from "../../apis/apis";
-import { type JSX } from "react";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import DateStore from "../../store/DateStore";
 import MailsTabsStore from "../../store/MailsTabsStore";
-import EmailsStore from "../../store/EmailsStore";
 import Inbox from "./tabs/Inbox";
 import Categorized from "./tabs/Categorized";
 import Summary from "./tabs/Summary";
 import Threads from "./tabs/Threads";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { type InboundEmailType } from "../../types/types";
+import useEmails from "../../hooks/useEmails";
+import utils from "../../utils/utils";
 
 type TabType = 'inbox' | 'categorized' | 'summary' | 'threads';
 
@@ -74,25 +71,11 @@ const addDays = (date: Date, days: number): Date => {
 
 function DayNavigator() {
     const { date, setDate } = DateStore();
-    const { setEmails } = EmailsStore();
+    const { data: emails = [], isLoading, error } = useEmails(date);
     const today = useMemo(() => new Date(), []);
 
     const isToday = useMemo(() => areSameDays(today, date), [today, date]);
     const displayedDate = useMemo(() => formatDate(date), [date]);
-
-    const { data: emails = [], isLoading, error } = useQuery<InboundEmailType[]>({
-        queryKey: ["emails", `${date.getDate()}/${date.getMonth()}/${date.getFullYear()}`],
-        queryFn: async () => {
-            const response = await apis.fetchMailsDate(
-                date.toLocaleString('en-GB', { day: "2-digit" }),
-                date.toLocaleString('en-GB', { month: "long" }),
-                date.toLocaleString('en-GB', { year: "numeric" }),
-            );
-            return response.emails;
-        },
-        placeholderData: keepPreviousData,
-        retry: 2,
-    });
 
     const handlePreviousDay = useCallback(() => {
         setDate(addDays(date, -1));
@@ -101,16 +84,11 @@ function DayNavigator() {
     const handleNextDay = useCallback(() => {
         if (!isToday) {
             setDate(addDays(date, 1));
+            // setEmails(emails);
         }
     }, [date, setDate, isToday]);
 
     useKeyboardNavigation(handlePreviousDay, handleNextDay, true);
-
-    useEffect(() => {
-        if (emails) {
-            setEmails(emails);
-        }
-    }, [emails, setEmails]);
 
     if (error) {
         return (
@@ -122,7 +100,7 @@ function DayNavigator() {
         );
     }
 
-    const btnClass = `text-plum-bg text-lg font-medium px-3 rounded-xl hover:px-5 duration-225 transition-all focus:outline-none focus:ring-2 focus:ring-plum-secondary focus:ring-opacity-50`;
+    const btnClass = `text-plum-bg text-lg font-medium px-3 rounded-xl hover:px-5 duration-225`;
 
     return (
         <div className="mt-8 select-none">
@@ -132,6 +110,7 @@ function DayNavigator() {
                 </h1>
                 <p className="text-md text-plum-bg bg-plum-secondary px-2 rounded-lg">
                     {isLoading ? "Loading..." : `${emails.length} ${emails.length === 1 ? 'Mail' : 'Mails'}`}
+                    {/* 28 Mails */}
                 </p>
             </div>
             <div className="mt-3 flex gap-x-1.5">
@@ -146,8 +125,8 @@ function DayNavigator() {
                     onClick={handleNextDay}
                     disabled={isToday}
                     className={`${isToday
-                            ? "bg-plum-primary-dark cursor-not-allowed"
-                            : "bg-plum-primary cursor-pointer"
+                        ? "bg-plum-primary-dark cursor-not-allowed"
+                        : "bg-plum-primary cursor-pointer"
                         } ${btnClass}`}
                     aria-label={isToday ? "Cannot go to future dates" : "Go to next day (Ctrl+→)"}
                 >
@@ -230,8 +209,8 @@ function TabNavigator() {
                             }
                         }}
                         className={`${textClass} ${tab === tabName
-                                ? 'text-plum-secondary'
-                                : 'text-plum-primary hover:text-plum-primary-dark'
+                            ? 'text-plum-secondary'
+                            : 'text-plum-primary hover:text-plum-primary-dark'
                             }`}
                         role="tab"
                         tabIndex={0}

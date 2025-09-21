@@ -1,17 +1,25 @@
 import Mail from "../../../components/Mail";
-import EmailsStore from "../../../store/EmailsStore";
+import DateStore from "../../../store/DateStore";
+import useEmails from "../../../hooks/useEmails";
 import type { InboundEmailType } from "../../../types/types";
-import type { JSX } from "react";
+import type { JSX, ReactElement } from "react";
+import NoMails from "../../../components/NoMails";
+import Loading from "../../../components/Loading";
+
+// TODO: Sort the mails by time in the inbox
 
 function Inbox(): JSX.Element {
-    const { emails = [] }: { emails?: InboundEmailType[] } = EmailsStore();
+    const { date } = DateStore();
+    const { data: emails, isLoading } = useEmails(date);
+
+    if (isLoading) return <Loading />;
+    if (!emails || emails.length === 0) return <NoMails />;
 
     return (
-        <div className="grid gap-y-2">
-            {emails.map((email, idx) => {
-                const key = (email as InboundEmailType).id ?? idx;
-                return <Mail key={key} mail={email} />;
-            })}
+        <div className="grid gap-y-2.5">
+            {emails.map((email, idx) => (
+                <Mail key={email.id ?? idx} mail={email} />
+            ))}
         </div>
     );
 }

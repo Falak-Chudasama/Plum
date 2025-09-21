@@ -24,7 +24,7 @@ export const inboundEmailSchema = new mongoose.Schema({
     bcc: { type: String },
     senderEmail: { type: String, required: true },
     senderName: { type: String },
-    subject: { type: String },
+    subject: { type: String, default: 'No Subject' },
     parsedDate: ParsedDateSchema,
     snippet: { type: String },
     bodyHtml: { type: String },

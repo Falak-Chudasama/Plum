@@ -27,8 +27,6 @@ const runJobs = async () => {
 
     await OAuthObjectCheck(email);
     logger.info(`Waiting ${minutesDelay} minutes...`);
-    await startCategoriesFeedingJob(); // del it
-    await startGmailFetcherJob(); // del it
     setInterval(async () => {
         try {
             if (globals.categoriesFeedingJobRunning === false) {

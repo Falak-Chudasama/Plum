@@ -26,7 +26,8 @@
     --color-plum-cat-gray-dark: #616161;
     --color-plum-cat-gray-light: #E4E4E4;
 
-    --shadow-plum-surface-xs: 0 0 8px 0 rgba(210, 200, 235, 1);
+    --shadow-plum-surface-xs: 0 0 4px 0 rgba(210, 200, 235, 1);
+    --shadow-plum-surface-md: 0 0 8px 0 rgba(210, 200, 235, 1);
     --shadow-plum-surface-xl: 0 0 12px 0 rgba(210, 200, 235, 1);
 }
 

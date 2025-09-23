@@ -108,7 +108,7 @@ export default function Mail({ mail, showCategs = true }: MailProps) {
     }
 
     return (
-        <div className={`text-sm w-full h-9 px-4 shadow-plum-surface-xs rounded-full flex items-center justify-between bg-plum-bg-bold hover:bg-plum-bg border-plum-secondary border-2 duration-250 cursor-pointer`}>
+        <div className={`text-sm w-full h-9.5 px-4 shadow-plum-surface-xs rounded-full flex items-center justify-between bg-plum-bg-bold hover:bg-plum-bg border-plum-secondary border-2 duration-200 cursor-pointer`}>
             <div className="flex items-center">
                 <p className="text-plum-secondary font-medium w-52">{shortenText(mail.senderName, nameLim) ?? shortenText(mail.senderEmail, nameLim)}</p>
                 <p className="text-plum-primary">{shortenedSubject}</p>

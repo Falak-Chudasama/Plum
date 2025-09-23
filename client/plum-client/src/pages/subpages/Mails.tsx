@@ -6,7 +6,6 @@ import Categorized from "./tabs/Categorized";
 import Summary from "./tabs/Summary";
 import Threads from "./tabs/Threads";
 import useEmails from "../../hooks/useEmails";
-import utils from "../../utils/utils";
 
 type TabType = 'inbox' | 'categorized' | 'summary' | 'threads';
 
@@ -110,7 +109,6 @@ function DayNavigator() {
                 </h1>
                 <p className="text-md text-plum-bg bg-plum-secondary px-2 rounded-lg">
                     {isLoading ? "Loading..." : `${emails.length} ${emails.length === 1 ? 'Mail' : 'Mails'}`}
-                    {/* 28 Mails */}
                 </p>
             </div>
             <div className="mt-3 flex gap-x-1.5">
@@ -196,7 +194,7 @@ function TabNavigator() {
 
     return (
         <div className="w-fit mt-10 select-none relative">
-            <div className="flex gap-x-4 px-3 relative" role="tablist">
+            <div className="flex gap-x-4 px-3 relative">
                 {tabs.map((tabName) => (
                     <p
                         key={tabName}
@@ -248,7 +246,7 @@ function Main() {
     const TabComponent = tabs[tab];
 
     return (
-        <div className="pr-30 pb-5 mt-5" role="tabpanel">
+        <div className="pr-30 pb-7 mt-7">
             <TabComponent />
         </div>
     );

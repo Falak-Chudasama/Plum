@@ -18,15 +18,15 @@ const categorize = async (mails: InboundEmailType[]): Promise<InboundEmailType[]
                 Subject: ${mail.subject}
                 Body: ${mail.bodyText}
                 ${(mail.attachments && mail.attachments?.length) > 0 ? `Attachments: ${
-                    mail.attachments?.map((attachment) => attachment.filename).join(', ')
+                    mail.attachments?.map((attachment) => `File name: ${attachment.filename} File extension: ${attachment.mimeType.split('/')[1]}`).join(', ')
                 }` : ''}
                 `, k
             );
             if (!categories) throw Error('Failed to categorize the mail (check if MS is running)');
             if (categories[1].distance <= similarityLimit) {
-                mail.categories = categories.map((cat) => cat.text.split('::')[0]);
+                mail.categories = categories.map((cat) => cat.metadata.category);
             } else if (categories[0].distance <= similarityLimit) {
-                mail.categories = categories[0].text.split('::')[0];
+                mail.categories = categories[0].metadata.category;
             } else {
                 mail.categories = ['Other'];
             }

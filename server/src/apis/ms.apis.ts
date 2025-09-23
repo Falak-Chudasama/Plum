@@ -1,7 +1,7 @@
 import axios from "axios";
 import fs from "fs";
 import https from "https";
-import { InboundEmailType } from "../types/types";
+import { CategoryType, InboundEmailType } from "../types/types";
 import { handleErrorUtil } from "../utils/errors.utils";
 import constants from "../constants/constants";
 import logger from "../utils/logger.utils";
@@ -30,10 +30,18 @@ const msAxios = axios.create({
     timeout: 2 * 60 * 1000,
 });
 
-const catogEmbed = async (categories: string[]): Promise<InboundEmailType[] | null> => {
+const catogEmbed = async (categories: CategoryType[]): Promise<InboundEmailType[] | null> => {
     try {
         logger.info('Categorize Embed API called');
-        const result = await msAxios.post(`${constants.msOrigin}/embed/categorization`, { content: categories });
+        const modifiedCategories = categories.map((category) => {
+            return {
+                content: category.description,
+                meta: {
+                    "category": category.category
+                }
+            }
+        });
+        const result = await msAxios.post(`${constants.msOrigin}/embed/categorization`, { items: modifiedCategories });
 
         if (!result.data || !result.data.success) throw Error('Failed to embed categories');
 

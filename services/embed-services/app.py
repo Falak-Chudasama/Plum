@@ -173,16 +173,20 @@ async def delete_items_chat(req: DeleteRequest):
 @app.post("/embed/categorization")
 async def embed_categorization(req: EmbedRequest):
     try:
-        texts, metadatas = normalize_request(req, default_source="categorization")
+        texts = [item.content for item in req.items]
+        metadatas = [item.meta or {} for item in req.items]
+
         logger.info("Embed categorization called", extra={"count": len(texts)})
+
         if len(texts) > 1000:
-            # defensive: big batches can cause OOM or timeouts
             raise HTTPException(status_code=413, detail="Too many items in request; split into smaller batches.")
 
         ids = await run_in_threadpool(categ_store.add_texts, texts, metadatas)
+
         if not isinstance(ids, list):
             logger.error("categ_store.add_texts returned non-list", extra={"type": type(ids)})
             raise HTTPException(status_code=500, detail="Embedding failed: invalid store response.")
+
         return safe_result_wrapper(f"{len(ids)} categorization item(s) embedded successfully.", ids)
     except HTTPException:
         raise

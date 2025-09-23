@@ -43,7 +43,13 @@ const saveOutboundEmail = async (payload: OutboundEmailType) => {
 const saveInboundEmails = async (emails: InboundEmailType[]): Promise<{ inserted: number; skipped: number }> => {
     try {
         if (emails.length === 0) return { inserted: 0, skipped: 0 };
-        await models.InboundEmail.insertMany(emails);
+        const modifiedEmails = emails.map((email) => {
+            if (!email.subject) {
+                email.subject = 'No Subject';
+            }
+            return email;
+        })
+        await models.InboundEmail.insertMany(modifiedEmails);
         return { inserted: emails.length, skipped: 0 };
     } catch (err) {
         handleErrorUtil(filePath, "saveInboundEmails", err, "Saving inbound emails to DB");

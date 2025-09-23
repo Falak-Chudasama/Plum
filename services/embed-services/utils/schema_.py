@@ -1,11 +1,14 @@
 # utils/schema_.py
 
 from pydantic import BaseModel
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Dict
+
+class EmbedItem(BaseModel):
+    content: str
+    meta: Optional[Dict] = None
 
 class EmbedRequest(BaseModel):
-    content: Union[str, List[str]]
-    metadata: Optional[Union[dict, List[dict]]] = None
+    items: List[EmbedItem]
 
 class SearchRequest(BaseModel):
     query: str

@@ -14,10 +14,7 @@ const main = async () => {
         logger.info('A Job. Categories Feeding Job Running');
         await msAPIs.catogDelAll();
         const categories = await categoryOps.find();
-        const modifiedCategs = categories.map((cat) => {
-            return `${cat.category}::${cat.description}`
-        });
-        const response = await msAPIs.catogEmbed(modifiedCategs);
+        const response = await msAPIs.catogEmbed(categories);
         if (!response) mainHasFed = false;
         logger.info('A Job. Categories are successfully fed');
     } catch (err) {

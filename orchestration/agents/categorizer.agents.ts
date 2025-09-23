@@ -17,6 +17,9 @@ const categorize = async (mails: InboundEmailType[]): Promise<InboundEmailType[]
                 `
                 Subject: ${mail.subject}
                 Body: ${mail.bodyText}
+                ${(mail.attachments && mail.attachments?.length) > 0 ? `Attachments: ${
+                    mail.attachments?.map((attachment) => attachment.filename).join(', ')
+                }` : ''}
                 `, k
             );
             if (!categories) throw Error('Failed to categorize the mail (check if MS is running)');

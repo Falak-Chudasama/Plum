@@ -7,6 +7,7 @@ import Chats from "./subpages/Chat";
 import Outbox from "./subpages/Outbox";
 import SubpageStore from "../store/SubpageStore";
 import useCategories from "../hooks/useCategories";
+import useSelectedMailStore from "../store/SelectedMailStore";
 
 const { PlumLogo } = components;
 const { gmailCookie, pictureCookie } = utils.parseGmailCookies();
@@ -84,6 +85,7 @@ function Home() {
     const navigate = useNavigate();
     const { subpage: section } = SubpageStore();
     const [subpage, setSubpage] = useState(<Mails />);
+    const { mail } = useSelectedMailStore();
 
     useEffect(() => {
         if (!id && !gmailCookie) {
@@ -107,10 +109,11 @@ function Home() {
     }, [section])
 
     return (
-        <div>
+        <div className="relative">
             <Header />
             <div className="flex">
                 <SideButtons />
+                <components.FullMail mail={mail} />
                 {subpage}
             </div>
         </div>

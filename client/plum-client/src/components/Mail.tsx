@@ -1,8 +1,7 @@
 import { useMemo } from "react";
 import { type InboundEmailType, type CategoryType } from "../types/types";
 import useCategories from "../hooks/useCategories";
-
-// TODO: Fix Subject text
+import useSelectedMailStore from "../store/SelectedMailStore";
 
 const nameLim = 20;
 const subjectLim1 = 40;
@@ -82,6 +81,11 @@ export default function Mail({ mail, showCategs = true }: MailProps) {
     const subject = mail.subject.trim() ?? "No Subject";
 
     const { data: categoriesData = [], isLoading: categoriesLoading } = useCategories();
+    const { setMail } = useSelectedMailStore();
+
+    const handleMailClick = () => {
+        setMail(mail);
+    }
 
     const shortenedSubject = useMemo(() => {
         const limit = showCategs ? (mail.categories?.length === 2 ? subjectLim1 : subjectLim2) : subjectLim3;
@@ -108,7 +112,7 @@ export default function Mail({ mail, showCategs = true }: MailProps) {
     }
 
     return (
-        <div className={`text-sm w-full h-9.5 px-4 shadow-plum-surface-xs rounded-full flex items-center justify-between bg-plum-bg-bold hover:bg-plum-bg border-plum-secondary border-2 duration-200 cursor-pointer`}>
+        <div onClick={() => handleMailClick()} className={`text-sm w-full h-9.5 px-4 shadow-plum-surface-xs rounded-full flex items-center justify-between bg-plum-bg-bold hover:bg-plum-bg border-plum-secondary border-2 duration-200 cursor-pointer`}>
             <div className="flex items-center">
                 <p className="text-plum-secondary font-medium w-52">{shortenText(mail.senderName, nameLim) ?? shortenText(mail.senderEmail, nameLim)}</p>
                 <p className="text-plum-primary">{shortenedSubject}</p>

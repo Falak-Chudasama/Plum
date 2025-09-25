@@ -80,6 +80,8 @@ type MailProps = {
 export default function Mail({ mail, showCategs = true }: MailProps) {
     const subject = mail.subject.trim() ?? "No Subject";
 
+    console.log(mail); // del it
+
     const { data: categoriesData = [], isLoading: categoriesLoading } = useCategories();
     const { setMail } = useSelectedMailStore();
 

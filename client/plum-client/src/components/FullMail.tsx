@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Attachment from "./Attachment";
 import MailsTabsStore from "../store/MailsTabsStore";
+import SubpageStore from "../store/SubpageStore";
 
 function modifiedTime(time?: string): string {
     if (!time) return "";
@@ -105,7 +106,7 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
 
     return (
         <div className="text-lg grid place-items-center">
-            <div className="bg-plum-bg-bold h-fit w-full flex items-start justify-between gap-x-5 px-5 py-3 rounded-lg">
+            <div className="bg-plum-purple h-fit w-full flex items-start justify-between gap-x-5 px-5 py-3 rounded-lg">
                 <div className="grid items-stretch gap-y-2">
                     <p className="font-semibold max-w-80">
                         {senderName}
@@ -134,15 +135,14 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
                     </div>
                 </div>
             </div>
-            <div className="h-1.5 w-49/50 self-center rounded-full bg-plum-bg-bold mt-1.5"></div>
+            <div className="h-1.5 w-49/50 self-center rounded-full bg-plum-purple mt-1.5"></div>
             <div className="w-[95%] mt-2 max-w-180">
-                <div className="w-full text-lg font-semibold text-plum-primary-dark">
+                <div className="w-full text-lg font-semibold font-cabin text-plum-primary-dark">
                     <p className="text-start text-wrap">{subject}</p>
                 </div>
                 <div className="max-h-35 overflow-y-auto text-sm mt-2 space-y-3 leading-relaxed">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
                 </div>
-
             </div>
             <div className="w-[95%] mt-5 max-w-180 flex items-center gap-x-2 gap-y-2 flex-wrap">
                 {attachmentComps}
@@ -151,16 +151,17 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
     )
 }
 
-function FullMail({ mail = null }: { mail: InboundEmailType | null }) {
+function FullMail({ mail = null, subpageFor = mail }: { mail: InboundEmailType | null, subpageFor: string }) {
     const { removeMail } = useSelectedMailStore();
     const [showMail, setShowMail] = useState(mail !== null);
-    const { tab } = MailsTabsStore()
+    const { tab } = MailsTabsStore();
+    const { subpage } = SubpageStore();
 
     useEffect(() => {
-        if (tab === 'categorized') {
+        if (tab === 'summary' || subpage !== subpageFor) {
             setShowMail(false);
         }
-    }, [tab]);
+    }, [tab, subpage]);
 
     useEffect(() => {
         if (mail !== null) {
@@ -178,7 +179,7 @@ function FullMail({ mail = null }: { mail: InboundEmailType | null }) {
     return (
         <div className={`fixed w-fit h-fit z-50 duration-300 bottom-0 right-0 flex justify-end ${!showMail ? "translate-x-full" : "translate-x-0"}`}>
             <div className="place-items-end pb-10 pr-5">
-                <button className="bg-plum-bg-bold text-lg font-medium font-cabin px-4 pt-0.25 rounded-t-xl mr-5 text-plum-primary hover:bg-red-600 hover:text-plum-bg cursor-pointer block duration-350 shadow-plum-secondary-xs select-none" onClick={() => handleCancelBtnClick()}>
+                <button className="bg-plum-purple text-lg font-medium font-cabin px-4 pt-0.25 rounded-t-xl mr-5 text-plum-primary hover:bg-red-600 hover:text-plum-bg cursor-pointer block duration-350 shadow-plum-secondary-xs select-none" onClick={() => handleCancelBtnClick()}>
                     Close
                 </button>
                 <div className="bg-white h-full w-full shadow-plum-secondary-lg pt-2.5 px-2.5 rounded-xl">

@@ -15,7 +15,7 @@ function Attachment({ filename }: { filename: string }) {
     const icon = isImageFile ? "/img-file-icon.svg" : "/other-file-icon.svg";
 
     return (
-        <button className="flex items-center gap-2 px-3 py-0.5 w-fit rounded-full bg-plum-secondary text-plum-bg shadow-sm cursor-pointer select-none">
+        <button className="flex items-center gap-2 px-3 hover:px-5 py-0.5 w-fit rounded-full bg-plum-secondary text-plum-bg shadow-sm cursor-pointer select-none duration-200">
             <img
                 className="h-3 w-auto"
                 src={icon}

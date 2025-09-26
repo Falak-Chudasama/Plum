@@ -142,7 +142,7 @@ function FullMail({ mail = null }: { mail: InboundEmailType | null }) {
     return (
         <div className={`fixed min-h-60 min-w-20 max-w-160 w-fit z-50 duration-250 bottom-0 right-0 flex justify-end ${!showMail ? "translate-x-full" : "translate-x-0"}`}>
             <div className="place-items-end pb-10 pr-5">
-                <button className="bg-plum-bg-bold text-lg font-medium font-cabin px-4 pt-0.25 rounded-t-xl mr-5 text-plum-primary hover:bg-red-700 hover:text-plum-bg cursor-pointer block duration-350" onClick={() => handleCancelBtnClick()}>
+                <button className="bg-plum-bg-bold text-lg font-medium font-cabin px-4 pt-0.25 rounded-t-xl mr-5 text-plum-primary hover:bg-red-700 hover:text-plum-bg cursor-pointer block duration-350 shadow-plum-secondary-xs" onClick={() => handleCancelBtnClick()}>
                     Close
                 </button>
                 <div className="bg-white h-full w-full shadow-plum-secondary-xl p-2">

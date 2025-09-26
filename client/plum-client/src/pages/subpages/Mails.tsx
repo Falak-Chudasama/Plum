@@ -258,7 +258,7 @@ function Mails() {
     }, []);
 
     return (
-        <div className="w-full">
+        <div className="w-full overflow-y-auto">
             <DayNavigator />
             <TabNavigator />
             <Main />

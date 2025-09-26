@@ -44,3 +44,37 @@
     background-repeat: no-repeat;
     box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.25);
 }
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-plum-bg);
+    border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-plum-primary-dark);
+    border-radius: 8px;
+    border: 2px solid var(--color-plum-bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-plum-primary-dark-dark);
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-plum-primary-dark) var(--color-plum-bg);
+}
+
+::selection {
+    background: var(--color-plum-primary);
+    color: white;
+}
+::-moz-selection {
+    background: var(--color-plum-primary);
+    color: white;
+}

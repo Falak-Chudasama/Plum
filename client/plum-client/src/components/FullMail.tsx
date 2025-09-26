@@ -4,6 +4,8 @@ import useSelectedMailStore from "../store/SelectedMailStore";
 import components from "./components";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import Attachment from "./Attachment";
+import MailsTabsStore from "../store/MailsTabsStore";
 
 function modifiedTime(time?: string): string {
     if (!time) return "";
@@ -36,7 +38,7 @@ function timeAgoFrom(dateInput?: string | number | Date): string {
 }
 
 function getOrdinal(day: number) {
-    if (day > 3 && day < 21) return `${day}th`; // catch 11th–19th
+    if (day > 3 && day < 21) return `${day}th`;
     switch (day % 10) {
         case 1: return `${day}st`;
         case 2: return `${day}nd`;
@@ -60,22 +62,6 @@ const monthMap: Record<string, string> = {
     December: "Dec"
 };
 
-// const Attachment = (attachments) => {
-//     const Attachment = (attachment) => {
-//         return (
-//             <button>
-
-//             </button>
-//         )
-//     }
-
-//     return (
-//         {
-//             attachments
-//         }
-//     )
-// }
-
 function MailContent({ mail }: { mail: InboundEmailType }) {
     const subject = mail.subject ?? 'No Subject';
     const senderName = mail.senderName;
@@ -90,7 +76,13 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
     const month = mail.parsedDate?.month;
 
     const date = `${getOrdinal(Number(day))} ${monthMap[month ?? ""]}`;
-    // const attachmentComps = AttachmentComps(attachments);
+    const attachmentComps = (
+        attachments && attachments?.length > 0 ?
+            attachments.map((attachment) => {
+                return <Attachment filename={attachment.filename} />
+            })
+            : <></>
+    );
     let categoryComps = categories.map((title, idx) => (
         <components.Category key={`${title}-${idx}`} title={title} />
     )).filter((comp) => comp !== null);
@@ -134,7 +126,7 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
                     <div className="h-full flex items-stretch gap-x-1 text-[15px]">
                         <span className="font-medium">{time}</span>
                         <span className="text-plum-primary-dark">({timeAgo} ago)</span>
-                        <span>|</span>
+                        <span className="select-none">|</span>
                         <span className="font-medium">{date}</span>
                     </div>
                     <div className="place-items-end self-end grid gap-y-1">
@@ -142,18 +134,18 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
                     </div>
                 </div>
             </div>
-            {/* Attachment: {attachments.join(' &&&&&&& ')} <br></br> */}
             <div className="h-1.5 w-49/50 self-center rounded-full bg-plum-bg-bold mt-1.5"></div>
             <div className="w-[95%] mt-2 max-w-180">
-                <div className="w-full text-lg font-medium">
+                <div className="w-full text-lg font-semibold text-plum-primary-dark">
                     <p className="text-start text-wrap">{subject}</p>
                 </div>
-                <div className="max-h-30 overflow-y-auto text-sm mt-2">
-                    {<ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>}
+                <div className="max-h-35 overflow-y-auto text-sm mt-2 space-y-3 leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
                 </div>
+
             </div>
-            <div className="w-[95%] mt-2 max-w-180">
-                {/* {attachmentComps} */}
+            <div className="w-[95%] mt-5 max-w-180 flex items-center gap-x-2 gap-y-2 flex-wrap">
+                {attachmentComps}
             </div>
         </div>
     )
@@ -162,6 +154,13 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
 function FullMail({ mail = null }: { mail: InboundEmailType | null }) {
     const { removeMail } = useSelectedMailStore();
     const [showMail, setShowMail] = useState(mail !== null);
+    const { tab } = MailsTabsStore()
+
+    useEffect(() => {
+        if (tab === 'categorized') {
+            setShowMail(false);
+        }
+    }, [tab]);
 
     useEffect(() => {
         if (mail !== null) {
@@ -177,12 +176,12 @@ function FullMail({ mail = null }: { mail: InboundEmailType | null }) {
     };
 
     return (
-        <div className={`fixed w-fit h-fit z-50 duration-250 bottom-0 right-0 flex justify-end ${!showMail ? "translate-x-full" : "translate-x-0"}`}>
+        <div className={`fixed w-fit h-fit z-50 duration-300 bottom-0 right-0 flex justify-end ${!showMail ? "translate-x-full" : "translate-x-0"}`}>
             <div className="place-items-end pb-10 pr-5">
-                <button className="bg-plum-bg-bold text-lg font-medium font-cabin px-4 pt-0.25 rounded-t-xl mr-5 text-plum-primary hover:bg-red-600 hover:text-plum-bg cursor-pointer block duration-350 shadow-plum-secondary-xs" onClick={() => handleCancelBtnClick()}>
+                <button className="bg-plum-bg-bold text-lg font-medium font-cabin px-4 pt-0.25 rounded-t-xl mr-5 text-plum-primary hover:bg-red-600 hover:text-plum-bg cursor-pointer block duration-350 shadow-plum-secondary-xs select-none" onClick={() => handleCancelBtnClick()}>
                     Close
                 </button>
-                <div className="bg-white h-full w-full shadow-plum-secondary-lg p-2 rounded-xl">
+                <div className="bg-white h-full w-full shadow-plum-secondary-lg pt-2.5 px-2.5 rounded-xl">
                     {
                         mail === null ? (<div className="text-lg">
                             No Mail Chosen

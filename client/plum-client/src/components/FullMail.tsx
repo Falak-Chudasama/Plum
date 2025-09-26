@@ -1,47 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
 import type { InboundEmailType } from "../types/types";
 import useSelectedMailStore from "../store/SelectedMailStore";
-import constants from "../constants/constants";
-import useCategories from "../hooks/useCategories";
+import components from "./components";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-
-const colorMap = constants.colorMap;
-type ColorMapKey = keyof typeof colorMap;
-
-function getColorsFromCategoryColor(colorVal?: string) {
-    if (!colorVal) return colorMap.gray;
-
-    if (colorVal.startsWith("#")) {
-        return { dark: colorVal, light: colorVal + "26" };
-    }
-
-    const key = colorVal as ColorMapKey;
-    if (key in colorMap) return colorMap[key];
-
-    return colorMap.gray;
-}
-
-function CategoryComp({ title, categoriesData }: { title: string; categoriesData?: CategoryType[] }) {
-    if (!categoriesData) return null;
-    const cat = categoriesData.find((c) =>
-        (c as any).category === title
-    );
-
-    if (!cat) {
-        return null;
-    }
-
-    const { dark, light } = getColorsFromCategoryColor((cat as any).color);
-
-    return (
-        <div className="w-fit font-cabin border-2 pl-1.5 pr-2 text-sm font-medium rounded-full flex items-center gap-x-2 select-none"
-            style={{ backgroundColor: light, borderColor: dark }}>
-            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: dark }} />
-            <p style={{ color: dark }}>{title}</p>
-        </div>
-    );
-}
 
 function modifiedTime(time?: string): string {
     if (!time) return "";
@@ -73,6 +35,47 @@ function timeAgoFrom(dateInput?: string | number | Date): string {
     return `${years}y`;
 }
 
+function getOrdinal(day: number) {
+    if (day > 3 && day < 21) return `${day}th`; // catch 11th–19th
+    switch (day % 10) {
+        case 1: return `${day}st`;
+        case 2: return `${day}nd`;
+        case 3: return `${day}rd`;
+        default: return `${day}th`;
+    }
+}
+
+const monthMap: Record<string, string> = {
+    January: "Jan",
+    February: "Feb",
+    March: "Mar",
+    April: "Apr",
+    May: "May",
+    June: "Jun",
+    July: "Jul",
+    August: "Aug",
+    September: "Sept",
+    October: "Oct",
+    November: "Nov",
+    December: "Dec"
+};
+
+// const Attachment = (attachments) => {
+//     const Attachment = (attachment) => {
+//         return (
+//             <button>
+
+//             </button>
+//         )
+//     }
+
+//     return (
+//         {
+//             attachments
+//         }
+//     )
+// }
+
 function MailContent({ mail }: { mail: InboundEmailType }) {
     const subject = mail.subject ?? 'No Subject';
     const senderName = mail.senderName;
@@ -81,13 +84,15 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
     const time = modifiedTime(mail.parsedDate?.time);
     const categories = mail.categories ?? ['Other'];
     const body = mail.bodyText;
-    const attachments = mail.attachments.map((a) => a.filename);
+    const attachments = mail.attachments;
     const timeAgo = useMemo(() => timeAgoFrom(mail.timestamp), [mail.timestamp]);
+    const day = mail.parsedDate?.day;
+    const month = mail.parsedDate?.month;
 
-    const { data: categoriesData = [], isLoading: categoriesLoading } = useCategories();
-
+    const date = `${getOrdinal(Number(day))} ${monthMap[month ?? ""]}`;
+    // const attachmentComps = AttachmentComps(attachments);
     let categoryComps = categories.map((title, idx) => (
-        <CategoryComp key={`${title}-${idx}`} title={title} categoriesData={categoriesData} />
+        <components.Category key={`${title}-${idx}`} title={title} />
     )).filter((comp) => comp !== null);
 
     if (recieverEmail.split(',').length > 1) {
@@ -104,20 +109,52 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
         recieverEmail = recieverEmail[recieverEmail.length - 1];
         recieverEmail = recieverEmail.trim().split('').filter((c) => (c !== '<' && c !== '>'));
     }
+    recieverEmail = recieverEmail ?? '<No Email>';
 
     return (
-        <div className="text-lg max-w-2xl">
-            Name: {senderName} <br></br>
-            From: {senderEmail} <br></br>
-            To: <p className="text-plum-primary"> {recieverEmail} </p>
-            time: {time} <br></br>
-            Categories: {categoryComps}
-            Subject: {subject} <br></br>
-            <p className="max-h-40 overflow-y-scroll w-fit text-sm">
-                Body: {<ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>}
-            </p>
-            Attachment: {attachments.join(' &&&&&&& ')} <br></br>
-            Time Ago: {timeAgo}
+        <div className="text-lg grid place-items-center">
+            <div className="bg-plum-bg-bold h-fit w-full flex items-start justify-between gap-x-5 px-5 py-3 rounded-lg">
+                <div className="grid items-stretch gap-y-2">
+                    <p className="font-semibold max-w-80">
+                        {senderName}
+                    </p>
+                    <div>
+                        <div className="text-sm flex items-start justify-start">
+                            <p className="w-10">From</p>
+                            <p className="text-plum-primary">{senderEmail}</p>
+                        </div>
+                        <div className="text-sm flex items-start justify-start max-h-30 overflow-y-auto">
+                            <p className="w-10">To</p>
+                            <p className="text-plum-primary max-w-70 text-wrap">{recieverEmail}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="w-0.25 bg-plum-primary rounded-full self-stretch my-2"></div>
+                <div className="grid self-stretch gap-y-2">
+                    <div className="h-full flex items-stretch gap-x-1 text-[15px]">
+                        <span className="font-medium">{time}</span>
+                        <span className="text-plum-primary-dark">({timeAgo} ago)</span>
+                        <span>|</span>
+                        <span className="font-medium">{date}</span>
+                    </div>
+                    <div className="place-items-end self-end grid gap-y-1">
+                        {categoryComps}
+                    </div>
+                </div>
+            </div>
+            {/* Attachment: {attachments.join(' &&&&&&& ')} <br></br> */}
+            <div className="h-1.5 w-49/50 self-center rounded-full bg-plum-bg-bold mt-1.5"></div>
+            <div className="w-[95%] mt-2 max-w-180">
+                <div className="w-full text-lg font-medium">
+                    <p className="text-start text-wrap">{subject}</p>
+                </div>
+                <div className="max-h-30 overflow-y-auto text-sm mt-2">
+                    {<ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>}
+                </div>
+            </div>
+            <div className="w-[95%] mt-2 max-w-180">
+                {/* {attachmentComps} */}
+            </div>
         </div>
     )
 }
@@ -140,14 +177,14 @@ function FullMail({ mail = null }: { mail: InboundEmailType | null }) {
     };
 
     return (
-        <div className={`fixed min-h-60 min-w-20 max-w-160 w-fit z-50 duration-250 bottom-0 right-0 flex justify-end ${!showMail ? "translate-x-full" : "translate-x-0"}`}>
+        <div className={`fixed w-fit h-fit z-50 duration-250 bottom-0 right-0 flex justify-end ${!showMail ? "translate-x-full" : "translate-x-0"}`}>
             <div className="place-items-end pb-10 pr-5">
-                <button className="bg-plum-bg-bold text-lg font-medium font-cabin px-4 pt-0.25 rounded-t-xl mr-5 text-plum-primary hover:bg-red-700 hover:text-plum-bg cursor-pointer block duration-350 shadow-plum-secondary-xs" onClick={() => handleCancelBtnClick()}>
+                <button className="bg-plum-bg-bold text-lg font-medium font-cabin px-4 pt-0.25 rounded-t-xl mr-5 text-plum-primary hover:bg-red-600 hover:text-plum-bg cursor-pointer block duration-350 shadow-plum-secondary-xs" onClick={() => handleCancelBtnClick()}>
                     Close
                 </button>
-                <div className="bg-white h-full w-full shadow-plum-secondary-xl p-2">
+                <div className="bg-white h-full w-full shadow-plum-secondary-lg p-2 rounded-xl">
                     {
-                        mail === null ? (<div className="text-lg max-w-2xl">
+                        mail === null ? (<div className="text-lg">
                             No Mail Chosen
                         </div>) : (
                             <MailContent mail={mail} />

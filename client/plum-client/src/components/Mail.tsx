@@ -1,51 +1,13 @@
 import { useMemo } from "react";
-import { type InboundEmailType, type CategoryType } from "../types/types";
+import { type InboundEmailType } from "../types/types";
 import useCategories from "../hooks/useCategories";
 import useSelectedMailStore from "../store/SelectedMailStore";
-import constants from "../constants/constants";
+import components from "./components";
 
 const nameLim = 20;
 const subjectLim1 = 40;
 const subjectLim2 = 60;
 const subjectLim3 = 80;
-
-const colorMap = constants.colorMap;
-
-type ColorMapKey = keyof typeof colorMap;
-
-function getColorsFromCategoryColor(colorVal?: string) {
-    if (!colorVal) return colorMap.gray;
-
-    if (colorVal.startsWith("#")) {
-        return { dark: colorVal, light: colorVal + "26" };
-    }
-
-    const key = colorVal as ColorMapKey;
-    if (key in colorMap) return colorMap[key];
-
-    return colorMap.gray;
-}
-
-function CategoryComp({ title, categoriesData }: { title: string; categoriesData?: CategoryType[] }) {
-    if (!categoriesData) return null;
-    const cat = categoriesData.find((c) =>
-        (c as any).category === title
-    );
-
-    if (!cat) {
-        return null;
-    }
-
-    const { dark, light } = getColorsFromCategoryColor((cat as any).color);
-
-    return (
-        <div className="font-cabin border-2 pl-1.5 pr-2 text-sm font-medium rounded-full flex items-center gap-x-2"
-            style={{ backgroundColor: light, borderColor: dark }}>
-            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: dark }} />
-            <p style={{ color: dark }}>{title}</p>
-        </div>
-    );
-}
 
 function shortenText(subject: string, limit: number) {
     if (!subject) return "";
@@ -98,11 +60,11 @@ export default function Mail({ mail, showCategs = true }: MailProps) {
     }, [mail.categories, showCategs]);
 
     let categoryComps = categories.map((title, idx) => (
-        <CategoryComp key={`${title}-${idx}`} title={title} categoriesData={categoriesData} />
+        <components.Category key={`${title}-${idx}`} title={title}/>
     )).filter((comp) => comp !== null);
 
     if (!categoryComps) {
-        categoryComps = <CategoryComp key={`Other`} title={'Other'} categoriesData={categoriesData}/>
+        categoryComps = <components.Category key={`Other`} title={'Other'}/>
     }
 
     return (

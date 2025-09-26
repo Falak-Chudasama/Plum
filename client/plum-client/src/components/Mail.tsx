@@ -2,20 +2,14 @@ import { useMemo } from "react";
 import { type InboundEmailType, type CategoryType } from "../types/types";
 import useCategories from "../hooks/useCategories";
 import useSelectedMailStore from "../store/SelectedMailStore";
+import constants from "../constants/constants";
 
 const nameLim = 20;
 const subjectLim1 = 40;
 const subjectLim2 = 60;
 const subjectLim3 = 80;
 
-const colorMap = {
-    red: { dark: '#E53935', light: '#FFD7DC' },
-    green: { dark: '#43A047', light: '#DAFFDC' },
-    blue: { dark: '#1E88E5', light: '#DDEFFF' },
-    yellow: { dark: '#FF9000', light: '#FFF0D5' },
-    purple: { dark: '#7A5BB9', light: '#E0CCFF' },
-    gray: { dark: '#616161', light: '#E4E4E4' },
-} as const;
+const colorMap = constants.colorMap;
 
 type ColorMapKey = keyof typeof colorMap;
 
@@ -79,8 +73,6 @@ type MailProps = {
 
 export default function Mail({ mail, showCategs = true }: MailProps) {
     const subject = mail.subject.trim() ?? "No Subject";
-
-    console.log(mail); // del it
 
     const { data: categoriesData = [], isLoading: categoriesLoading } = useCategories();
     const { setMail } = useSelectedMailStore();

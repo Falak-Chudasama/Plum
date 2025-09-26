@@ -1,15 +1,15 @@
 import axios from "axios";
-import contants from "../constants/constants"
+import constants from "../constants/constants"
 import handleError from "../utils/errors.utils";
 import utils from "../utils/utils";
 
 const axiosAuth = axios.create({
-    baseURL: `${contants.serverOrigin}/user`,
+    baseURL: `${constants.serverOrigin}/user`,
     withCredentials: true
 });
 
 const axiosEmail = axios.create({
-    baseURL: `${contants.serverOrigin}/email/`,
+    baseURL: `${constants.serverOrigin}/email/`,
     withCredentials: true
 });
 
@@ -35,7 +35,7 @@ async function login(email: string, fName: string, lName: string) {
 }
 
 function googleAuth() {
-    window.location.href = contants.googleAuthUrl + new URLSearchParams(contants.googleAuthRequestUrl);
+    window.location.href = constants.googleAuthUrl + new URLSearchParams(constants.googleAuthRequestUrl);
 };
 
 async function getCategories(email: string) {

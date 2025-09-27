@@ -103,7 +103,7 @@ function DayNavigator() {
     return (
         <div className="mt-8 select-none">
             <div className="flex items-center gap-x-5">
-                <h1 className="text-plum-secondary font-cabin font-bold text-4xl">
+                <h1 className="text-plum-secondary font-cabin font-extrabold text-4xl">
                     {displayedDate}
                 </h1>
                 <p className="text-md text-plum-bg bg-plum-secondary px-2 rounded-lg">

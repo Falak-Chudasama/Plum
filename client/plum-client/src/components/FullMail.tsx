@@ -113,11 +113,11 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
                     </p>
                     <div>
                         <div className="text-sm flex items-start justify-start">
-                            <p className="w-10">From</p>
+                            <p className="w-10 select-none">From</p>
                             <p className="text-plum-primary">{senderEmail}</p>
                         </div>
                         <div className="text-sm flex items-start justify-start max-h-30 overflow-y-auto">
-                            <p className="w-10">To</p>
+                            <p className="w-10 select-none">To</p>
                             <p className="text-plum-primary max-w-70 text-wrap">{recieverEmail}</p>
                         </div>
                     </div>
@@ -125,10 +125,10 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
                 <div className="w-0.25 bg-plum-primary rounded-full self-stretch my-2"></div>
                 <div className="grid self-stretch gap-y-2">
                     <div className="h-full flex items-stretch gap-x-1 text-[15px]">
-                        <span className="font-medium">{time}</span>
-                        <span className="text-plum-primary-dark">({timeAgo} ago)</span>
+                        <span className="font-medium select-none">{time}</span>
+                        <span className="text-plum-primary-dark select-none">({timeAgo} ago)</span>
                         <span className="select-none">|</span>
-                        <span className="font-medium">{date}</span>
+                        <span className="font-medium select-none">{date}</span>
                     </div>
                     <div className="place-items-end self-end grid gap-y-1">
                         {categoryComps}
@@ -193,10 +193,10 @@ function FullMail({ mail = null, subpageFor = mail }: { mail: InboundEmailType |
     return (
         <div className={`fixed w-fit h-fit z-50 duration-300 bottom-0 right-0 flex justify-end ${!showMail ? "translate-x-full" : "translate-x-0"}`}>
             <div className="place-items-end pb-10 pr-5">
-                <button className="bg-plum-purple text-lg font-medium font-cabin px-4 pt-0.25 rounded-t-xl mr-5 text-plum-primary hover:bg-red-600 hover:text-plum-bg cursor-pointer block duration-350 shadow-plum-secondary-xs select-none" onClick={() => handleCancelBtnClick()}>
+                <button className="bg-plum-purple z-50 border-x-2 border-t-2 border-plum-primary-dark text-lg font-medium font-cabin px-3 pt-0.25 rounded-t-lg mr-5 text-plum-secondary hover:bg-red-600 hover:border-red-600 hover:text-red-200 cursor-pointer block duration-350 shadow-plum-secondary-xs select-none" onClick={() => handleCancelBtnClick()}>
                     Close
                 </button>
-                <div className="bg-white h-full w-full shadow-plum-secondary-lg pt-2.5 px-2.5 rounded-xl">
+                <div className="bg-white z-40 border-2 border-plum-primary-dark h-full w-full shadow-plum-secondary-lg pt-2.5 px-2.5 rounded-xl">
                     {
                         mail === null ? (<div className="text-lg">
                             No Mail Chosen

@@ -21,7 +21,6 @@ function Inbox(): JSX.Element {
     if (isLoading) return <Loading />;
     if (!emails || emails.length === 0) return <NoMails />;
 
-
     return (
         <div className="grid gap-y-2.5">
             {sortedEmails.map((email, idx) => (

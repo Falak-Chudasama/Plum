@@ -32,7 +32,7 @@ function Category({ title }: { title: string }) {
     const { dark, light } = getColorsFromCategoryColor((cat as any).color);
 
     return (
-        <div className="w-fit font-cabin border-2 pl-1.5 pr-2 text-sm font-medium rounded-full flex items-center gap-x-2 select-none"
+        <div className="w-fit font-cabin border-2 pl-1.5 pr-2 text-sm font-medium rounded-full flex items-center gap-x-1 select-none"
             style={{ backgroundColor: light, borderColor: dark }}>
             <div className="h-3 w-3 rounded-full" style={{ backgroundColor: dark }} />
             <p style={{ color: dark }}>{title}</p>

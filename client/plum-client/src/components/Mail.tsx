@@ -40,7 +40,6 @@ export default function Mail({ mail, showCategs = true }: MailProps) {
     const { setMail } = useSelectedMailStore();
     const queryClient = useQueryClient();
 
-    const subject = mail.subject.trim() ?? "No Subject";
     const [isViewed, setIsViewed] = useState(mail.isViewed);
 
     const updateVisibility = async () => {
@@ -69,11 +68,6 @@ export default function Mail({ mail, showCategs = true }: MailProps) {
         await updateVisibility();
     }
 
-    const shortenedSubject = useMemo(() => {
-        const limit = showCategs ? (mail.categories?.length === 2 ? subjectLim1 : subjectLim2) : subjectLim3;
-        return shortenText(subject, limit);
-    }, [subject, showCategs]);
-
     const categories: string[] = useMemo(() => {
         if (!showCategs) return [];
         const c = mail.categories;
@@ -97,7 +91,7 @@ export default function Mail({ mail, showCategs = true }: MailProps) {
         <div onClick={() => handleMailClick()} className={`text-sm w-full h-9.5 px-4 shadow-plum-surface-xs rounded-full flex items-center justify-between ${!isViewed ? "bg-plum-bg-bold hover:bg-plum-bg" : "bg-white hover:bg-gray-100"} border-plum-secondary border-2 duration-200 cursor-pointer`}>
             <div className="flex items-center">
                 <p className="text-plum-secondary font-medium w-52">{shortenText(mail.senderName, nameLim) ?? shortenText(mail.senderEmail, nameLim)}</p>
-                <p className="text-plum-primary">{shortenedSubject}</p>
+                <p className={`text-plum-primary truncate ${showCategs ? 'max-w-80' : 'max-w-120'}`}>{mail.subject}</p>
             </div>
             <div className="flex items-center gap-x-4">
                 {showCategs && (

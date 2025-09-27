@@ -245,7 +245,7 @@ function Main() {
     const TabComponent = tabs[tab];
 
     return (
-        <div className="pr-30 pb-7 mt-7 relative">
+        <div className="pr-30 pb-8 mt-7 relative">
             <TabComponent />
         </div>
     );

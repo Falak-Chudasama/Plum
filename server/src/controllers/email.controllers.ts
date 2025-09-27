@@ -260,6 +260,40 @@ const fetchEmailsDate = async (req: Request, res: Response) => {
     }
 };
 
+// PUT api.plum.com/email/set-is-viewed
+const updateIsViewed = async (req: Request, res: Response) => {
+    try {
+        const { id, email } = req.body;
+        if (!id) {
+            throw Error("Email's ID was not given");
+        }
+        if (!email) {
+            throw Error('Gmail ID was not given');
+        }
+
+        const response = await models.InboundEmail.updateOne(
+            { id },
+            {
+                $set: {
+                    isViewed: true
+                }
+            }
+        );
+
+        if (response.matchedCount === 0) {
+            throw Error('Email was not found');
+        }
+
+        return res.status(200).json({ result: response, success: true });
+    } catch (err) {
+        if (err.message.endsWith('not found')){
+            handleError(filePath, 'setIsViewed', res, err, 'Setting the email as viewed (User gmail was not found)', 404);
+        } else {
+            handleError(filePath, 'setIsViewed', res, err, 'Setting the email as viewed');
+        }
+    }
+};
+
 // POST api.plum.com/email/draft
 const draftEmail = async (req: Request, res: Response) => { }
 
@@ -331,6 +365,7 @@ const emailOps = {
     fetchUniqueEmails,
     fetchEmailsDate,
     fetchEmailsDateUtil,
+    updateIsViewed,
     draftEmail,
     saveOutboundEmail,
     saveInboundEmails,

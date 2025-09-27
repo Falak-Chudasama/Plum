@@ -31,6 +31,7 @@ export interface InboundEmailType {
     timestamp?: string;
     sizeEstimate?: number;
     categories?: string[];
+    isViewed: boolean;
 
     createdAt: Date;
     updatedAt: Date;

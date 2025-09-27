@@ -120,6 +120,35 @@ async function fetchMails(numberOfEmails: number = 10) {
     }
 };
 
+async function updateIsViewed(id: string) {
+    try {
+        const { gmailCookie: email } = utils.parseGmailCookies();
+
+        if (!id) {
+            throw Error("Email's ID is 'undefined'")
+        }
+        if (!email) {
+            throw Error("Gmail ID is blank")
+        }
+
+        const response = await axiosEmail.put(
+            '/set-is-viewed',
+            { id, email }
+        );
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
 async function draftMail() { };
 
 const apis = {
@@ -129,6 +158,7 @@ const apis = {
     sendMail,
     fetchMails,
     fetchMailsDate,
+    updateIsViewed,
     draftMail,
 };
 

@@ -2,7 +2,7 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
-import logger, { morganMiddleware } from "../utils/logger.utils";
+import { morganMiddleware } from "../utils/logger.utils";
 
 import emailRouter from "../routes/email.routes";
 import userRouter from "../routes/user.routes";
@@ -17,7 +17,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
     origin: process.env.ACCEPTED_ORIGINS!.split(','),
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true
 }));
 app.use(cookieParser());

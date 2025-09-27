@@ -8,5 +8,6 @@ emailRouter.post('/send', emailOps.sendEmail);
 emailRouter.post('/draft', emailOps.draftEmail);
 emailRouter.post('/fetch', emailOps.fetchEmails);
 emailRouter.post('/fetch-by-date', emailOps.fetchEmailsDate);
+emailRouter.put('/set-is-viewed', emailOps.updateIsViewed);
 
 export default emailRouter;

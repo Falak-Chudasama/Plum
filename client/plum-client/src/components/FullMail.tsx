@@ -193,7 +193,7 @@ function FullMail({ mail = null, subpageFor = mail }: { mail: InboundEmailType |
     return (
         <div className={`fixed w-fit h-fit z-50 duration-300 bottom-0 right-0 flex justify-end ${!showMail ? "translate-x-full" : "translate-x-0"}`}>
             <div className="place-items-end pb-10 pr-5">
-                <button className="bg-plum-purple z-50 border-x-2 border-t-2 border-plum-primary-dark text-lg font-medium font-cabin px-3 pt-0.25 rounded-t-lg mr-5 text-plum-secondary hover:bg-red-600 hover:border-red-600 hover:text-red-200 cursor-pointer block duration-350 shadow-plum-secondary-xs select-none" onClick={() => handleCancelBtnClick()}>
+                <button className="bg-plum-purple z-50 text-md font-medium font-cabin px-3 rounded-t-lg mr-5 text-plum-secondary hover:bg-red-600 hover:text-red-200 cursor-pointer block duration-350 shadow-plum-secondary-xs select-none" onClick={() => handleCancelBtnClick()}>
                     Close
                 </button>
                 <div className="bg-white z-40 border-2 border-plum-primary-dark h-full w-full shadow-plum-secondary-lg pt-2.5 px-2.5 rounded-xl">

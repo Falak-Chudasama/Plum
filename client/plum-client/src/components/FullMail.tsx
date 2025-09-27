@@ -136,15 +136,29 @@ function MailContent({ mail }: { mail: InboundEmailType }) {
                 </div>
             </div>
             <div className="h-1.5 w-49/50 self-center rounded-full bg-plum-purple mt-1.5"></div>
-            <div className="w-[95%] mt-2 max-w-180">
-                <div className="w-full text-lg font-semibold font-cabin text-plum-primary-dark">
+            <div className="w-48/50 mt-2 max-w-180">
+                <div className="w-full text-xl font-semibold font-cabin">
                     <p className="text-start text-wrap">{subject}</p>
                 </div>
                 <div className="max-h-35 overflow-y-auto text-sm mt-2 space-y-3 leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+                    <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                            a: ({ node, ...props }) => (
+                                <a
+                                    {...props}
+                                    className="text-plum-primary hover:underline"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                />
+                            ),
+                        }}
+                    >
+                        {body}
+                    </ReactMarkdown>
                 </div>
             </div>
-            <div className="w-[95%] mt-5 max-w-180 flex items-center gap-x-2 gap-y-2 flex-wrap">
+            <div className="w-48/50 mt-5 max-w-180 flex items-center gap-x-2 gap-y-2 flex-wrap">
                 {attachmentComps}
             </div>
         </div>

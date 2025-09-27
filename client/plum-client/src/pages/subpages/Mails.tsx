@@ -83,7 +83,6 @@ function DayNavigator() {
     const handleNextDay = useCallback(() => {
         if (!isToday) {
             setDate(addDays(date, 1));
-            // setEmails(emails);
         }
     }, [date, setDate, isToday]);
 
@@ -99,7 +98,7 @@ function DayNavigator() {
         );
     }
 
-    const btnClass = `text-plum-bg text-lg font-medium px-3 rounded-xl hover:px-5 duration-225`;
+    const btnClass = `text-plum-bg text-lg font-medium px-3 rounded-full hover:px-5 duration-225`;
 
     return (
         <div className="mt-8 select-none">

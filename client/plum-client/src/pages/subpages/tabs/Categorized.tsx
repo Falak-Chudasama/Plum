@@ -21,15 +21,14 @@ function CategorizedMails({
     const { UpHook, DownHook, Mail } = components;
 
     return (
-        <div className="grid gap-y-10">
+        <div className="grid gap-y-15 pt-3 pb-5">
             {Object.entries(grouped).map(([categoryName, { emails, color }]) => {
                 const catColor =
                     constants.colorMap[color]?.dark ?? constants.colorMap.gray.dark;
                 const displayName = capitalizeWords(categoryName);
 
                 return (
-                    <div key={categoryName} className="grid w-full">
-                        {/* Top hook + label */}
+                    <div key={categoryName} className="group grid w-full">
                         <div className="flex items-start w-full">
                             <UpHook color={catColor} />
                             <div className="flex items-start relative">
@@ -47,7 +46,7 @@ function CategorizedMails({
                         </div>
 
                         <div
-                            className="w-[2.8px] h-9 -mt-0.25"
+                            className="w-[2.8px] h-9 group-hover:h-12 -mt-0.25 duration-150"
                             style={{ backgroundColor: catColor }}
                         ></div>
 
@@ -62,7 +61,7 @@ function CategorizedMails({
 
                         {emails.length > 1 && (
                             <div
-                                className="w-[2.8px] h-13 -mt-1.25"
+                                className={`w-[2.8px] h-12 -mt-1.25 duration-200`}
                                 style={{ backgroundColor: catColor }}
                             ></div>
                         )}

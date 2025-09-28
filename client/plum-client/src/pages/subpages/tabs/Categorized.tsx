@@ -23,8 +23,7 @@ function CategorizedMails({
     return (
         <div className="grid gap-y-15 pt-3 pb-5">
             {Object.entries(grouped).map(([categoryName, { emails, color }]) => {
-                const catColor =
-                    constants.colorMap[color]?.dark ?? constants.colorMap.gray.dark;
+                const catColor = constants.colorMap[color]?.dark ?? constants.colorMap.gray.dark;
                 const displayName = capitalizeWords(categoryName);
 
                 return (
@@ -45,41 +44,35 @@ function CategorizedMails({
                             </div>
                         </div>
 
-                        <div
-                            className="w-[2.8px] h-9 group-hover:h-12 -mt-0.25 duration-150"
-                            style={{ backgroundColor: catColor }}
-                        ></div>
+                        {emails.map((mail, index) => (
+                            <div key={index}>
+                                {index === 0 ? (
+                                    <div
+                                        className="w-[2.8px] h-9 group-hover:h-12 -mt-0.25 duration-200"
+                                        style={{ backgroundColor: catColor }}
+                                    ></div>
+                                ) : (
+                                    <div
+                                        className="w-[2.8px] h-12 -mt-1.25 duration-200"
+                                        style={{ backgroundColor: catColor }}
+                                    ></div>
+                                )}
 
-                        <div className="flex items-center w-full">
-                            <DownHook color={catColor} />
-                            {emails.length > 0 && (
-                                <div className="absolute ml-2 w-17/20">
-                                    <Mail mail={emails[0]} showCategs={false} />
-                                </div>
-                            )}
-                        </div>
-
-                        {emails.length > 1 && (
-                            <div
-                                className={`w-[2.8px] h-12 -mt-1.25 duration-200`}
-                                style={{ backgroundColor: catColor }}
-                            ></div>
-                        )}
-
-                        {emails.length > 1 && (
-                            <div className="flex items-center">
-                                <DownHook color={catColor} />
-                                <div className="absolute ml-2 w-17/20">
-                                    <Mail mail={emails[1]} showCategs={false} />
+                                <div className="flex items-center w-full">
+                                    <DownHook color={catColor} />
+                                    <div className="absolute ml-2 w-17/20">
+                                        <Mail mail={mail} showCategs={false} />
+                                    </div>
                                 </div>
                             </div>
-                        )}
+                        ))}
                     </div>
                 );
             })}
         </div>
     );
 }
+
 
 function Categorized() {
     const { date } = DateStore();

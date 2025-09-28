@@ -5,26 +5,16 @@ import components from "../../../components/components";
 import constants from "../../../constants/constants";
 import { useMemo } from "react";
 import { groupEmailsByApiCategories } from "../../../utils/groupEmailsByApiCategories";
+import utils from "../../../utils/utils";
 
-function capitalizeWords(str: string) {
-    return str
-        .split(/[_\s]+/)
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
-}
-
-function CategorizedMails({
-    grouped,
-}: {
-    grouped: Record<string, { emails: any[]; color: string }>;
-}) {
+function CategorizedMails({ grouped }: { grouped: Record<string, { emails: any[]; color: string }> }) {
     const { UpHook, DownHook, Mail } = components;
 
     return (
         <div className="grid gap-y-15 pt-3 pb-5">
             {Object.entries(grouped).map(([categoryName, { emails, color }]) => {
                 const catColor = constants.colorMap[color]?.dark ?? constants.colorMap.gray.dark;
-                const displayName = capitalizeWords(categoryName);
+                const displayName = utils.capitalizeWords(categoryName);
 
                 return (
                     <div key={categoryName} className="group grid w-full">

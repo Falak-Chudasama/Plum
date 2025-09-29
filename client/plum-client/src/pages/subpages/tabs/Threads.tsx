@@ -12,7 +12,7 @@ function Threads() {
 
     return (
         <div className="grid gap-y-2.5">
-            Categorized
+            Threads
         </div>
     );
 }

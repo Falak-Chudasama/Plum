@@ -39,8 +39,8 @@ const main = async () => {
         
         const response = await orchAPIs.summarize(emails);
         if (response && response.success) {
-            const { summary } = response;
-            await summaryOps.create(email, summary);
+            const { summary, highlights, insights, actions } = response;
+            await summaryOps.create(email, summary, highlights, insights, actions);
             globals.date = today;
             logger.info(`C Job. Saved Summary Length: ${summary.length}`);
         } else {

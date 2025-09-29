@@ -28,11 +28,11 @@ const findByDate = async (day: string, month: string, year: string): Promise<Sum
     }
 };
 
-const create = async (email: string, summary: string): Promise<boolean> => {
+const create = async (email: string, summary: string, highlights: string, insights: string, actions: string): Promise<boolean> => {
     try {
         const { day, month, year } = utils.getToday();
 
-        const result = await SummaryModel.create({ summary, email, date: { day, month, year } });
+        const result = await SummaryModel.create({ summary, email, highlights, insights, actions, date: { day, month, year } });
 
         if (!result || !result._id) {
             throw Error('Failed to persist summary');

@@ -49,9 +49,15 @@ app.post('/summarize', async (req: Request, res: Response) => {
             throw Error('Emails are missing in the request');
         }
 
-        const summary = await summarize(emails) || '<NO SUMMARY>';
+        const response = await summarize(emails);
 
-        res.status(200).json({ summary, success: true });
+        if (!response) {
+            return res.status(200).json({ message: 'Could not generate summary', success: false });
+        }
+
+        const { summary, highlights, insights, actions } = response;
+
+        res.status(200).json({ summary, highlights, insights, actions, success: true });
     } catch (err) {
         handleError(filePath, '<summarize callback>', res, err, 'Serving Summarization');
         res.status(500).json({ message: 'Internal Server Error in OL', success: false });

@@ -48,7 +48,7 @@ const categorize = async (emails: InboundEmailType[]): Promise<InboundEmailType[
     return null;
 };
 
-const summarize = async (emails: InboundEmailType[]): Promise<{ summary: string, success: boolean } | null> => {
+const summarize = async (emails: InboundEmailType[]): Promise<{ summary: string, highlights: string, insights: string, actions: string, success: boolean } | null> => {
     try {
         logger.info('Summarize API Called');
         const result = await orchAxios.post(`${constants.orchOrigin}/summarize`, { emails }, {

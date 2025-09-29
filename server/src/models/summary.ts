@@ -15,6 +15,15 @@ export const summarySchema = new mongoose.Schema({
         type: String,
         required: String
     },
+    highlights: {
+        type: String
+    },
+    insights: {
+        type: String
+    },
+    actions: {
+        type: String
+    },
     date: ParsedDateSchema
 });
 

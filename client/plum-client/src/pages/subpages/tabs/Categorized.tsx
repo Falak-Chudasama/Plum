@@ -71,7 +71,7 @@ function Categorized() {
     const { data: categories } = useCategories();
 
     const grouped = useMemo(
-        () => groupEmailsByApiCategories(emails, categories),
+        () => groupEmailsByApiCategories(emails, categories, { preserveKeys: false, uncategorizedKey: 'Other' }),
         [emails, categories]
     );
 

@@ -2,4 +2,4 @@ fastapi
 uvicorn
 chromadb
 sentence_transformers
-einops
+einopsx

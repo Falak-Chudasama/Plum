@@ -18,6 +18,7 @@ function getColorsFromCategoryColor(colorVal?: string) {
 }
 
 function Category({ title }: { title: string }) {
+    const displayTitle = title ?? 'Other';
     const { data: categoriesData = [], isLoading: categoriesLoading } = useCategories();
 
     if (!categoriesData) return null;
@@ -31,11 +32,13 @@ function Category({ title }: { title: string }) {
 
     const { dark, light } = getColorsFromCategoryColor((cat as any).color);
 
+    console.log(`${displayTitle} - ${dark} - ${light}`);
+
     return (
         <div className="w-fit font-cabin border-2 pl-1.5 pr-2 text-sm font-medium rounded-full flex items-center gap-x-1 select-none"
             style={{ backgroundColor: light, borderColor: dark }}>
             <div className="h-3 w-3 rounded-full" style={{ backgroundColor: dark }} />
-            <p style={{ color: dark }}>{title}</p>
+            <p style={{ color: dark }}>{displayTitle}</p>
         </div>
     );
 }

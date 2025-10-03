@@ -64,7 +64,7 @@ function CategorizedMails({ grouped }: { grouped: Record<string, { emails: any[]
 }
 
 
-function Categorized() {
+function Grouped() {
     const { date } = DateStore();
     const { data: emails = [], isLoading } = useEmails(date);
     const { Loading, NoMails } = components;
@@ -81,4 +81,4 @@ function Categorized() {
     return <CategorizedMails grouped={grouped} />;
 }
 
-export default Categorized;
+export default Grouped;

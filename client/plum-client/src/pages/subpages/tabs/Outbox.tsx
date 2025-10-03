@@ -2,7 +2,7 @@ import DateStore from "../../../store/DateStore";
 import useEmails from "../../../hooks/useEmails";
 import components from "../../../components/components";
 
-function Threads() {
+function Outbox() {
     const { date } = DateStore();
     const { data: emails, isLoading } = useEmails(date);
     const { Loading, NoMails } = components;
@@ -12,8 +12,8 @@ function Threads() {
 
     return (
         <div className="grid gap-y-2.5">
-            Threads
+            Outbox
         </div>
     );
 }
-export default Threads
+export default Outbox

@@ -4,7 +4,6 @@ import utils from "../utils/utils";
 import components from "../components/components";
 import Mails from "./subpages/Mails";
 import Chats from "./subpages/Chat";
-import Outbox from "./subpages/Outbox";
 import SubpageStore from "../store/SubpageStore";
 import useCategories from "../hooks/useCategories";
 import useSelectedMailStore from "../store/SelectedMailStore";
@@ -65,17 +64,6 @@ function SideButtons() {
                     <img src="/chats-icon.svg" className={`${iconClass} h-5`} alt="chat icon" />
                 </button>
             </div>
-            
-            <div className={`${containerClass} ${subpage === 'outbox' ? "text-plum-secondary" : "text-plum-primary"} ${outboxHover ? 'translate-x-0' : '-translate-x-[calc(100%-3rem)]'}`}
-                onMouseEnter={() => setOutboxHover(true)}
-                onMouseLeave={() => setOutboxHover(false)}
-                onClick={() => setSubpage('outbox')}
-                >
-                    Outbox
-                <button className={`${btnClass} ${subpage === 'outbox' ? 'bg-plum-secondary' : 'bg-plum-primary'}`} onClick={() => setSubpage('outbox')}>
-                    <img src="/outbox-icon.svg" className={`${iconClass} h-5.5 mt-1 ml-[-3px]`} alt="outbox icon" />
-                </button>
-            </div>
         </div>
     );
 }
@@ -103,8 +91,6 @@ function Home() {
             setSubpage(<Mails />);
         } else if (section === 'chats') {
             setSubpage(<Chats />);
-        } else if (section === 'outbox') {
-            setSubpage(<Outbox />);
         }
     }, [section])
 

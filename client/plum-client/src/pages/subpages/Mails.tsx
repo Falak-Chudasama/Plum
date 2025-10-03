@@ -2,12 +2,11 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import DateStore from "../../store/DateStore";
 import MailsTabsStore from "../../store/MailsTabsStore";
 import Inbox from "./tabs/Inbox";
-import Categorized from "./tabs/Categorized";
-import Summary from "./tabs/Summary";
-import Threads from "./tabs/Threads";
+import Grouped from "./tabs/Grouped";
+import Outbox from "./tabs/Outbox";
 import useEmails from "../../hooks/useEmails";
 
-type TabType = 'inbox' | 'categorized' | 'summary' | 'threads';
+type TabType = 'inbox' | 'grouped' | 'outbox';
 
 function useKeyboardNavigation(
     onLeftArrow: () => void,
@@ -135,15 +134,14 @@ function DayNavigator() {
 }
 
 function TabNavigator() {
-    const tabs: TabType[] = ['inbox', 'categorized', 'summary', 'threads'];
+    const tabs: TabType[] = ['inbox', 'grouped', 'outbox'];
     const { tab, setTab } = MailsTabsStore();
     const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
 
     const refs = useRef<Record<TabType, HTMLParagraphElement | null>>({
         inbox: null,
-        categorized: null,
-        summary: null,
-        threads: null,
+        grouped: null,
+        outbox: null
     });
 
     const updateIndicator = useCallback(() => {
@@ -235,9 +233,8 @@ function TabNavigator() {
 function Main() {
     const tabs: Record<TabType, React.ComponentType> = {
         inbox: Inbox,
-        categorized: Categorized,
-        summary: Summary,
-        threads: Threads
+        grouped: Grouped,
+        outbox: Outbox
     };
 
     const { tab } = MailsTabsStore();

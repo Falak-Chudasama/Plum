@@ -12,9 +12,9 @@ class Embedder:
             texts = [texts]
         return self.model.encode(texts, convert_to_numpy=True, normalize_embeddings=True)
 
-DEFAULT_CHAT_MODEL = os.getenv("CHAT_EMBED_MODEL", "BAAI/bge-large-en-v1.5")
-DEFAULT_CATEG_MODEL = os.getenv("CATEG_EMBED_MODEL", "BAAI/bge-large-en-v1.5")
-# DEFAULT_CHAT_MODEL = os.getenv("CHAT_EMBED_MODEL", "nomic-ai/nomic-embed-text-v1")
+DEFAULT_CATEG_MODEL = os.getenv("CHAT_EMBED_MODEL", "BAAI/bge-large-en-v1.5")
+# DEFAULT_CATEG_MODEL = os.getenv("CATEG_EMBED_MODEL", "nomic-ai/nomic-embed-text-v1")
+DEFAULT_CHAT_MODEL = os.getenv("CHAT_EMBED_MODEL", "nomic-ai/nomic-embed-text-v1")
 # DEFAULT_CATEG_MODEL = os.getenv("CATEG_EMBED_MODEL", "WhereIsAI/UAE-Large-V1")
 
 chat_embedder = Embedder(DEFAULT_CHAT_MODEL)

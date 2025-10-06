@@ -3,7 +3,6 @@ import globals from "../globals/globals";
 import logger from "../utils/logger.utils";
 import { OAuthObjectCheck } from "../middlewares/googleAuth.middlewares";
 import startGmailFetcherJob from "./gmailFetcher.jobs";
-import startSummaryFetcher from "./summaryFetcher.jobs";
 import startCategoriesFeedingJob from "./categoriesFeedingJob.jobs";
 import utils from "../utils/utils";
 
@@ -27,6 +26,8 @@ const runJobs = async () => {
 
     await OAuthObjectCheck(email);
     logger.info(`Waiting ${minutesDelay} minutes...`);
+    await startCategoriesFeedingJob();
+    await startGmailFetcherJob();
     setInterval(async () => {
         try {
             if (globals.categoriesFeedingJobRunning === false) {
@@ -34,9 +35,6 @@ const runJobs = async () => {
             }
             if (globals.gmailFetcherJobRunning === false) {
                 await startGmailFetcherJob();
-            }
-            if (globals.summarizingJobRunning === false) {
-                await startSummaryFetcher();
             }
             const { seconds, minutes, hours, day, month, year } = utils.getToday();
             await settingsOps.add('date', `${day}/${month}/${year}`);

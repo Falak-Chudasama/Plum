@@ -8,6 +8,7 @@ import SubpageStore from "../store/SubpageStore";
 import useCategories from "../hooks/useCategories";
 import useSelectedMailStore from "../store/SelectedMailStore";
 
+
 const { PlumLogo } = components;
 const { gmailCookie, pictureCookie } = utils.parseGmailCookies();
 
@@ -31,7 +32,6 @@ function SideButtons() {
     const { subpage, setSubpage } = SubpageStore();
     const [mailsHover, setMailsHover] = useState(false);
     const [chatsHover, setChatsHover] = useState(false);
-    const [outboxHover, setOutboxHover] = useState(false);
 
     const containerClass = `
     bg-plum-surface cursor-pointer transition-all duration-500 ease-in-out

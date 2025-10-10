@@ -2,14 +2,20 @@ import axios from "axios";
 import constants from "../constants/constants"
 import handleError from "../utils/errors.utils";
 import utils from "../utils/utils";
+import type { CategoryType } from "../types/types";
 
 const axiosAuth = axios.create({
-    baseURL: `${constants.serverOrigin}/user`,
+    baseURL: `${constants.serverOrigin}/user/`,
     withCredentials: true
 });
 
 const axiosEmail = axios.create({
     baseURL: `${constants.serverOrigin}/email/`,
+    withCredentials: true
+});
+
+const axiosCategory = axios.create({
+    baseURL: `${constants.serverOrigin}/category/`,
     withCredentials: true
 });
 
@@ -19,7 +25,7 @@ const axiosEmail = axios.create({
 
 async function login(email: string, fName: string, lName: string) {
     try {
-        const result = await axiosAuth.post('/auth/login', { email, fName, lName })
+        const result = await axiosAuth.post('auth/login', { email, fName, lName })
 
         // @ts-ignore
         if (!result.data.success) {
@@ -40,16 +46,16 @@ function googleAuth() {
 
 async function getCategories(email: string) {
     try {
-        const result = await axiosAuth.get(`/categories/${email}`)
+        const result = await axiosAuth.get(`categories/${email}`)
 
         console.log('Getting Categories API called');
-        
+
         // @ts-ignore
         if (!result.data.success) {
             // @ts-ignore
             throw Error(result.data.message);
         }
-        
+
         console.log('Successfully Got Categories API called');
         return result.data;
     } catch (err) {
@@ -65,7 +71,7 @@ async function getCategories(email: string) {
 async function sendMail(email: any = '') {
     try {
         console.log('Getting Mails');
-        const response = await axiosEmail.post('/send', { email });
+        const response = await axiosEmail.post('send', { email });
 
         // @ts-ignore
         if (!response.data.success) {
@@ -85,11 +91,13 @@ async function fetchMailsDate(date: string, month: string, year: string) {
     try {
         console.log('Getting Mails by Date');
         const { gmailCookie: email } = utils.parseGmailCookies();
-        const response = await axiosEmail.post('/fetch-by-date', {
+        const response = await axiosEmail.post('fetch-by-date', {
             email, date, month, year
         });
 
+        // @ts-ignore
         if (!response.data.success) {
+            // @ts-ignore
             throw new Error(response.data.message);
         }
 
@@ -105,7 +113,7 @@ async function fetchMails(numberOfEmails: number = 10) {
     try {
         const response = await axiosEmail.get(
             '/fetch',
-            {params: { numberOfEmails }}
+            { params: { numberOfEmails } }
         );
 
         // @ts-ignore
@@ -131,8 +139,8 @@ async function updateIsViewed(id: string) {
             throw Error("Gmail ID is blank")
         }
 
-        const response = await axiosEmail.put(
-            '/set-is-viewed',
+        const response = await axiosEmail.patch(
+            'set-is-viewed',
             { id, email }
         );
 
@@ -151,6 +159,97 @@ async function updateIsViewed(id: string) {
 
 async function draftMail() { };
 
+/*
+    Category APIs
+*/
+
+async function findAllCategories() {
+    try {
+        const response = await axiosCategory.get('find');
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+async function findCategories(email: string) {
+    try {
+        const response = await axiosCategory.get(`find/${email}`);
+    
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+    
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+async function createCategory(category: CategoryType) {
+    try {
+        const response = await axiosCategory.post('create', category);
+    
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+    
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+async function editCategory(category: CategoryType) {
+    try {
+        const response = await axiosCategory.patch('edit', category);
+    
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+    
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+async function deleteCategory(category: CategoryType) {
+    try {
+        const response = await axiosCategory.delete('delete', {
+            params: { category: category.category, email: category.email }
+        });
+    
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+    
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
 const apis = {
     googleAuth,
     login,
@@ -160,6 +259,11 @@ const apis = {
     fetchMailsDate,
     updateIsViewed,
     draftMail,
+    findAllCategories,
+    findCategories,
+    createCategory,
+    editCategory,
+    deleteCategory
 };
 
 export default apis;

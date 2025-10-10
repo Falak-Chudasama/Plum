@@ -32,8 +32,6 @@ function Category({ title }: { title: string }) {
 
     const { dark, light } = getColorsFromCategoryColor((cat as any).color);
 
-    console.log(`${displayTitle} - ${dark} - ${light}`);
-
     return (
         <div className="w-fit font-cabin border-2 pl-1.5 pr-2 text-sm font-medium rounded-full flex items-center gap-x-1 select-none"
             style={{ backgroundColor: light, borderColor: dark }}>

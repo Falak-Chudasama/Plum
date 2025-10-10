@@ -33,6 +33,8 @@ async function create(req: Request, res: Response) {
 async function edit(req: Request, res: Response) {
     try {
         const category = req.body;
+        console.log(category);
+        console.log();
         const result = await categoryOps.edit(category);;
 
         if (!result) {
@@ -41,13 +43,13 @@ async function edit(req: Request, res: Response) {
 
         return res.status(200).json({ result, success: true });
     } catch (err) {
-        handleError(filePath, 'create', res, err, 'creating category');
+        handleError(filePath, 'edit', res, err, 'editing category');
     }
 }
 
 async function deleteCategory(req: Request, res: Response) {
     try {
-        const { category, email } = req.body;
+        const { category, email } = req.query;
         const result = await categoryOps.deleteCategory(category, email);
     
         if (!result) {
@@ -56,7 +58,7 @@ async function deleteCategory(req: Request, res: Response) {
 
         return res.status(200).json({ success: true });
     } catch (err) {
-        handleError(filePath, 'create', res, err, 'creating category');
+        handleError(filePath, 'deleteCategory', res, err, 'deleting category');
     }
 }
 
@@ -64,7 +66,7 @@ async function deleteCategory(req: Request, res: Response) {
 categoryRouter.get('/find', find);
 categoryRouter.get('/find/:email', categoryOps.findByEmail);
 categoryRouter.post('/create', create);
-categoryRouter.post('/edit', edit);
+categoryRouter.patch('/edit', edit);
 categoryRouter.delete('/delete', deleteCategory);
 
 export default categoryRouter;

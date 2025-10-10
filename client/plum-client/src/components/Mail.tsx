@@ -8,9 +8,6 @@ import utils from "../utils/utils";
 import handleError from "../utils/errors.utils";
 
 const nameLim = 20;
-const subjectLim1 = 40;
-const subjectLim2 = 60;
-const subjectLim3 = 80;
 
 function shortenText(subject: string, limit: number) {
     if (!subject) return "";

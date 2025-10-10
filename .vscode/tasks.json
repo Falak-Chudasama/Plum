@@ -1,0 +1,39 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Plum Server",
+            "type": "shell",
+            "command": "clear; cd server; npm run dev",
+            "problemMatcher": []
+        },
+        {
+            "label": "Plum Embed Service",
+            "type": "shell",
+            "command": "clear; cd services/embed-services; venv/Scripts/activate; uvicorn app:app --host 127.0.0.2 --port 4070 --reload",
+            "problemMatcher": []
+        },
+        {
+            "label": "Plum Orchestration",
+            "type": "shell",
+            "command": "clear; cd orchestration; npm run dev",
+            "problemMatcher": []
+        },
+        {
+            "label": "Plum Client",
+            "type": "shell",
+            "command": "clear; cd client/plum-client; npm run dev",
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Plum (All)",
+            "dependsOn": [
+                "Plum Server",
+                "Plum Embed Service",
+                "Plum Orchestration",
+                "Plum Client"
+            ],
+            "dependsOrder": "parallel"
+        }
+    ]
+}

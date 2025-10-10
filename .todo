@@ -1,0 +1,3 @@
+Isolate Plum db by 
+mkdir C:\data\db-plum
+mongod --port 27018 --dbpath C:\data\db-plum

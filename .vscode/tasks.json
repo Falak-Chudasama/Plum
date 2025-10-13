@@ -2,6 +2,12 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Plum Database",
+            "type": "shell",
+            "command": "clear; mongod --port 4090 --dbpath C:\\project-data\\fruits\\plum",
+            "problemMatcher": []
+        },
+        {
             "label": "Plum Server",
             "type": "shell",
             "command": "clear; cd server; npm run dev",
@@ -28,6 +34,7 @@
         {
             "label": "Run Plum (All)",
             "dependsOn": [
+                "Plum Database",
                 "Plum Server",
                 "Plum Embed Service",
                 "Plum Orchestration",

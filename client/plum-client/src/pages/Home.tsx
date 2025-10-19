@@ -7,7 +7,9 @@ import Chats from "./subpages/Chat";
 import SubpageStore from "../store/SubpageStore";
 import useCategories from "../hooks/useCategories";
 import useSelectedMailStore from "../store/SelectedMailStore";
-
+import FormPopup from "../popup/FormPopup";
+import { useStore } from "zustand";
+import PopupFormStore from "../store/PopupFormStore";
 
 const { PlumLogo } = components;
 const { gmailCookie, pictureCookie } = utils.parseGmailCookies();
@@ -74,6 +76,8 @@ function Home() {
     const { subpage: section } = SubpageStore();
     const [subpage, setSubpage] = useState(<Mails />);
     const { mail } = useSelectedMailStore();
+    const { args } = useStore(PopupFormStore);
+    const { load } = args;
 
     useEffect(() => {
         if (!id && !gmailCookie) {
@@ -92,15 +96,20 @@ function Home() {
         } else if (section === 'chats') {
             setSubpage(<Chats />);
         }
-    }, [section])
+    }, [section]);
 
     return (
-        <div className="relative">
-            <Header />
-            <div className="flex">
-                <SideButtons />
-                <components.FullMail mail={mail} />
-                {subpage}
+        <div className="relative overflow-x-hidden">
+            <div className="relative z-10">
+                <FormPopup />
+            </div>
+            <div className={`relative z-5 duration-300 ${load ? 'blur-[3px]' : 'blue-none'}`}>
+                <Header />
+                <div className="flex">
+                    <SideButtons />
+                    <components.FullMail mail={mail} />
+                    {subpage}
+                </div>
             </div>
         </div>
     );

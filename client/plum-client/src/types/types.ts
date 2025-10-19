@@ -44,3 +44,9 @@ export interface CategoryType {
     email: string,
     color: string
 };
+
+export interface PopupFormArgs {
+    formType: 'create-category' | 'edit-category'
+    load: boolean,
+    category: CategoryType | null,
+};

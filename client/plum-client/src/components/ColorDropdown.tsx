@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import Select, { type StylesConfig } from 'react-select';
 import constants from '../constants/constants';
 import { useStore } from 'zustand';
-import CreateCatDataStore from '../store/CreateCatDataStore';
+import ColorDropdownDataStore from './ColorDropdownDataStore';
+import utils from '../utils/utils';
 
 type ColorOption = { value: string; label: string };
 
 const colorArray: ColorOption[] = Object.keys(constants.colorMap).map((color) => ({
     value: color,
-    label: color.charAt(0).toUpperCase() + color.slice(1),
+    label: utils.capitalizeWords(color),
 }));
 
 function resolveColor(key?: string) {
@@ -75,22 +76,11 @@ const dropDownStyle: StylesConfig<ColorOption, false> = {
 
 function ColorDropdown() {
     const [selectedColor, setSelectedColor] = useState<ColorOption>(colorArray[0]);
-
-    const { data, setData, resetData } = useStore(CreateCatDataStore);
-
-    useEffect(() => {
-        setSelectedColor({
-            value: data.color,
-            label: data.color.charAt(0).toUpperCase() + data.color.slice(1),
-        });
-    }, [resetData]);
+    const { setState } = useStore(ColorDropdownDataStore);
 
     useEffect(() => {
-        setData({
-            ...data,
-            color: selectedColor.value
-        });
-    }, [selectedColor]);
+        setState({ selectedColor, setSelectedColor });
+    }, []);
 
     return (
         <div className="w-full">

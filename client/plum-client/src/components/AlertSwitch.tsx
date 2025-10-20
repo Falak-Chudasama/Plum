@@ -1,8 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
+import AlertSwitchDataStore from './AlertSwitchDataStore';
+import { useStore } from 'zustand';
 
 function AlertSwitch() {
     const [isChecked, setIsChecked] = useState(false)
     const [indicatorStyle, setIndicatorStyle] = useState<{ left: number }>({ left: 0 });
+
+    const { setAlertState } = useStore(AlertSwitchDataStore);
+
+    useEffect(() => {
+        setAlertState({
+            isChecked,
+            setIsChecked
+        })
+    }, []);
 
     const handleSwitch = (switchRef, alert) => {
         if (switchRef.current) {
@@ -17,6 +28,14 @@ function AlertSwitch() {
     useEffect(() => {
         setIndicatorStyle({ left: dontAlertSwitchRef.current.offsetLeft });
     }, []);
+    
+    useEffect(() => {
+        if (isChecked) {
+            setIndicatorStyle({ left: alertSwitchRef.current.offsetLeft });
+        } else {
+            setIndicatorStyle({ left: dontAlertSwitchRef.current.offsetLeft });
+        }
+    }, [isChecked]);
 
     const spanClass = `flex items-center justify-center duration-300 space-x-[6px] py-1 px-5 relative z-30 text-sm font-medium rounded-full bg-transparent`;
 

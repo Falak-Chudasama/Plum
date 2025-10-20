@@ -4,15 +4,30 @@ import { useStore } from "zustand";
 import PopupFormStore from "../store/PopupFormStore";
 import ColorDropdown from "../components/ColorDropdown";
 import AlertSwitch from "../components/AlertSwitch";
-import CreateCatDataStore from "../store/CreateCatDataStore";
+import ColorDropdownDataStore from "../components/ColorDropdownDataStore";
+import utils from "../utils/utils";
+import AlertSwitchDataStore from "../components/AlertSwitchDataStore";
+
+const defaultColor = 'gray';
 
 function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => void }) {
-    const { data, setData, resetData } = useStore(CreateCatDataStore);
     const { args } = useStore(PopupFormStore);
     const { load } = args;
+    const { state } = useStore(ColorDropdownDataStore);
+    const { alertState } = useStore(AlertSwitchDataStore);
 
     const nameRef = useRef(null);
     const descriptionRef = useRef(null);
+
+    const resetData = () => {
+        nameRef.current.value = '';
+        descriptionRef.current.value = '';
+        state?.setSelectedColor({
+            value: defaultColor,
+            label: utils.capitalizeWords(defaultColor)
+        });
+        alertState?.setIsChecked(false);
+    }
 
     const submitFn = () => {
         resetData();
@@ -23,23 +38,6 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
         resetData();
         setLoadPopup(false);
     }
-
-    useEffect(() => {
-        if (data.name === '' && data.description === '' && data.color !== 'gray') {
-            setData({
-                ...data,
-                color: 'gray'
-            });
-        }
-        if (data.name === '' && data.description === '' && data.alert) {
-            setData({
-                ...data,
-                alert: false
-            });
-        }
-        nameRef.current.value = data.name;
-        descriptionRef.current.value = data.description;
-    }, [data, resetData]);
 
     return (
         <div className={`px-5 pb-5 grid relative place-items-center items-center duration-500 bg-white shadow-plum-secondary-sm rounded-2xl ${!load ? 'scale-60' : 'scale-100'}`}>
@@ -61,12 +59,6 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
                                 required
                                 className="pl-3 rounded-full p-1 w-full font-medium placeholder:font-normal placeholder:text-plum-surface placeholder:select-none bg-transparent outline-none focus:outline-none duration-400"
                                 placeholder="Eg. Alert"
-                                onChange={(e) => {
-                                    setData({
-                                        ...data,
-                                        name: e.target.value
-                                    });
-                                }}
                             />
                         </div>
                     </div>
@@ -86,12 +78,6 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
                             required
                             className="pl-3 rounded-full p-1 w-full font-medium placeholder:font-normal placeholder:text-plum-surface placeholder:select-none bg-transparent outline-none focus:outline-none duration-400"
                             placeholder="Eg. Due, Urgent, etc"
-                            onChange={(e) => {
-                                    setData({
-                                        ...data,
-                                        description: e.target.value
-                                    });
-                                }}
                         />
                     </div>
                 </div>

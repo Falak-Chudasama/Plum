@@ -1,4 +1,4 @@
-import { createStore } from "zustand";
+import { create } from "zustand";
 
 type dataType = {
     name: string,
@@ -13,7 +13,7 @@ type CreateCatDataState = {
     resetData: () => void
 };
 
-const CreateCatDataStore = createStore<CreateCatDataState>((set) => ({
+const CreateCatDataStore = create<CreateCatDataState>((set) => ({
     data: {
         name: '',
         color: 'gray',

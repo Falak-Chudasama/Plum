@@ -13,24 +13,33 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
 
     const nameRef = useRef(null);
     const descriptionRef = useRef(null);
-    
+
     const submitFn = () => {
         resetData();
         setLoadPopup(false);
     }
-    
+
     const cancelFn = () => {
         resetData();
         setLoadPopup(false);
     }
 
     useEffect(() => {
-        if (!descriptionRef || !nameRef) {
-            return;
+        if (data.name === '' && data.description === '' && data.color !== 'gray') {
+            setData({
+                ...data,
+                color: 'gray'
+            });
+        }
+        if (data.name === '' && data.description === '' && data.alert) {
+            setData({
+                ...data,
+                alert: false
+            });
         }
         nameRef.current.value = data.name;
         descriptionRef.current.value = data.description;
-    }, []);
+    }, [data, resetData]);
 
     return (
         <div className={`px-5 pb-5 grid relative place-items-center items-center duration-500 bg-white shadow-plum-secondary-sm rounded-2xl ${!load ? 'scale-60' : 'scale-100'}`}>
@@ -50,7 +59,7 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
                                 ref={nameRef}
                                 id="name"
                                 required
-                                className="pl-3 p-1 w-full font-medium placeholder:font-normal placeholder:text-plum-surface placeholder:select-none bg-transparent outline-none focus:outline-none duration-400"
+                                className="pl-3 rounded-full p-1 w-full font-medium placeholder:font-normal placeholder:text-plum-surface placeholder:select-none bg-transparent outline-none focus:outline-none duration-400"
                                 placeholder="Eg. Alert"
                                 onChange={(e) => {
                                     setData({
@@ -75,7 +84,7 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
                             ref={descriptionRef}
                             id="description"
                             required
-                            className="pl-3 p-1 w-full font-medium placeholder:font-normal placeholder:text-plum-surface placeholder:select-none bg-transparent outline-none focus:outline-none duration-400"
+                            className="pl-3 rounded-full p-1 w-full font-medium placeholder:font-normal placeholder:text-plum-surface placeholder:select-none bg-transparent outline-none focus:outline-none duration-400"
                             placeholder="Eg. Due, Urgent, etc"
                             onChange={(e) => {
                                     setData({

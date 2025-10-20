@@ -103,7 +103,7 @@ function Home() {
             <div className="relative z-10">
                 <FormPopup />
             </div>
-            <div className={`relative z-5 duration-300 ${load ? 'blur-[3px]' : 'blue-none'}`}>
+            <div className={`relative z-5 duration-300 ${load ? 'blur-[4px]' : 'blue-none'}`}>
                 <Header />
                 <div className="flex">
                     <SideButtons />

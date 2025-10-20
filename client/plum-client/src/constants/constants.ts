@@ -27,6 +27,16 @@ const constants = {
         yellow: { dark: '#FF9000', light: '#FFF0D5' },
         purple: { dark: '#7A5BB9', light: '#E0CCFF' },
     },
+    plumColors: {
+        primary: '#7A5BB9',
+        primaryDark: '#6F5E90',
+        secondary: '#403964',
+        purple: '#EBDEFF',
+        bg: '#F7F2FF',
+        bgBold: '#EEE5FF',
+        surface: '#D1C8EB',
+        surfaceHover: '#CFBFFB',
+    },
 };
 
 export default constants;

@@ -1,24 +1,90 @@
 import { useState } from 'react';
-import Select from 'react-select';
+import Select, { type StylesConfig } from 'react-select';
 import constants from '../constants/constants';
 
-const colorArray = Object.keys(constants.colorMap).map((color: string) => ({
+type ColorOption = { value: string; label: string };
+
+const colorArray: ColorOption[] = Object.keys(constants.colorMap).map((color) => ({
     value: color,
-    label: color.charAt(0).toUpperCase() + color.slice(1)
+    label: color.charAt(0).toUpperCase() + color.slice(1),
 }));
 
-function ColorDropdown() {
-    const [selectedColor, setSelectedColor] = useState(colorArray[0]);
+function resolveColor(key?: string) {
+    const colorKey = key?.toLowerCase();
+    return constants.colorMap[colorKey] ?? { light: '#f7f7f7', dark: '#333' };
+}
 
+const dropDownStyle: StylesConfig<ColorOption, false> = {
+    control: (base, state) => {
+        const { light, dark } = resolveColor(state.selectProps.value?.value);
+        return {
+            ...base,
+            borderRadius: '9999px',
+            minHeight: '2.3rem',
+            paddingInline: '0.25rem',
+            boxShadow: 'none',
+            color: dark,
+            backgroundColor: light,
+            border: 'none',
+            outline: 'none'
+        };
+    },
+    indicatorSeparator: (base) => ({
+        ...base,
+        display: 'none',
+    }),
+    singleValue: (base, state) => {
+        const { dark } = resolveColor(state.selectProps.value?.value);
+        return {
+            ...base,
+            color: dark,
+            fontWeight: 400,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            maxWidth: '100%',
+        };
+    },
+    placeholder: (base) => ({
+        ...base,
+        fontWeight: 400,
+    }),
+    dropdownIndicator: (base, state) => {
+        const { dark } = resolveColor(state.selectProps.value?.value);
+        return {
+            ...base,
+            color: dark,
+            '&:hover': {
+                color: dark
+            }
+        };
+    },
+    option: (base, { isFocused, isSelected }) => {
+        return {
+            ...base,
+            backgroundColor: isSelected ? '#eee' : isFocused ? '#f5f5f5' : 'white',
+            color: constants.plumColors.secondary,
+            cursor: 'pointer',
+            ':active': {
+                backgroundColor: '#f5f5f5',
+            }
+        };
+    },
+};
+
+function ColorDropdown() {
+    const [selectedColor, setSelectedColor] = useState<ColorOption>(colorArray[0]);
+    
     return (
-        <div className='w-full'>
+        <div className="w-full">
             <Select
                 classNamePrefix="select"
                 value={selectedColor}
-                onChange={(option) => setSelectedColor(option!)}
+                onChange={(option) => setSelectedColor(option as ColorOption)}
                 options={colorArray}
                 isSearchable={true}
                 name="color"
+                styles={dropDownStyle}
+                className="duration-300"
             />
         </div>
     );

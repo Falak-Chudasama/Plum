@@ -38,6 +38,11 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
         const color = selectedColor.value;
         const alert = alertState;
 
+        if (!name || !description) {
+            // warn('fill all the fields')
+            return;
+        }
+
         console.log(name);
         console.log(description);
         console.log(color);
@@ -98,7 +103,6 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
                     </div>
                 </div>
 
-                {/* DYNAMIC DESCRIPTION FIELD */}
                 <div className="relative w-full duration-400">
                     <label
                         htmlFor="description"

@@ -11,7 +11,7 @@ type TabType = 'inbox' | 'grouped' | 'outbox';
 function useKeyboardNavigation(
     onLeftArrow: () => void,
     onRightArrow: () => void,
-    useCtrl: boolean = false
+    useCtrl: boolean = false,
 ) {
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {

@@ -9,6 +9,7 @@ import utils from "../utils/utils";
 import AlertSwitchDataStore from "../store/AlertSwitchDataStore";
 import useCategories from "../hooks/useCategories";
 import apis from "../apis/apis";
+import constants from "../constants/constants";
 
 // TODO: Consider adding the new category into reactQuery object as well
 
@@ -52,7 +53,7 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
             // warn('cant add any other categories')
             return;
         }
-        
+
         if (name === 'other') {
             // warn('category named other cant be added')
             return;
@@ -77,7 +78,7 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
                 email
             }
 
-            const response = await apis.createCategory(category);
+            await apis.createCategory(category);
 
             resetData();
             setLoadPopup(false);
@@ -106,7 +107,7 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
                 <div className="flex gap-2 items-center w-full">
                     <div className="relative w-1/2 duration-400">
                         <label
-                            htmlFor="name"
+                            htmlFor="name-ro"
                             className={`select-none absolute px-0.5 z-20 -top-3.5 left-3 bg-white ${nameFieldFocused ? 'text-plum-secondary' : 'text-plum-primary-dark'
                                 } duration-400`}
                         >
@@ -120,7 +121,7 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
                                 onFocus={() => setNameFieldFocused(true)}
                                 onBlur={() => setNameFieldFocused(false)}
                                 ref={nameRef}
-                                id="name"
+                                id="name-ro"
                                 required
                                 className={`pl-3 rounded-full p-1 w-full font-medium ${nameFieldFocused ? 'text-plum-secondary' : 'text-plum-primary-dark'
                                     } placeholder:font-normal placeholder:text-plum-surface placeholder:select-none bg-transparent outline-none focus:outline-none duration-400`}
@@ -187,8 +188,152 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
 }
 
 function EditCategoryForm({ setLoadPopup, category }: { setLoadPopup: (val: boolean) => void, category: CategoryType }) {
+    const { args } = useStore(PopupFormStore);
+    const { load } = args;
+    const { selectedColor, setSelectedColor } = useStore(ColorDropdownDataStore);
+    const { alertState, setAlertState } = useStore(AlertSwitchDataStore);
+
+    const [descFieldFocused, setDescFieldFocused] = useState(false);
+
+    const nameRef = useRef(null);
+    const descriptionRef = useRef(null);
+
+    useEffect(() => {
+        nameRef.current.value = category.category;
+        descriptionRef.current.value = category.description;
+        setSelectedColor({
+            value: category.color,
+            label: utils.capitalizeWords(category.color)
+        });
+        setAlertState(category.alert);
+    }, [args]);
+
+    const submitFn = async () => {
+        const description = descriptionRef.current.value.trim();
+        const color = selectedColor.value.toLowerCase();
+        const alert = alertState;
+
+        try {
+            const categoryEdited: CategoryType = {
+                category: category.category,
+                description: (description.toLowerCase() || category.category.toLowerCase()),
+                color,
+                alert,
+                email: category.email
+            }
+
+            await apis.editCategory(categoryEdited);
+
+            setLoadPopup(false);
+        } catch (err) {
+            // error(err)
+        }
+    };
+
+    const cancelFn = () => {
+        setLoadPopup(false);
+    };
+    
+    const deleteFn = async () => {
+        await apis.deleteCategory(category);
+        setLoadPopup(false);
+    };
+
     return (
-        <div className="h-20 w-20 bg-plum-secondary">
+        <div
+            className={`px-5 pb-5 grid relative place-items-center items-center duration-500 bg-white shadow-plum-secondary-sm rounded-2xl ${!load ? 'scale-60' : 'scale-100'
+                }`}
+        >
+            <div className="select-none w-fit flex items-center p-0.5 px-2.5 gap-x-1 font-cabin bg-plum-primary-dark text-plum-bg rounded-full -translate-y-1/2">
+                <div className="h-3 w-3 mr-1 rounded-full bg-plum-bg"></div>
+                <span className="font-semibold">Edit</span>
+                <span>Category</span>
+            </div>
+
+            <div className="grid relative w-60 items-center place-items-center gap-4 mt-5">
+                <div className="flex gap-2 items-center w-full">
+                    <div className="relative w-1/2 duration-400">
+                        <label
+                            htmlFor="name"
+                            className={`select-none absolute px-0.5 z-20 -top-3.5 left-3 bg-white 'text-plum-primary-dark'
+                                duration-400`}
+                        >
+                            Name
+                        </label>
+                        <div
+                            className={`w-full border-2 z-0 relative 'border-plum-primary-dark'
+                                rounded-full`}
+                        >
+                            <input
+                                disabled={true}
+                                ref={nameRef}
+                                id="name"
+                                required
+                                className={`cursor-not-allowed pl-3 rounded-full p-1 w-full font-medium'text-plum-primary-dark'
+                                    placeholder:font-normal placeholder:text-plum-surface placeholder:select-none bg-transparent outline-none focus:outline-none duration-400`}
+                                placeholder="Eg. Alert"
+                            />
+                        </div>
+                    </div>
+                    <div className="z-100 w-1/2">
+                        <ColorDropdown />
+                    </div>
+                </div>
+
+                <div className="relative w-full duration-400">
+                    <label
+                        htmlFor="description"
+                        className={`select-none absolute px-0.5 z-20 -top-3.5 left-3 bg-white ${descFieldFocused ? 'text-plum-secondary' : 'text-plum-primary-dark'
+                            } duration-400`}
+                    >
+                        Description
+                    </label>
+                    <div
+                        className={`w-full border-2 z-0 relative ${descFieldFocused ? 'border-plum-secondary' : 'border-plum-primary-dark'
+                            } rounded-full`}
+                    >
+                        <input
+                            onFocus={() => setDescFieldFocused(true)}
+                            onBlur={() => setDescFieldFocused(false)}
+                            ref={descriptionRef}
+                            id="description"
+                            required
+                            className={`pl-3 rounded-full p-1 w-full font-medium ${descFieldFocused ? 'text-plum-secondary' : 'text-plum-primary-dark'
+                                } placeholder:font-normal placeholder:text-plum-surface placeholder:select-none bg-transparent outline-none focus:outline-none duration-400`}
+                            placeholder="Eg. Due, Urgent, etc"
+                        />
+                    </div>
+                </div>
+
+                <div className="w-full">
+                    <AlertSwitch />
+                </div>
+
+                <div className="w-full flex gap-x-2 items-center mt-5">
+                    <button
+                        className="w-full px-3 py-0.5 duration-300 select-none rounded-full cursor-pointer bg-none hover:bg-plum-bg-bold text-plum-secondary"
+                        onClick={() => {
+                            cancelFn();
+                        }}
+                    >
+                        Cancel
+                    </button>
+                    <button onClick={() => deleteFn()} className="p-1.5 bg-plum-primary hover:bg-red-600 duration-300 rounded-full cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 12 13" fill="none">
+                            <path d="M4.64878 6.47178V9.51178M7.08037 6.47178V9.51178M1 3.43066H10.728M2.21626 5.25552V10.1195C2.21626 11.1269 3.03289 11.9435 4.04026 11.9435H7.68826C8.69566 11.9435 9.51226 11.1269 9.51226 10.1195V5.25552M4.04019 2.216C4.04019 1.54442 4.58461 1 5.25619 1H6.47219C7.14378 1 7.68819 1.54442 7.68819 2.216V3.432H4.04019V2.216Z" stroke={constants.plumColors.bg} stroke-width="1.216" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+                    <button
+                        type="submit"
+                        className="w-full px-3 py-0.5 duration-150 rounded-full cursor-pointer font-semibold bg-plum-primary text-plum-bg"
+                        onClick={() => {
+                            submitFn();
+                        }}
+                    >
+                        Edit
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
@@ -218,16 +363,10 @@ function FormPopup() {
             flex justify-center pt-7
         `}>
             {
-                formType === 'create-category' ? <CreateCategoryForm setLoadPopup={setLoadState} /> : <EditCategoryForm setLoadPopup={setLoadState} category={category} />
+                formType === 'create-category' ? <CreateCategoryForm setLoadPopup={setLoadState} /> : <EditCategoryForm setLoadPopup={setLoadState} category={category!} />
             }
         </div>
     );
 }
 
 export default FormPopup;
-
-{/* <div>
-    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="13" viewBox="0 0 12 13" fill="none">
-        <path d="M4.64878 6.47178V9.51178M7.08037 6.47178V9.51178M1 3.43066H10.728M2.21626 5.25552V10.1195C2.21626 11.1269 3.03289 11.9435 4.04026 11.9435H7.68826C8.69566 11.9435 9.51226 11.1269 9.51226 10.1195V5.25552M4.04019 2.216C4.04019 1.54442 4.58461 1 5.25619 1H6.47219C7.14378 1 7.68819 1.54442 7.68819 2.216V3.432H4.04019V2.216Z" stroke={constants.plumColors.bg} stroke-width="1.216" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-</div> */}

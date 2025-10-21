@@ -79,7 +79,6 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
             }
 
             await apis.createCategory(category);
-
             resetData();
             setLoadPopup(false);
         } catch (err) {
@@ -208,6 +207,14 @@ function EditCategoryForm({ setLoadPopup, category }: { setLoadPopup: (val: bool
         setAlertState(category.alert);
     }, [args]);
 
+    const resetData = () => {
+        setAlertState(false);
+        setSelectedColor({
+            value: defaultColor,
+            label: utils.capitalizeWords(defaultColor)
+        })
+    }
+
     const submitFn = async () => {
         const description = descriptionRef.current.value.trim();
         const color = selectedColor.value.toLowerCase();
@@ -223,19 +230,21 @@ function EditCategoryForm({ setLoadPopup, category }: { setLoadPopup: (val: bool
             }
 
             await apis.editCategory(categoryEdited);
-
+            resetData();
             setLoadPopup(false);
         } catch (err) {
             // error(err)
         }
     };
-
+    
     const cancelFn = () => {
+        resetData();
         setLoadPopup(false);
     };
     
     const deleteFn = async () => {
         await apis.deleteCategory(category);
+        resetData();
         setLoadPopup(false);
     };
 

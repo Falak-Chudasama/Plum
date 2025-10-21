@@ -3,7 +3,7 @@ import useEmails from "../../../hooks/useEmails";
 import useCategories from "../../../hooks/useCategories";
 import components from "../../../components/components";
 import constants from "../../../constants/constants";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { groupEmailsByApiCategories } from "../../../utils/groupEmailsByApiCategories";
 import utils from "../../../utils/utils";
 import { useStore } from "zustand";
@@ -134,7 +134,7 @@ function Grouped() {
     const { Loading, NoMails } = components;
     const { data: categories } = useCategories();
 
-    const grouped = useMemo(
+    let grouped = useMemo(
         () => groupEmailsByApiCategories(emails, categories, { preserveKeys: false, uncategorizedKey: 'Other' }),
         [emails, categories]
     );

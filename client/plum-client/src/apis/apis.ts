@@ -3,6 +3,7 @@ import constants from "../constants/constants"
 import handleError from "../utils/errors.utils";
 import utils from "../utils/utils";
 import type { CategoryType } from "../types/types";
+import useCategories from "../hooks/useCategories";
 
 const axiosAuth = axios.create({
     baseURL: `${constants.serverOrigin}/user/`,
@@ -206,7 +207,7 @@ async function createCategory(category: CategoryType) {
             // @ts-ignore
             throw Error(response.data.message);
         }
-    
+        
         return response.data;
     } catch (err) {
         handleError(err);
@@ -217,13 +218,13 @@ async function createCategory(category: CategoryType) {
 async function editCategory(category: CategoryType) {
     try {
         const response = await axiosCategory.patch('edit', category);
-    
+        
         // @ts-ignore
         if (!response.data.success) {
             // @ts-ignore
             throw Error(response.data.message);
         }
-    
+        
         return response.data;
     } catch (err) {
         handleError(err);
@@ -236,13 +237,13 @@ async function deleteCategory(category: CategoryType) {
         const response = await axiosCategory.delete('delete', {
             params: { category: category.category, email: category.email }
         });
-    
+        
         // @ts-ignore
         if (!response.data.success) {
             // @ts-ignore
             throw Error(response.data.message);
         }
-    
+        
         return response.data;
     } catch (err) {
         handleError(err);

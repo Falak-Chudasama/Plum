@@ -7,6 +7,9 @@ import AlertSwitch from "../components/AlertSwitch";
 import ColorDropdownDataStore from "../store/ColorDropdownDataStore";
 import utils from "../utils/utils";
 import AlertSwitchDataStore from "../store/AlertSwitchDataStore";
+import useCategories from "../hooks/useCategories";
+
+// TODO: Submit API call
 
 const defaultColor = 'gray';
 
@@ -15,6 +18,7 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
     const { load } = args;
     const { selectedColor, setSelectedColor } = useStore(ColorDropdownDataStore);
     const { alertState, setAlertState } = useStore(AlertSwitchDataStore);
+    const { data: categories } = useCategories();
 
     const [nameFieldFocused, setNameFieldFocused] = useState(false);
     const [descFieldFocused, setDescFieldFocused] = useState(false);
@@ -31,9 +35,9 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
         });
         setAlertState(false);
     };
-
+    
     const submitFn = () => {
-        const name = nameRef.current.value;
+        const name = utils.capitalizeWords(nameRef.current.value);
         const description = descriptionRef.current.value;
         const color = selectedColor.value;
         const alert = alertState;
@@ -43,10 +47,14 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
             return;
         }
 
-        console.log(name);
-        console.log(description);
-        console.log(color);
-        console.log(alert);
+        const isUnique = !categories.some(cat => cat.category.toLowerCase() === name.toLowerCase());
+
+        if (!isUnique) {
+            console.log('category already exists');
+            // warn('category already exists')
+            return;
+        }
+
 
         resetData();
         setLoadPopup(false);

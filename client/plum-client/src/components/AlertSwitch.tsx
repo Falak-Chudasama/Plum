@@ -3,20 +3,13 @@ import AlertSwitchDataStore from '../store/AlertSwitchDataStore';
 import { useStore } from 'zustand';
 
 function AlertSwitch() {
-    const [isChecked, setIsChecked] = useState(false)
+    const { alertState, setAlertState } = useStore(AlertSwitchDataStore);
     const [indicatorStyle, setIndicatorStyle] = useState<{ left: number }>({ left: 0 });
-
-    const { setAlertState } = useStore(AlertSwitchDataStore);
-
-    setAlertState({
-        isChecked,
-        setIsChecked
-    });
 
     const handleSwitch = (switchRef, alert: boolean) => {
         if (switchRef.current) {
             setIndicatorStyle({ left: switchRef.current.offsetLeft });
-            setIsChecked(alert);
+            setAlertState(alert);
         }
     }
 
@@ -26,14 +19,14 @@ function AlertSwitch() {
     useEffect(() => {
         setIndicatorStyle({ left: dontAlertSwitchRef.current.offsetLeft });
     }, []);
-    
+
     useEffect(() => {
-        if (isChecked) {
+        if (alertState) {
             setIndicatorStyle({ left: alertSwitchRef.current.offsetLeft });
         } else {
             setIndicatorStyle({ left: dontAlertSwitchRef.current.offsetLeft });
         }
-    }, [isChecked]);
+    }, [alertState]);
 
     const spanClass = `flex items-center justify-center duration-300 space-x-[6px] py-1 px-5 relative z-30 text-sm font-medium rounded-full bg-transparent`;
 
@@ -42,7 +35,7 @@ function AlertSwitch() {
             <input
                 type="checkbox"
                 className="sr-only w-1/2 z-20"
-                checked={isChecked}
+                checked={alertState}
                 onChange={() => {}}
             />
             <span 
@@ -55,7 +48,7 @@ function AlertSwitch() {
             <div ref={alertSwitchRef} className='w-1/2 relative'>
                 <span
                     onClick={() => handleSwitch(alertSwitchRef, true)}
-                    className={`${isChecked ? 'text-plum-bg' : 'text-plum-secondary'} ${spanClass}`}
+                    className={`${alertState ? 'text-plum-bg' : 'text-plum-secondary'} ${spanClass}`}
                 >
                     Alert Me
                 </span>
@@ -63,7 +56,7 @@ function AlertSwitch() {
             <div ref={dontAlertSwitchRef} className='w-1/2 relative'>
                 <span
                     onClick={() => handleSwitch(dontAlertSwitchRef, false)}
-                    className={`${!isChecked ? 'text-plum-bg' : 'text-plum-secondary'} ${spanClass}`}
+                    className={`${!alertState ? 'text-plum-bg' : 'text-plum-secondary'} ${spanClass}`}
                 >
                     Don't Alert
                 </span>

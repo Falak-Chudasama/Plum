@@ -1,23 +1,25 @@
 import { create } from "zustand";
 
 type stateType = {
-    selectedColor: {
-        value: string,
-        label: string,
-    },
-    setSelectedColor: ((data: { value: string, label: string }) => void)
+    value: string,
+    label: string,
+};
+
+const defaultState: stateType = {
+    value: 'gray',
+    label: 'Gray'
 };
 
 type ColorDropdownDataState = {
-    state: stateType | null,
-    setState: (state: stateType) => void,
-    resetState: () => void
+    selectedColor: stateType,
+    setSelectedColor: (state: stateType) => void,
+    resetSelectedColor: () => void
 };
 
 const ColorDropdownDataStore = create<ColorDropdownDataState>((set) => ({
-    state: null,
-    setState: (state: stateType) => { set({ state }) },
-    resetState: () => { set({ state: null }) }
+    selectedColor: defaultState,
+    setSelectedColor: (state: stateType) => { set({ selectedColor: state }) },
+    resetSelectedColor: () => { set({ selectedColor: defaultState }) }
 }));
 
 export default ColorDropdownDataStore;

@@ -1,20 +1,15 @@
 import { create } from "zustand";
 
-type stateType = {
-    isChecked: boolean,
-    setIsChecked: ((data: boolean) => void)
-};
-
 type AlertSwitchDataState = {
-    alertState: stateType | null,
-    setAlertState: (state: stateType) => void,
+    alertState: boolean,
+    setAlertState: (alertState: boolean) => void,
     resetAlertState: () => void
 };
 
 const AlertSwitchDataStore = create<AlertSwitchDataState>((set) => ({
-    alertState: null,
-    setAlertState: (state: stateType) => { set({ alertState: state }) },
-    resetAlertState: () => { set({ alertState: null }) }
+    alertState: false,
+    setAlertState: (alert) => { set({ alertState: alert }) },
+    resetAlertState: () => { set({ alertState: false }) }
 }));
 
 export default AlertSwitchDataStore;

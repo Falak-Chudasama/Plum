@@ -75,12 +75,7 @@ const dropDownStyle: StylesConfig<ColorOption, false> = {
 };
 
 function ColorDropdown() {
-    const [selectedColor, setSelectedColor] = useState<ColorOption>(colorArray[0]);
-    const { setState } = useStore(ColorDropdownDataStore);
-
-    useEffect(() => {
-        setState({ selectedColor, setSelectedColor });
-    }, []);
+    const { selectedColor, setSelectedColor } = useStore(ColorDropdownDataStore);
 
     return (
         <div className="w-full">

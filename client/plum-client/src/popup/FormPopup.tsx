@@ -13,8 +13,10 @@ const defaultColor = 'gray';
 function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => void }) {
     const { args } = useStore(PopupFormStore);
     const { load } = args;
-    const { state } = useStore(ColorDropdownDataStore);
-    const { alertState } = useStore(AlertSwitchDataStore);
+    const { selectedColor, setSelectedColor } = useStore(ColorDropdownDataStore);
+    const { alertState, setAlertState } = useStore(AlertSwitchDataStore);
+
+    
 
     const nameRef = useRef(null);
     const descriptionRef = useRef(null);
@@ -22,22 +24,18 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
     const resetData = () => {
         nameRef.current.value = '';
         descriptionRef.current.value = '';
-        state?.setSelectedColor({
+        setSelectedColor({
             value: defaultColor,
             label: utils.capitalizeWords(defaultColor)
         });
-        alertState?.setIsChecked(false);
+        setAlertState(false);
     }
-
-    useEffect(() => {
-        console.log('CHECKED');
-    }, [alertState?.isChecked]);
 
     const submitFn = () => {
         const name = nameRef.current.value;
         const description = descriptionRef.current.value;
-        const color = state?.selectedColor.value;
-        const alert = alertState?.isChecked;
+        const color = selectedColor.value;
+        const alert = alertState;
 
         console.log(name);
         console.log(description);
@@ -116,7 +114,6 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
 function EditCategoryForm({ setLoadPopup, category }: { setLoadPopup: (val: boolean) => void, category: CategoryType }) {
     return (
         <div className="h-20 w-20 bg-plum-secondary">
-
         </div>
     );
 }

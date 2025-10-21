@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Select, { type StylesConfig } from 'react-select';
 import constants from '../constants/constants';
 import { useStore } from 'zustand';
-import ColorDropdownDataStore from './ColorDropdownDataStore';
+import ColorDropdownDataStore from '../store/ColorDropdownDataStore';
 import utils from '../utils/utils';
 
 type ColorOption = { value: string; label: string };

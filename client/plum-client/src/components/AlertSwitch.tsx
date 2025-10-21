@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import AlertSwitchDataStore from './AlertSwitchDataStore';
+import AlertSwitchDataStore from '../store/AlertSwitchDataStore';
 import { useStore } from 'zustand';
 
 function AlertSwitch() {
@@ -8,14 +8,12 @@ function AlertSwitch() {
 
     const { setAlertState } = useStore(AlertSwitchDataStore);
 
-    useEffect(() => {
-        setAlertState({
-            isChecked,
-            setIsChecked
-        })
-    }, []);
+    setAlertState({
+        isChecked,
+        setIsChecked
+    });
 
-    const handleSwitch = (switchRef, alert) => {
+    const handleSwitch = (switchRef, alert: boolean) => {
         if (switchRef.current) {
             setIndicatorStyle({ left: switchRef.current.offsetLeft });
             setIsChecked(alert);

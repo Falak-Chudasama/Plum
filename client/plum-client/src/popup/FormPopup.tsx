@@ -4,9 +4,9 @@ import { useStore } from "zustand";
 import PopupFormStore from "../store/PopupFormStore";
 import ColorDropdown from "../components/ColorDropdown";
 import AlertSwitch from "../components/AlertSwitch";
-import ColorDropdownDataStore from "../components/ColorDropdownDataStore";
+import ColorDropdownDataStore from "../store/ColorDropdownDataStore";
 import utils from "../utils/utils";
-import AlertSwitchDataStore from "../components/AlertSwitchDataStore";
+import AlertSwitchDataStore from "../store/AlertSwitchDataStore";
 
 const defaultColor = 'gray';
 
@@ -29,7 +29,21 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
         alertState?.setIsChecked(false);
     }
 
+    useEffect(() => {
+        console.log('CHECKED');
+    }, [alertState?.isChecked]);
+
     const submitFn = () => {
+        const name = nameRef.current.value;
+        const description = descriptionRef.current.value;
+        const color = state?.selectedColor.value;
+        const alert = alertState?.isChecked;
+
+        console.log(name);
+        console.log(description);
+        console.log(color);
+        console.log(alert);
+
         resetData();
         setLoadPopup(false);
     }
@@ -46,7 +60,7 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
                 <span className="font-semibold">Create</span>
                 <span>Category</span>
             </div>
-            <div className="grid relative w-60 items-center place-items-center gap-4 mt-5"> {/* <form>  */}
+            <div className="grid relative w-60 items-center place-items-center gap-4 mt-5">
                 <div className="flex gap-2 items-center w-full">
                     <div className="relative w-1/2 duration-400">
                         <label htmlFor="name" className="select-none absolute px-0.5 z-20 -top-3.5 left-3 bg-white text-plum-primary-dark duration-400">
@@ -94,7 +108,7 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
                         Create
                     </button>
                 </div>
-            </div> {/* </form>  */}
+            </div>
         </div>
     );
 }

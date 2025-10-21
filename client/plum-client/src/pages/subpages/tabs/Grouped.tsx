@@ -9,13 +9,33 @@ import utils from "../../../utils/utils";
 import { useStore } from "zustand";
 import PopupFormStore from "../../../store/PopupFormStore";
 import { createPortal } from "react-dom";
+import type { CategoryType } from "../../../types/types";
 
 function CategorizedMails({ grouped }: { grouped: Record<string, { emails: any[]; color: string }> }) {
     const { UpHook, DownHook, Mail } = components;
+    const { data: categories } = useCategories();
+    const { setArgs } = useStore(PopupFormStore);
+
+    const set = new Set(Object.entries(categories).map((cat) => cat[1].category.toLowerCase()));
+
+    const findCategory = (name: string) => {
+        console.log(categories);
+        return categories.filter((cat: CategoryType) => cat.category === name)[0] ?? null;
+    }
+
+    const handleEditClick = (category: CategoryType) => {
+        setArgs({
+            formType: 'edit-category',
+            category,
+            load: true,
+        })
+    }
 
     return (
         <div className="grid gap-y-15 pt-3 pb-5">
             {Object.entries(grouped).map(([categoryName, { emails, color }]) => {
+                if (categoryName !== 'other' && !set.has(categoryName)) return null;
+
                 const catColor = constants.colorMap[color]?.dark ?? constants.colorMap.gray.dark;
                 const displayName = utils.capitalizeWords(categoryName);
 
@@ -28,12 +48,24 @@ function CategorizedMails({ grouped }: { grouped: Record<string, { emails: any[]
                                     className="h-3 w-3 -ml-0.5 rounded-full"
                                     style={{ backgroundColor: catColor }}
                                 ></div>
-                                <p
-                                    className="text-2xl font-cabin font-medium ml-4 -mt-2.75 absolute"
-                                    style={{ color: catColor }}
-                                >
-                                    {displayName}
-                                </p>
+                                <div className="absolute flex items-center justify-center gap-1.75 -mt-2.75">
+                                    <p
+                                        className="text-2xl font-cabin font-medium ml-4"
+                                        style={{ color: catColor }}
+                                    >
+                                        {displayName}
+                                    </p>
+                                    {
+                                        categoryName !== 'other' ? (
+                                        <div onClick={() => handleEditClick(findCategory(displayName))} className='flex items-center justify-center h-4.5 w-4.5 mt-1 rounded-full duration-300 opacity-0 group-hover:opacity-100 cursor-pointer' style={{ backgroundColor: catColor }}>
+                                            <svg className="ml-0.25 scale-125" xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                                <path d="M5.81607 0.104821C5.98316 0.0356183 6.16222 0 6.34305 0C6.52388 0 6.70294 0.0356183 6.87003 0.104821C7.03709 0.174023 7.18889 0.275456 7.31677 0.403323C7.44464 0.531191 7.54608 0.682994 7.61528 0.850066C7.68445 1.01713 7.72008 1.1962 7.72008 1.37703C7.72008 1.55786 7.68445 1.73693 7.61528 1.904C7.54608 2.07107 7.44464 2.22287 7.31677 2.35074L7.11675 2.55074L5.16936 0.60332L5.36934 0.403323C5.49721 0.275456 5.64902 0.174023 5.81607 0.104821Z" fill="white" />
+                                                <path d="M4.62354 1.15011L0.639132 5.13452C0.591633 5.18199 0.557354 5.24109 0.53968 5.30589L0.0140973 7.23302C-0.0223471 7.36665 0.0156065 7.50958 0.113549 7.6075C0.211492 7.70546 0.354405 7.7434 0.488036 7.70697L2.41517 7.18138C2.47998 7.1637 2.53905 7.12942 2.58655 7.08191L6.57093 3.09754L4.62354 1.15011Z" fill="white" />
+                                            </svg>
+                                        </div>
+                                        ) : (<></>)
+                                    }
+                                </div>
                             </div>
                         </div>
 
@@ -61,7 +93,7 @@ function CategorizedMails({ grouped }: { grouped: Record<string, { emails: any[]
                         ))}
                     </div>
                 );
-            })}
+            }).filter((cat) => cat !== null)}
         </div>
     );
 }
@@ -92,7 +124,7 @@ function AddCategory() {
             </svg>
             Category
         </button>
-    , document.body)
+        , document.body)
 }
 
 

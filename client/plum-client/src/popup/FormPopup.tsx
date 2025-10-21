@@ -8,6 +8,7 @@ import ColorDropdownDataStore from "../store/ColorDropdownDataStore";
 import utils from "../utils/utils";
 import AlertSwitchDataStore from "../store/AlertSwitchDataStore";
 import useCategories from "../hooks/useCategories";
+import apis from "../apis/apis";
 
 // TODO: Submit API call
 
@@ -36,14 +37,19 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
         setAlertState(false);
     };
     
-    const submitFn = () => {
-        const name = utils.capitalizeWords(nameRef.current.value);
-        const description = descriptionRef.current.value;
-        const color = selectedColor.value;
+    const submitFn = async () => {
+        const name = utils.capitalizeWords(nameRef.current.value.trim());
+        const description = descriptionRef.current.value.trim();
+        const color = selectedColor.value.toLowerCase();
         const alert = alertState;
 
         if (!name || !description) {
             // warn('fill all the fields')
+            return;
+        }
+        
+        if (categories.length >= 6) {
+            // warn('cant add any other categories')
             return;
         }
 
@@ -55,9 +61,22 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
             return;
         }
 
-
-        resetData();
-        setLoadPopup(false);
+        try {
+            const { gmailCookie: email } =  utils.parseGmailCookies();
+    
+            const category: CategoryType = {
+                category: name,
+                description: (description.toLowerCase() || name.toLowerCase()),
+                color,
+                alert,
+                email
+            }
+            const response = await apis.createCategory(category);
+            resetData();
+            setLoadPopup(false);
+        } catch (err) {
+            // error(err)
+        }
     };
 
     const cancelFn = () => {

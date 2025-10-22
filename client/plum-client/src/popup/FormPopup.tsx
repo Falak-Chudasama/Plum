@@ -8,10 +8,8 @@ import ColorDropdownDataStore from "../store/ColorDropdownDataStore";
 import utils from "../utils/utils";
 import AlertSwitchDataStore from "../store/AlertSwitchDataStore";
 import useCategories from "../hooks/useCategories";
-import apis from "../apis/apis";
 import constants from "../constants/constants";
-
-// TODO: Consider adding the new category into reactQuery object as well
+import categoryMutations from "../hooks/useCategoryMutation";
 
 const defaultColor = 'gray';
 
@@ -21,6 +19,7 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
     const { selectedColor, setSelectedColor } = useStore(ColorDropdownDataStore);
     const { alertState, setAlertState } = useStore(AlertSwitchDataStore);
     const { data: categories } = useCategories();
+    const { mutateAsync: createCategory } = categoryMutations.useCreateCategory();
 
     const [nameFieldFocused, setNameFieldFocused] = useState(false);
     const [descFieldFocused, setDescFieldFocused] = useState(false);
@@ -78,7 +77,8 @@ function CreateCategoryForm({ setLoadPopup }: { setLoadPopup: (val: boolean) => 
                 email
             }
 
-            await apis.createCategory(category);
+
+            await createCategory(category);
             resetData();
             setLoadPopup(false);
         } catch (err) {
@@ -191,6 +191,8 @@ function EditCategoryForm({ setLoadPopup, category }: { setLoadPopup: (val: bool
     const { load } = args;
     const { selectedColor, setSelectedColor } = useStore(ColorDropdownDataStore);
     const { alertState, setAlertState } = useStore(AlertSwitchDataStore);
+    const { mutateAsync: editCategory } = categoryMutations.useEditCategory();
+    const { mutateAsync: deleteCategory } = categoryMutations.useDeleteCategory();
 
     const [descFieldFocused, setDescFieldFocused] = useState(false);
 
@@ -229,7 +231,7 @@ function EditCategoryForm({ setLoadPopup, category }: { setLoadPopup: (val: bool
                 email: category.email
             }
 
-            await apis.editCategory(categoryEdited);
+            await editCategory(categoryEdited);
             resetData();
             setLoadPopup(false);
         } catch (err) {
@@ -243,7 +245,7 @@ function EditCategoryForm({ setLoadPopup, category }: { setLoadPopup: (val: bool
     };
     
     const deleteFn = async () => {
-        await apis.deleteCategory(category);
+        await deleteCategory(category);
         resetData();
         setLoadPopup(false);
     };

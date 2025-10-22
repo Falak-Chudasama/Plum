@@ -101,7 +101,7 @@ function Home() {
     return (
         <div className="relative overflow-x-hidden">
             <div className="relative z-10">
-                <FormPopup /> {/* THIS IS THAT COMPONENT */}
+                <FormPopup />
             </div>
             <div className={`relative z-5 duration-300 ${load ? 'blur-[4px]' : 'blue-none'}`}>
                 <Header />

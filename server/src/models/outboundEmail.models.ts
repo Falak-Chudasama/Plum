@@ -17,7 +17,7 @@ export const outboundEmailSchema = new mongoose.Schema({
     body: { type: String, default: '' },
     attachments: [AttachmentSchema],
     sentAt: { type: Date },
-    category: { type: String, default: 'Misc' },
+    category: { type: String, default: 'Other' },
     status: { type: String, enum: ['draft', 'sent'], default: 'draft' }
 }, { timestamps: true });
 

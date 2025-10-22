@@ -3,7 +3,6 @@ import constants from "../constants/constants"
 import handleError from "../utils/errors.utils";
 import utils from "../utils/utils";
 import type { CategoryType } from "../types/types";
-import useCategories from "../hooks/useCategories";
 
 const axiosAuth = axios.create({
     baseURL: `${constants.serverOrigin}/user/`,

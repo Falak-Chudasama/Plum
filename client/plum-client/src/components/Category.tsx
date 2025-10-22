@@ -18,16 +18,20 @@ function getColorsFromCategoryColor(colorVal?: string) {
 }
 
 function Category({ title }: { title: string }) {
-    const displayTitle = title ?? 'Other';
+    console.log(title);
+    let displayTitle = title;
     const { data: categoriesData = [], isLoading: categoriesLoading } = useCategories();
 
-    if (!categoriesData) return null;
-    const cat = categoriesData.find((c) =>
+    if (categoriesLoading) return null;
+    let cat = categoriesData.find((c) =>
         (c as any).category === title
     );
 
     if (!cat) {
-        return null;
+        cat = categoriesData.find((c) =>
+            (c as any).category === 'Other'
+        );
+        displayTitle = 'Other';
     }
 
     const { dark, light } = getColorsFromCategoryColor((cat as any).color);

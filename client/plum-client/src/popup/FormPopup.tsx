@@ -214,7 +214,7 @@ function EditCategoryForm({ setLoadPopup, category }: { setLoadPopup: (val: bool
         setSelectedColor({
             value: defaultColor,
             label: utils.capitalizeWords(defaultColor)
-        })
+        });
     }
 
     const submitFn = async () => {

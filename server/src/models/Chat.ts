@@ -1,5 +1,10 @@
 import mongoose from 'mongoose';
 
+export const Intention = new mongoose.Schema({
+    intent: { type: String, enum: ['fetch_db', 'craft_mail', 'none'], default: 'none' },
+    confidence: { type: Number, default: 0 }
+});
+
 export const CraftedMail = new mongoose.Schema({
     from: { type: String, required: true },
     to: { type: [String], required: true },
@@ -33,6 +38,7 @@ export const ResponseSchema = new mongoose.Schema({
 
 export const UserPromptSchema = new mongoose.Schema({
     prompt: { type: String, required: true },
+    intention: { type: Intention },
     chatCount: { type: Number, required: true }
 }, { timestamps: true });
 

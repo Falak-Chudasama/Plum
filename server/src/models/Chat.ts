@@ -29,6 +29,7 @@ export const Query = new mongoose.Schema({
 
 export const ResponseSchema = new mongoose.Schema({
     response: { type: String, required: true },
+    thought: { type: String, default: '<no_thoughts>' },
     craftedMail: { type: CraftedMail },
     query: { type: Query },
     fetchedMails: { type: FetchedMails },

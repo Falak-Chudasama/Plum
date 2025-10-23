@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Union, List, Optional, Dict
+from typing import List, Optional, Dict
 
 class EmbedItem(BaseModel):
     content: str

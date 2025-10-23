@@ -1,25 +1,8 @@
 import uuid
 from typing import List, Optional
-
 import chromadb
 
-
 class ChromaStore:
-    """
-    Thin wrapper around Chromadb client + a provided embedder.
-    Each instance manages one collection and one embedder.
-
-    Parameters
-    ----------
-    db_path: str | None
-        Path for persistent storage. If `persist=False`, db_path is ignored.
-    collection_name: str
-        Collection name to create/use.
-    embedder:
-        Object with `.embed(texts_or_text)` method returning array-like embeddings.
-    persist: bool
-        If True, use PersistentClient(path=db_path). If False, use in-memory Client().
-    """
     def __init__(
         self,
         db_path: Optional[str] = "./chromadb",

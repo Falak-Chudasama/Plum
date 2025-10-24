@@ -33,14 +33,10 @@ const msAxios = axios.create({
 const catogEmbed = async (categories: CategoryType[]): Promise<InboundEmailType[] | null> => {
     try {
         logger.info('Categorize Embed API called');
-        const modifiedCategories = categories.map((category) => {
-            return {
-                content: category.description,
-                meta: {
-                    "category": category.category
-                }
-            }
-        });
+        const modifiedCategories = categories.map((category) => ({
+            content: category.description,
+            meta: { category: category.category }
+        }));
         const result = await msAxios.post(`${constants.msOrigin}/embed/categorization`, { items: modifiedCategories });
 
         if (!result.data || !result.data.success) throw Error('Failed to embed categories');
@@ -54,7 +50,7 @@ const catogEmbed = async (categories: CategoryType[]): Promise<InboundEmailType[
 
 const catogSearch = async (query: string, k: number = 3): Promise<Object> => {
     try {
-        logger.info('Categorize Search API Called')
+        logger.info('Categorize Search API Called');
         const response = await msAxios.post(`${constants.msOrigin}/search/categorization`, { query, k });
 
         if (!response || !response.data.success) throw Error('Failed to search categories');
@@ -68,7 +64,7 @@ const catogSearch = async (query: string, k: number = 3): Promise<Object> => {
 
 const catogDelAll = async (): Promise<boolean> => {
     try {
-        logger.info('Categories Delete All API Called')
+        logger.info('Categories Delete All API Called');
         const response = await msAxios.delete(`${constants.msOrigin}/delete-all/categorization`);
         if (!response || !response.data.success) throw Error('Failed to delete categories');
 
@@ -95,7 +91,7 @@ const chatEmbed = async (chat: string | string[]): Promise<InboundEmailType[] | 
 
 const chatSearch = async (query: string, k: number): Promise<Object | []> => {
     try {
-        logger.info('Chat Search API Called')
+        logger.info('Chat Search API Called');
         const response = await msAxios.post(`${constants.msOrigin}/search/chat`, { query, k });
 
         if (!response || !response.data.success) throw Error('Failed to search chats');
@@ -103,7 +99,48 @@ const chatSearch = async (query: string, k: number): Promise<Object | []> => {
         return response;
     } catch (err) {
         handleErrorUtil(filePath, 'chatSearch', err, 'Calling MS API to search chats');
-        return []
+        return [];
+    }
+};
+
+const intentEmbed = async (items: { content: string; meta: Record<string, any> }[]): Promise<any | null> => {
+    try {
+        logger.info('Intent Embed API called');
+        const result = await msAxios.post(`${constants.msOrigin}/embed/intent`, { items });
+
+        if (!result.data || !result.data.success) throw Error('Failed to embed intents');
+
+        return result.data;
+    } catch (err) {
+        handleErrorUtil(filePath, 'intentEmbed', err, 'Calling MS API to embed intents');
+        return null;
+    }
+};
+
+const intentDelAll = async (): Promise<boolean> => {
+    try {
+        logger.info('Intent Delete All API Called');
+        const response = await msAxios.delete(`${constants.msOrigin}/delete-all/intent`);
+        if (!response || !response.data.success) throw Error('Failed to delete intents');
+
+        return true;
+    } catch (err) {
+        handleErrorUtil(filePath, 'intentDelAll', err, 'Calling MS API to delete all intents');
+        return false;
+    }
+};
+
+const intentSearch = async (query: string, k: number = 5): Promise<any | null> => {
+    try {
+        logger.info('Intent Search API Called');
+        const response = await msAxios.post(`${constants.msOrigin}/search/intent`, { query, k });
+
+        if (!response || !response.data.success) throw Error('Failed to search intents');
+
+        return response.data.results;
+    } catch (err) {
+        handleErrorUtil(filePath, 'intentSearch', err, 'Calling MS API to search intents');
+        return null;
     }
 };
 
@@ -112,7 +149,10 @@ const msAPIs = {
     catogSearch,
     catogDelAll,
     chatEmbed,
-    chatSearch
+    chatSearch,
+    intentEmbed,
+    intentDelAll,
+    intentSearch
 };
 
 export default msAPIs;

@@ -8,7 +8,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from utils.schema_ import EmbedRequest, SearchRequest, DeleteRequest
 from vectordb.chroma_store import ChromaStore
-from models.embedder import categ_embedder
+from models.embedder import LocalEmbedder, OllamaEmbedder
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -16,22 +16,30 @@ app = FastAPI(title="Embeddings microservice (categorization + intent)")
 
 DB_PATH = os.getenv("CHROMA_DB_PATH", "./chromadb")
 
+# instantiate embedders:
+# - categorization uses local sentence-transformers
+# - intent uses Ollama HTTP embedder
+local_emb = LocalEmbedder()      # used by /embed/categorization and /search/categorization
+ollama_emb = OllamaEmbedder()    # used by /embed/intent and /search/intent
+
 categ_store = ChromaStore(
     db_path=None,
     collection_name="categorization-embeddings",
-    embedder=categ_embedder,
+    embedder=local_emb,
     persist=False,
 )
 
 intent_store = ChromaStore(
     db_path=None,
     collection_name="intent-embeddings",
-    embedder=categ_embedder,
+    embedder=ollama_emb,
     persist=False,
 )
 
+
 def safe_result_wrapper(message: str, ids: List[str]):
     return {"message": message, "ids": ids, "success": True}
+
 
 @app.get("/")
 async def index():
@@ -42,6 +50,7 @@ async def index():
             "intent": intent_store.collection_name,
         },
     }
+
 
 @app.post("/embed/categorization")
 async def embed_categorization(req: EmbedRequest):
@@ -62,6 +71,7 @@ async def embed_categorization(req: EmbedRequest):
         logger.exception("Categorization embedding failed")
         raise HTTPException(status_code=500, detail="Categorization embedding failed (server error). Check logs.")
 
+
 @app.post("/search/categorization")
 async def search_categorization(req: SearchRequest):
     try:
@@ -78,6 +88,7 @@ async def search_categorization(req: SearchRequest):
         logger.exception("Categorization search failed")
         raise HTTPException(status_code=500, detail="Categorization search failed (server error). Check logs.")
 
+
 @app.delete("/delete-all/categorization")
 async def delete_all_categorization():
     try:
@@ -86,6 +97,7 @@ async def delete_all_categorization():
     except Exception:
         logger.exception("Categorization delete-all failed")
         raise HTTPException(status_code=500, detail="Categorization delete-all failed (server error). Check logs.")
+
 
 @app.delete("/delete-items/categorization")
 async def delete_items_categorization(req: DeleteRequest):
@@ -121,6 +133,7 @@ async def embed_intent(req: EmbedRequest):
         logger.exception("Intent embedding failed")
         raise HTTPException(status_code=500, detail="Intent embedding failed (server error). Check logs.")
 
+
 @app.post("/search/intent")
 async def search_intent(req: SearchRequest):
     try:
@@ -136,6 +149,7 @@ async def search_intent(req: SearchRequest):
     except Exception:
         logger.exception("Intent search failed")
         raise HTTPException(status_code=500, detail="Intent search failed (server error). Check logs.")
+
 
 @app.post("/parse/intent")
 async def parse_intent(req: SearchRequest, threshold: float = 0.84):
@@ -178,6 +192,7 @@ async def parse_intent(req: SearchRequest, threshold: float = 0.84):
         logger.exception("Intent parse failed")
         raise HTTPException(status_code=500, detail="Intent parse failed (server error). Check logs.")
 
+
 @app.delete("/delete-all/intent")
 async def delete_all_intent():
     try:
@@ -186,6 +201,7 @@ async def delete_all_intent():
     except Exception:
         logger.exception("Intent delete-all failed")
         raise HTTPException(status_code=500, detail="Intent delete-all failed (server error). Check logs.")
+
 
 @app.delete("/delete-items/intent")
 async def delete_items_intent(req: DeleteRequest):

@@ -8,6 +8,12 @@
             "problemMatcher": []
         },
         {
+            "label": "Ollama",
+            "type": "shell",
+            "command": "clear; ollama serve",
+            "problemMatcher": []
+        },
+        {
             "label": "Plum Server",
             "type": "shell",
             "command": "clear; cd server; npm run dev",
@@ -35,6 +41,7 @@
             "label": "Run Plum (All)",
             "dependsOn": [
                 "Plum Database",
+                "Ollama",
                 "Plum Server",
                 "Plum Embed Service",
                 "Plum Orchestration",

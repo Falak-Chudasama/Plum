@@ -8,6 +8,7 @@ const globals: {
     gmailFetcherJobRunning: boolean;
     summarizingJobRunning: boolean;
     categoriesFeedingJobRunning: boolean;
+    intentsFeedingJobRunning: boolean;
 } = {
     email: null,
     OAuthObject: null,
@@ -16,6 +17,7 @@ const globals: {
     gmailFetcherJobRunning: false,
     summarizingJobRunning: false,
     categoriesFeedingJobRunning: false,
+    intentsFeedingJobRunning: false,
 };
 
 export default globals

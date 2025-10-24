@@ -1,7 +1,8 @@
-# chroma_store.py
+# vectordb/chroma_store.py
 import uuid
 from typing import List, Optional
 import chromadb
+
 
 class ChromaStore:
     def __init__(

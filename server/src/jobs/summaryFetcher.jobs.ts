@@ -13,7 +13,7 @@ let mainIsRunning = false;
 const main = async () => {
     mainIsRunning = true;
     try {
-        logger.info('C Job. Gmail Summarizer Job Running');
+        logger.info('* Job. Gmail Summarizer Job Running');
         const email = globals.email!;
         const cachedDate = globals.date!;
         
@@ -21,7 +21,7 @@ const main = async () => {
         const today = `${day}/${month}/${year}`;
         
         if (today === cachedDate) {
-            logger.info('C Job. Summary is Up to Date');
+            logger.info('* Job. Summary is Up to Date');
             return;
         }
         const date = new Date();
@@ -42,14 +42,14 @@ const main = async () => {
             const { summary, highlights, insights, actions } = response;
             await summaryOps.create(email, summary, highlights, insights, actions);
             globals.date = today;
-            logger.info(`C Job. Saved Summary Length: ${summary.length}`);
+            logger.info(`* Job. Saved Summary Length: ${summary.length}`);
         } else {
             throw Error('Failed to get Summary');
         }
-        logger.info('C Job. Gmail Summarizer Job Finished');
+        logger.info('* Job. Gmail Summarizer Job Finished');
     } catch (err) {
         mainIsRunning = false;
-        logger.warn('C Job. Gmail Summarizer Job Stopped');
+        logger.warn('* Job. Gmail Summarizer Job Stopped');
         handleErrorUtil(filePath, 'main', err, 'Fetching summary / Calling OL Api');
         throw Error(err);
     }
@@ -59,17 +59,17 @@ const main = async () => {
 const startSummaryFetcher = async () => {
     try {
         if (globals.summarizingJobRunning === true) return;
-        logger.info('C Loop. Gmail Summarizer Job Loop Running');
+        logger.info('* Loop. Gmail Summarizer Job Loop Running');
         globals.summarizingJobRunning = true;
 
         if (!mainIsRunning) await main();
-        logger.info(`C Loop. Job will begin in ${delay / 60000} minutes...`);
+        logger.info(`* Loop. Job will begin in ${delay / 60000} minutes...`);
         setInterval(async () => {
             if (!mainIsRunning) await main();
-            logger.info(`C Loop. Job will begin in ${delay / 60000} minutes...`);
+            logger.info(`* Loop. Job will begin in ${delay / 60000} minutes...`);
         }, delay);
     } catch (err) {
-        logger.warn('C Loop. Gmail Summarizer Job Loop Stopped');
+        logger.warn('* Loop. Gmail Summarizer Job Loop Stopped');
         globals.summarizingJobRunning = false;
         handleErrorUtil(filePath, 'summaryFetcher', err, 'Starting Gmail Fetcher Job');
         throw Error(err);

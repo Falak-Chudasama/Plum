@@ -4,6 +4,7 @@ import logger from "../utils/logger.utils";
 import { OAuthObjectCheck } from "../middlewares/googleAuth.middlewares";
 import startGmailFetcherJob from "./gmailFetcher.jobs";
 import startCategoriesFeedingJob from "./categoriesFeedingJob.jobs";
+import startIntentsFeedingJob from "./intentFeedingJob.jobs";
 import utils from "../utils/utils";
 
 const minutesDelay = 10;
@@ -33,6 +34,9 @@ const runJobs = async () => {
             }
             if (globals.gmailFetcherJobRunning === false) {
                 await startGmailFetcherJob();
+            }
+            if (globals.intentsFeedingJobRunning === false) {
+                await startIntentsFeedingJob();
             }
             const { seconds, minutes, hours, day, month, year } = utils.getToday();
             await settingsOps.add('date', `${day}/${month}/${year}`);

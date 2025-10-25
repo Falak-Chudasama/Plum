@@ -6,6 +6,7 @@ import Mails from "./subpages/Mails";
 import Chats from "./subpages/Chat";
 import SubpageStore from "../store/SubpageStore";
 import useCategories from "../hooks/useCategories";
+import useUser from "../hooks/useUser";
 import useSelectedMailStore from "../store/SelectedMailStore";
 import FormPopup from "../popup/FormPopup";
 import { useStore } from "zustand";
@@ -44,7 +45,7 @@ function SideButtons() {
     const iconClass = `auto cursor-pointer`;
 
     return (
-        <div className="mt-8 duration-200 select-none">
+        <div className="duration-200 select-none absolute mt-5">
             <div className={`${containerClass} ${subpage === 'mails' ? "text-plum-secondary" : "text-plum-primary"} ${mailsHover ? 'translate-x-0' : '-translate-x-[calc(100%-3rem)]'}`}
                 onMouseEnter={() => setMailsHover(true)}
                 onMouseLeave={() => setMailsHover(false)}
@@ -89,6 +90,7 @@ function Home() {
         }
     }, [id, gmailCookie, navigate]);
     
+    useUser();
     useCategories();
     useEffect(() => {
         if (section === 'mails') {
@@ -99,7 +101,7 @@ function Home() {
     }, [section]);
 
     return (
-        <div className="relative overflow-x-hidden">
+        <div className="h-screen w-screen relative overflow-x-hidden">
             <div className="relative z-10">
                 <FormPopup />
             </div>

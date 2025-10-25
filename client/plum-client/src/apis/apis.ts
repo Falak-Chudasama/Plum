@@ -14,6 +14,11 @@ const axiosEmail = axios.create({
     withCredentials: true
 });
 
+const axiosUser = axios.create({
+    baseURL: `${constants.serverOrigin}/user/`,
+    withCredentials: true
+});
+
 const axiosCategory = axios.create({
     baseURL: `${constants.serverOrigin}/category/`,
     withCredentials: true
@@ -58,6 +63,29 @@ async function getCategories(email: string) {
 
         console.log('Successfully Got Categories API called');
         return result.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+/*
+    Use APIs
+*/
+
+async function getUser(email: string = utils.parseGmailCookies().gmailCookie) {
+    try {
+        console.log('Getting User');
+        const response = await axiosUser.post('/', { userEmail: email });
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+
+        console.log('Successfully Got User');
+        return response.data;
     } catch (err) {
         handleError(err);
         throw err;
@@ -253,6 +281,7 @@ async function deleteCategory(category: CategoryType) {
 const apis = {
     googleAuth,
     login,
+    getUser,
     getCategories,
     sendMail,
     fetchMails,

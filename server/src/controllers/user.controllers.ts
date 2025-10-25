@@ -21,7 +21,7 @@ const findUserUtil = async (email: string): Promise<UserType | null> => {
     }
 };
 
-// GET api.plum.com/user/
+// POST api.plum.com/user/
 const findUser = async (req: Request, res: Response) => {
     try {
         const user = await findUserUtil(req.body.userEmail);

@@ -63,16 +63,13 @@ const CRAFT_NEGATIVE = [
 ];
 
 const FETCH_STRONG = [
-    "\\bselect\\s+.*\\s+from\\b", "\\bquery\\s+(the\\s+)?(database|db)\\b",
-    "\\bfetch\\s+.*\\s+from\\s+(database|db|table)\\b", "\\bget\\s+.*\\s+from\\s+(database|db)\\b",
-    "\\bshow\\s+me\\s+(the\\s+)?(data|records|rows|orders|logs)\\b"
+    "\\bfetch\\s+me\\b", "\\bfetch\\b", "\\bget\\b", "\\bgimme\\s+mails\\b",
+    "\\bget\\s+me\\b"
 ];
 
 const CRAFT_STRONG = [
-    "\\bwrite\\s+(an?\\s+)?email\\b", "\\bdraft\\s+(an?\\s+)?email\\b",
-    "\\bcompose\\s+(an?\\s+)?email\\b", "\\bsend\\s+(an?\\s+)?email\\b",
-    "\\bemail\\s+(template|about|regarding|to)\\b", "\\bapology\\s+email\\b",
-    "\\bthank\\s+you\\s+email\\b"
+    "\\bwrite\\s+(an|a?\\s+)?(email|mail)\\b", "\\bdraft\\s+(an|a?\\s+)?(email|mail)\\b",
+    "\\bcompose\\s+(an|a?\\s+)?(email|mail)\\b", "\\bsend\\s+(an|a?\\s+)?(email|mail)\\b"
 ];
 
 const BOOST_FETCH_PER_MATCH = 0.05;
@@ -274,7 +271,7 @@ export function routeIntent(query: string, candidates: Candidate[]): RouteResult
     };
 }
 
-export default function rankCandidates(query: string, candidates: Candidate[]): RankedCandidate[] {
+export function rankCandidates(query: string, candidates: Candidate[]): RankedCandidate[] {
     const adjustments = computeRuleAdjustmentsFromQuery(query);
     const results: RankedCandidate[] = [];
     for (const c of candidates) {
@@ -317,3 +314,10 @@ export default function rankCandidates(query: string, candidates: Candidate[]): 
     results.sort((a, b) => b.finalScore - a.finalScore);
     return results;
 }
+
+const reRankingOps = {
+    routeIntent,
+    rankCandidates,
+};
+
+export default reRankingOps;

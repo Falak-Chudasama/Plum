@@ -32,7 +32,8 @@ categ_store = ChromaStore(
 intent_store = ChromaStore(
     db_path=None,
     collection_name="intent-embeddings",
-    embedder=ollama_emb,
+    embedder=local_emb,
+    # embedder=ollama_emb,
     persist=False,
 )
 

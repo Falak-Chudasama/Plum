@@ -99,12 +99,56 @@ const chatSearch = async (query: string, k: number): Promise<Object | []> => {
     }
 };
 
+const intentEmbed = async (items: { content: string; meta: Record<string, any> }[]): Promise<any | null> => {
+    try {
+        logger.info('Intent Embed API called');
+        const result = await msAxios.post(`${constants.msOrigin}/embed/intent`, { items });
+
+        if (!result.data || !result.data.success) throw Error('Failed to embed intents');
+
+        return result.data;
+    } catch (err) {
+        handleErrorUtil(filePath, 'intentEmbed', err, 'Calling MS API to embed intents');
+        return null;
+    }
+};
+
+const intentDelAll = async (): Promise<boolean> => {
+    try {
+        logger.info('Intent Delete All API Called');
+        const response = await msAxios.delete(`${constants.msOrigin}/delete-all/intent`);
+        if (!response || !response.data.success) throw Error('Failed to delete intents');
+
+        return true;
+    } catch (err) {
+        handleErrorUtil(filePath, 'intentDelAll', err, 'Calling MS API to delete all intents');
+        return false;
+    }
+};
+
+const intentSearch = async (query: string, k: number = 5): Promise<any | null> => {
+    try {
+        logger.info('Intent Search API Called');
+        const response = await msAxios.post(`${constants.msOrigin}/search/intent`, { query, k });
+
+        if (!response || !response.data.success) throw Error('Failed to search intents');
+
+        return response.data.results;
+    } catch (err) {
+        handleErrorUtil(filePath, 'intentSearch', err, 'Calling MS API to search intents');
+        return null;
+    }
+};
+
 const msAPIs = {
     catogEmbed,
     catogSearch,
     catogDelAll,
     chatEmbed,
-    chatSearch
+    chatSearch,
+    intentEmbed,
+    intentDelAll,
+    intentSearch
 };
 
 export default msAPIs;

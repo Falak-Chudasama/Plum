@@ -27,8 +27,8 @@ function ChatBar(getToBottom: boolean) {
             placeholder-plum-primary-dark
             placeholder-select-none
             backdrop-blur-[2.3px]
-            ${isFocused ? 'w-2xl' : 'w-lg'} 
-            hover:w-2xl
+            ${isFocused ? 'w-xl' : 'w-lg'} 
+            hover:w-xl
             `}>
                 <input
                     ref={inputRef}

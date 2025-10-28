@@ -4,6 +4,8 @@ dotenv.config({ quiet: true });
 import app from "./app/app";
 import logger from "./utils/logger.utils";
 
+import './connections/serverWsClienet';
+
 const PORT = Number(process.env.PORT!);
 const HOST = process.env.HOST!;
 const ORIGIN = process.env.ORIGIN!;

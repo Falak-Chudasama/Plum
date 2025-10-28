@@ -20,7 +20,7 @@
     },
     "include": [
         "./**/*"
-    ],
+, "connections/serverWsClienet.ts"    ],
     "exclude": [
         "node_modules",
         "dist",

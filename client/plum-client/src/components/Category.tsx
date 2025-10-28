@@ -18,7 +18,6 @@ function getColorsFromCategoryColor(colorVal?: string) {
 }
 
 function Category({ title }: { title: string }) {
-    console.log(title);
     let displayTitle = title;
     const { data: categoriesData = [], isLoading: categoriesLoading } = useCategories();
 

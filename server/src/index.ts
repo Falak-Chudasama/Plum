@@ -7,6 +7,9 @@ import connectDB from "./config/config";
 import logger from "./utils/logger.utils";
 import runJobs from "./jobs/runJobs";
 
+import './sockets/orchestration.socket';
+import './sockets/client.socket';
+
 const host: string = process.env.HOST || 'localhost';
 const port: number = Number(process.env.PORT) || 3000;
 const origin: string = process.env.BACKEND_ORIGIN!;

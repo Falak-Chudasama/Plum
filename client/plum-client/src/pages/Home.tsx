@@ -11,6 +11,7 @@ import useSelectedMailStore from "../store/SelectedMailStore";
 import FormPopup from "../popup/FormPopup";
 import { useStore } from "zustand";
 import PopupFormStore from "../store/PopupFormStore";
+import useWebSocket from "../hooks/useWebSocket";
 
 const { PlumLogo } = components;
 const { gmailCookie, pictureCookie } = utils.parseGmailCookies();
@@ -99,6 +100,8 @@ function Home() {
             setSubpage(<Chats />);
         }
     }, [section]);
+
+    useWebSocket();
 
     return (
         <div className="h-screen w-screen relative overflow-x-hidden">

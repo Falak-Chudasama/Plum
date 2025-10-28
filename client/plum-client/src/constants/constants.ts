@@ -1,6 +1,7 @@
 const constants = {
     origin: "https://plum.com",
     serverOrigin: "https://api.plum.com",
+    serverWssOrigin: "ws://localhost:4065",
     clientId: "633855094180-f4sutrn7ov3abukq2s98gnmuqf6u34vh.apps.googleusercontent.com",
     redirectURI: "https://api.plum.com/user/auth/callback",
     googleAuthUrl: 'https://accounts.google.com/o/oauth2/v2/auth?',

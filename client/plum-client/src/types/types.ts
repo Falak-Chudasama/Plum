@@ -52,7 +52,7 @@ export interface PopupFormArgs {
 };
 
 export type IntentionType = {
-    intent: 'fetch_db' | 'craft_mail' | 'none';
+    intent: 'fetch_db' | 'craft_mail' | 'general';
     confidence: number;
 };
 
@@ -86,12 +86,12 @@ export type QueryType = {
 
 export type ResponseType = {
     response: string;
-    thought: string;
+    thought?: string;
     craftedMail?: CraftedMailType;
     query?: QueryType;
     fetchedMails?: FetchedMailsType;
     chatCount: number;
-    modelResponded: string;
+    modelResponded?: string;
     createdAt?: Date;
     updatedAt?: Date;
 };

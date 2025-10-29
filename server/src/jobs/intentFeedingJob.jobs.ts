@@ -63,11 +63,11 @@ const intents = [
 ];
 
 const main = async () => {
-    mainHasFed = true;
     try {
         logger.info('C Job. Intents Feeding Job Running');
         await msAPIs.intentDelAll();
         const response = await msAPIs.intentEmbed(intents);
+        mainHasFed = true;
         if (!response) mainHasFed = false;
         logger.info('C Job. Intents are successfully fed');
     } catch (err) {

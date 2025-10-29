@@ -3,6 +3,7 @@ import constants from "../constants/constants";
 import utils from "../utils/utils";
 import { useStore } from "zustand";
 import ActiveResponseStore from "../store/ActiveResponseStore";
+import chatOps from "../utils/ChatOps.utils";
 
 const maxRetries = 1000;
 const timeout = 5;
@@ -13,7 +14,7 @@ function useWebSocket() {
     const socketRetries = useRef(0);
     const [isConnected, setIsConnected] = useState(false);
 
-    const { setResponse, resetResponse } = useStore(ActiveResponseStore);
+    const { response: res, setResponse, resetResponse } = useStore(ActiveResponseStore);
 
     const initSocket = () => {
         const socket = new WebSocket(WS_URL);
@@ -28,8 +29,14 @@ function useWebSocket() {
         socket.onmessage = (event) => {
             const data = event.data;
             const response = JSON.parse(data);
+            
             if (response.type === 'RESPONSE' && !response.done) {
+                console.log(response.message);
                 setResponse(response.message);
+            } else if (response.type === 'RESPONSE' && response.done) {
+                chatOps.addAIResponse(res);
+            } else if (response.type === 'PROMPT_INTENT') {
+                chatOps.addUserPrompt(response.prompt, response.intent, response.confidence);
             }
         }
 
@@ -75,7 +82,7 @@ function useWebSocket() {
 
         const promptObject = {
             type: 'PROMPT',
-            message: prompt,
+            prompt,
             email: utils.parseGmailCookies().gmailCookie,
         }
 

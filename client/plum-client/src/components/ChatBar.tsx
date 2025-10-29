@@ -22,7 +22,7 @@ function ChatBar(getToBottom: boolean) {
         if (!inputRef.current) return;
         const prompt = inputRef.current.value.trim();
         if (!prompt) return;
-        sendPrompt(prompt);
+        sendPrompt!(prompt);
     }
 
     return (

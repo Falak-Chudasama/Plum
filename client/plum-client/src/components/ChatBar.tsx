@@ -1,8 +1,36 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import globals from "../globals/globals";
+import { useStore } from "zustand";
+import ActiveResponseStore from "../store/ActiveResponseStore";
 
 function ChatBar(getToBottom: boolean) {
     const [isFocused, setIsFocused] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const { response } = useStore(ActiveResponseStore);
+    const sendPrompt = globals.wsConnection?.sendPrompt;
+
+    useEffect(() => {
+        console.log(response);
+    }, [response])
+
+    useEffect(() => {
+        const handleKeyPress = (event: KeyboardEvent) => {
+            if (event.key === "Enter") {
+                handleButtonClick();
+            }
+        };
+        window.addEventListener("keydown", handleKeyPress);
+        return () => {
+            window.removeEventListener("keydown", handleKeyPress);
+        };
+    }, []);
+
+    const handleButtonClick = () => {
+        if (!inputRef.current) return;
+        const prompt = inputRef.current.value.trim();
+        if (!prompt) return;
+        sendPrompt(prompt);
+    }
 
     return (
         <div className={`
@@ -55,6 +83,7 @@ function ChatBar(getToBottom: boolean) {
             "
                 />
                 <button
+                    onClick={() => handleButtonClick()}
                     className={`
                     rounded-full
                     text-white
@@ -70,7 +99,7 @@ function ChatBar(getToBottom: boolean) {
                     hover:cursor-pointer
                     `}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="18" viewBox="0 0 13 18" fill="none">
-                        <path d="M6.28861 1.15527V16.1703M6.28861 1.15527L11.4219 6.28861M6.28861 1.15527L1.15527 6.28861" stroke="#F7F2FF" stroke-width="2.31" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M6.28861 1.15527V16.1703M6.28861 1.15527L11.4219 6.28861M6.28861 1.15527L1.15527 6.28861" stroke="#F7F2FF" strokeWidth="2.31" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                 </button>
             </div>

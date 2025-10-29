@@ -17,6 +17,7 @@ orchWss.on('connection', (socket) => {
         const response = JSON.parse(data);
         // if (response.type === 'RESPONSE') {}
         clientWss.clients.forEach((client) => {
+            logger.info('Sent a Chunk to Client');
             client.send(data);
         })
         // if (response.done) {

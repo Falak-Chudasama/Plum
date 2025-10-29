@@ -12,6 +12,7 @@ import FormPopup from "../popup/FormPopup";
 import { useStore } from "zustand";
 import PopupFormStore from "../store/PopupFormStore";
 import useWebSocket from "../hooks/useWebSocket";
+import globals from "../globals/globals";
 
 const { PlumLogo } = components;
 const { gmailCookie, pictureCookie } = utils.parseGmailCookies();
@@ -101,7 +102,8 @@ function Home() {
         }
     }, [section]);
 
-    useWebSocket();
+    const wsConnection = useWebSocket();
+    globals.wsConnection = wsConnection;
 
     return (
         <div className="h-screen w-screen relative overflow-x-hidden">

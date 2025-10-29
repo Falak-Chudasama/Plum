@@ -1,4 +1,5 @@
 export interface GenerateArgs {
+    socket?: WebSocket,
     model: string;
     prompt: string;
     system?: string;

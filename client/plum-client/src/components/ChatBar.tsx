@@ -1,7 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import globals from "../globals/globals";
-import { useStore } from "zustand";
-import ActiveResponseStore from "../store/ActiveResponseStore";
 
 function ChatBar(getToBottom: boolean) {
     const [isFocused, setIsFocused] = useState(false);

@@ -6,7 +6,6 @@ import ActiveResponseStore from "../store/ActiveResponseStore";
 function ChatBar(getToBottom: boolean) {
     const [isFocused, setIsFocused] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-    const { response } = useStore(ActiveResponseStore);
     const sendPrompt = globals.wsConnection?.sendPrompt;
 
     useEffect(() => {

@@ -18,10 +18,6 @@ function useWebSocket() {
             console.log("Connected to WebSocket:", WS_URL);
             setIsConnected(true);
             socketRetries.current = 0;
-            socket!.send(JSON.stringify({
-                type: 'PROMPT',
-                message: 'Hey, I think you are Plum, right?'
-            }));
         };
 
         socket.onmessage = (event) => {

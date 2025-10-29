@@ -10,10 +10,6 @@ function ChatBar(getToBottom: boolean) {
     const sendPrompt = globals.wsConnection?.sendPrompt;
 
     useEffect(() => {
-        console.log(response);
-    }, [response])
-
-    useEffect(() => {
         const handleKeyPress = (event: KeyboardEvent) => {
             if (event.key === "Enter") {
                 handleButtonClick();

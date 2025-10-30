@@ -28,7 +28,6 @@ function ChatBar(getToBottom: boolean) {
     return (
         <div className={`
             scale-105
-            -translate-y-20
             fixed left-1/2 -translate-x-1/2 grid justify-center z-20
             transition-all duration-500 ease-in-out
             h-fit
@@ -36,7 +35,7 @@ function ChatBar(getToBottom: boolean) {
             bg-transparent rounded-full
             bg-cover bg-center
             ${isFocused ? "shadow-lg" : "shadow-sm"}
-            ${getToBottom ? 'bottom-12' : 'bottom-1/3'}
+            ${getToBottom ? 'translate-y-[6vh]' : 'translate-[80vh]'}
         `}>
             <div className={`
             p-0.75

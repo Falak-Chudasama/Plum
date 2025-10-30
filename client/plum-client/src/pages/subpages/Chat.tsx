@@ -1,13 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import ChatBar from "../../components/ChatBar";
 import ChatBanner from "../../components/ChatBanner";
 import { useStore } from "zustand";
 import ActiveChatStore from "../../store/ActiveChatStore";
 import ActiveResponseStore from "../../store/ActiveResponseStore";
+import ChatArea from "../../components/ChatArea";
 
 function Chats() {
     const { chat } = useStore(ActiveChatStore);
     const { response } = useStore(ActiveResponseStore);
+
+    const [expandChatBar, setExpandChatBar] = useState(false);
 
     useEffect(() => {
         document.title = 'Plum | Chats';
@@ -15,15 +18,16 @@ function Chats() {
 
     useEffect(() => {
         console.log(response);
-    }, [response]);
+        if (chat.messageCount > 0 || response.length > 0) {
+            setExpandChatBar(true);
+        }
+    }, [response, chat]);
 
     return(
-        <div className="w-full h-full overflow-x-hidden">
-            <div className={`${(chat.messageCount === 0 && response.length === 0) ? 'mt-23' : 'mt-0'} duration-300`}>
-                <ChatBanner />
-            </div>
-            <ChatBar />
-            <p>{response}</p>
+        <div className="w-screen min-h-[80vh] px-40 overflow-x-hidden">
+            <ChatBanner getToTop={expandChatBar}/>
+            <ChatArea />
+            <ChatBar getToBottom={expandChatBar} />
         </div>
     );
 }

@@ -48,6 +48,17 @@
                 "Plum Client"
             ],
             "dependsOrder": "parallel"
+        },
+        {
+            "type": "cmake",
+            "label": "CMake: clean rebuild",
+            "command": "cleanRebuild",
+            "targets": [
+                "[N/A - Select Kit]"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "CMake template clean rebuild task"
         }
     ]
 }

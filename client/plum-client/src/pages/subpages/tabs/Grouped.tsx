@@ -73,12 +73,12 @@ function CategorizedMails({ grouped }: { grouped: Record<string, { emails: any[]
                             <div key={index}>
                                 {index === 0 ? (
                                     <div
-                                        className="w-[2.8px] h-9 group-hover:h-12 -mt-0.25 duration-200"
+                                        className="w-[3px] h-9 group-hover:h-12 -mt-[2px] duration-200"
                                         style={{ backgroundColor: catColor }}
                                     ></div>
                                 ) : (
                                     <div
-                                        className="w-[2.8px] h-12 -mt-1.25 duration-200"
+                                        className="w-[3px] h-12 -mt-1.25 duration-200"
                                         style={{ backgroundColor: catColor }}
                                     ></div>
                                 )}

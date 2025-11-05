@@ -15,16 +15,12 @@ orchWss.on('connection', (socket) => {
     socket.on("message", (data: string) => {
         data = data.toString();
         const response = JSON.parse(data);
-        // if (response.type === 'RESPONSE') {}
-        clientWss.clients.forEach((client) => {
-            logger.info('Sent a Chunk to Client');
-            client.send(data);
-        })
-        // if (response.done) {
-        //     console.log();
-        // } else {
-        //     process.stdout.write(response?.response);
-        // }
+        if (response.type === 'RESPONSE' || response.type === 'THOUGHT' || response.type === 'INFO') {
+            clientWss.clients.forEach((client) => {
+                logger.info('Sent a Chunk to Client');
+                client.send(data);
+            });
+        }
     });
 });
 

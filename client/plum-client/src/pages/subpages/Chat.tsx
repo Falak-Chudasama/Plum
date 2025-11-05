@@ -25,7 +25,7 @@ function Chats() {
 
     return(
         <div className="w-screen min-h-[80vh] px-40 overflow-x-hidden">
-            <ChatBanner getToTop={expandChatBar}/>
+            {/* <ChatBanner getToTop={expandChatBar}/> */}
             <ChatArea />
             <ChatBar getToBottom={expandChatBar} />
         </div>

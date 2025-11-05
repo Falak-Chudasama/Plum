@@ -76,13 +76,14 @@ function useWebSocket() {
         }
     };
 
-    const sendPrompt = (prompt: string) => {
-        prompt = prompt.trim();
-        if (!prompt) return;
+    const sendCommand = (command: string) => {
+        command = command.trim();
+        if (!command) return;
 
         const promptObject = {
-            type: 'PROMPT',
-            prompt,
+            type: 'COMMAND',
+            command,
+            message: command,
             email: utils.parseGmailCookies().gmailCookie,
         }
 
@@ -90,7 +91,22 @@ function useWebSocket() {
         sendMessage(promptObject);
     }
 
-    return { socket: socketRef.current, isConnected, sendMessage, sendPrompt };
+    const sendPrompt = (prompt: string) => {
+        prompt = prompt.trim();
+        if (!prompt) return;
+
+        const promptObject = {
+            type: 'PROMPT',
+            prompt,
+            message: prompt,
+            email: utils.parseGmailCookies().gmailCookie,
+        }
+
+        console.log('Prompt sent: ' + prompt);
+        sendMessage(promptObject);
+    }
+
+    return { socket: socketRef.current, isConnected, sendMessage, sendCommand, sendPrompt };
 }
 
 export default useWebSocket;

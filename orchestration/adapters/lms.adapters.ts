@@ -39,6 +39,19 @@ const lmsGenerateUtil = async ({
             }));
         }
 
+        const controller = new AbortController();
+        socket!.on("message", (data: string) => {
+            try {
+                const res = JSON.parse(data);
+                if (res.type === 'COMMAND' && res.command === 'STOP_RESPONSE' || res.message === 'STOP_RESPONSE') {
+                    logger.info('Response was Aborted');
+                    controller.abort();
+                }
+            } catch (err) {
+                logger.error("Error handling message:", err);
+            }
+        });
+
         logger.info("LM Studio API Called");
 
         const systemPrompt = `${constants.primarySysPrompt}\n${system}`;
@@ -55,7 +68,8 @@ const lmsGenerateUtil = async ({
         const response = await fetch("http://localhost:1234/v1/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody),
+            signal: controller.signal
         });
 
         if (!response.ok || !response.body) {

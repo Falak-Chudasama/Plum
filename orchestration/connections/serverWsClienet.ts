@@ -49,7 +49,7 @@ function attemptReconnect() {
     }
 
     const retryDelay = Math.min(5000 * Math.pow(2, reconnectAttempts), 60000);
-    logger.info(`⏳ Attempting reconnect in ${retryDelay / 1000}s...`);
+    logger.info(`Attempting reconnect in ${retryDelay / 1000}s...`);
     reconnectAttempts;
 
     setTimeout(() => {

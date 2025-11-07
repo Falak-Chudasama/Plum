@@ -17,7 +17,7 @@ type ActiveChatState = {
     chat: ChatType,
     setChatState: (chat: ChatType) => void,
     resetActiveChatState: () => void
-}
+};
 
 const ActiveChatStore = create<ActiveChatState>((set) => ({
     chat: defaultChat,

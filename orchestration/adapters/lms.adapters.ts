@@ -40,7 +40,7 @@ const lmsGenerateUtil = async ({
         }
 
         const controller = new AbortController();
-        socket!.on("message", (data: string) => {
+        socket!.on('message', (data: string) => {
             try {
                 const res = JSON.parse(data);
                 if (res.type === 'COMMAND' && res.command === 'STOP_RESPONSE' || res.message === 'STOP_RESPONSE') {

@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import constants from "../constants/constants";
 import utils from "../utils/utils";
-import { useStore } from "zustand";
-import ActiveResponseStore from "../store/ActiveResponseStore";
-import chatOps from "../utils/ChatOps.utils";
+import chatOps from "../ops/chat.ops";
+
+// TODO: use chatOps to implement the logic
 
 const maxRetries = 1000;
 const timeout = 5;
@@ -13,8 +13,6 @@ function useWebSocket() {
     const socketRef = useRef<WebSocket | null>(null);
     const socketRetries = useRef(0);
     const [isConnected, setIsConnected] = useState(false);
-
-    const { response: res, setResponse, resetResponse } = useStore(ActiveResponseStore);
 
     const initSocket = () => {
         const socket = new WebSocket(WS_URL);
@@ -26,17 +24,17 @@ function useWebSocket() {
             socketRetries.current = 0;
         };
 
+        // TODO: Handle THOUGHT
         socket.onmessage = (event) => {
             const data = event.data;
             const response = JSON.parse(data);
             
             if (response.type === 'RESPONSE' && !response.done) {
-                console.log(response.message);
-                setResponse(response.message);
+                // 
             } else if (response.type === 'RESPONSE' && response.done) {
-                chatOps.addAIResponse(res);
+                // chatOps.addAIResponse(res);
             } else if (response.type === 'PROMPT_INTENT') {
-                chatOps.addUserPrompt(response.prompt, response.intent, response.confidence);
+                // chatOps.addUserPrompt(response.prompt, response.intent, response.confidence);
             }
         }
 
@@ -69,7 +67,6 @@ function useWebSocket() {
 
     const sendMessage = (data: any) => {
         if (socketRef.current?.readyState === WebSocket.OPEN) {
-            resetResponse();
             socketRef.current.send(JSON.stringify(data));
         } else {
             console.warn("Socket not open yet, message dropped:", data);

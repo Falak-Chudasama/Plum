@@ -4,6 +4,8 @@ import handleError from "../utils/errors.utils";
 import utils from "../utils/utils";
 import type { CategoryType } from "../types/types";
 
+// TODO: Add an API to update the Server that the chat was viewed
+
 const axiosAuth = axios.create({
     baseURL: `${constants.serverOrigin}/user/`,
     withCredentials: true

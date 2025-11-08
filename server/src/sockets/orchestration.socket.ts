@@ -4,6 +4,14 @@ import clientWss from "./client.socket";
 
 const WEB_SOCKET_PORT2 = Number(process.env.WEB_SOCKET_PORT2) || 4085;
 
+const fwdToClientSocket = new Set([
+    "RESPONSE",
+    "THOUGHT",
+    "INFO",
+    "SYSTEM", // subtype: QUERY, EMAIL, CHAT, TITLE, INTENT
+    "ERROR",
+]);
+
 const orchWss = new WebSocketServer({ port: WEB_SOCKET_PORT2 });
 orchWss.on('listening', () => {
     logger.info(`orchWss is listening at -> localhost:${WEB_SOCKET_PORT2}`);
@@ -15,9 +23,9 @@ orchWss.on('connection', (socket) => {
     socket.on("message", (data: string) => {
         data = data.toString();
         const response = JSON.parse(data);
-        if (response.type === 'RESPONSE' || response.type === 'THOUGHT' || response.type === 'INFO') {
+        if (fwdToClientSocket.has(response.type)) {
             clientWss.clients.forEach((client) => {
-                logger.info('Sent a Chunk to Client');
+                logger.info(`Sent '${response.type}' to Client`);
                 client.send(data);
             });
         }

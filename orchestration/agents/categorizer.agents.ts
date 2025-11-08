@@ -6,7 +6,7 @@ import msAPIs from "../apis/ms.apis";
 const filePath = '/agents/categorizer.agents.ts';
 
 const k = 2;
-const similarityLimit = 0.85;
+const similarityLimit = 0.82;
 
 const categorize = async (mails: InboundEmailType[]): Promise<InboundEmailType[]> => {
     try {

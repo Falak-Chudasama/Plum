@@ -1,9 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import constants from "../constants/constants";
 import utils from "../utils/utils";
-import chatOps from "../ops/chat.ops";
-
-// TODO: use chatOps to implement the logic
+import socketMsgOps from "../ops/socketMsg.ops";
 
 const maxRetries = 1000;
 const timeout = 5;
@@ -24,17 +22,20 @@ function useWebSocket() {
             socketRetries.current = 0;
         };
 
-        // TODO: Handle THOUGHT
         socket.onmessage = (event) => {
             const data = event.data;
             const response = JSON.parse(data);
-            
-            if (response.type === 'RESPONSE' && !response.done) {
-                // 
-            } else if (response.type === 'RESPONSE' && response.done) {
-                // chatOps.addAIResponse(res);
-            } else if (response.type === 'PROMPT_INTENT') {
-                // chatOps.addUserPrompt(response.prompt, response.intent, response.confidence);
+
+            if (response.type === 'RESPONSE') {
+                socketMsgOps.response(data);
+            } else if (response.type === 'THOUGHT') {
+                socketMsgOps.thought(data);
+            } else if (response.type === 'INFO') {
+                socketMsgOps.info(data);
+            } else if (response.type === 'SYSTEM') {
+                socketMsgOps.system(data);
+            } else if (response.type === 'ERROR') {
+                socketMsgOps.error(data);
             }
         }
 

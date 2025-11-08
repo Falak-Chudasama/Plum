@@ -9,7 +9,7 @@ function ChatArea() {
     return(
         <div className={`w-full duration-300 bg-plum-bg-bold ${(chat.messageCount === 0 && response.length === 0) ? 'h-[0vh] -translate-y-[0vh]' : 'h-[40vh] -translate-y-[20vh]'}`}>
             <p>
-                {response}
+                {/* {response} */}
             </p>
         </div>
     );

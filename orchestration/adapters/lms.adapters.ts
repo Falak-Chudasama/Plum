@@ -14,8 +14,9 @@ const lmsGenerateUtil = async ({
     model,
     prompt,
     system,
+    stream = true,
+    intent = 'general',
     temperature = 0,
-    stream = true
 }: GenerateArgs) => {
     try {
         const listedModel = await lmsModelOps.listLoadedModels();
@@ -146,7 +147,17 @@ const lmsGenerateUtil = async ({
         socket?.send(JSON.stringify({ type: "RESPONSE", message: "\n<RESPONSE_ENDED>", success: true, done: true }));
         logger.info("Successfully got LM Studio streaming response");
     } catch (err) {
-        handleErrorUtil(filePath, "lmsGenerateUtil", err, "Calling LM Studio to generate response (Utility)");
+        const errName = err.name as string;
+        if (errName.startsWith('AbortError')) {
+            socket?.send(JSON.stringify({
+                type: 'INFO',
+                message: 'Response was Aborted',
+                success: false,
+                done: true,
+            }));
+        } else {
+            handleErrorUtil(filePath, "lmsGenerateUtil", err, "Calling LM Studio to generate response (Utility)");
+        }
     }
 };
 

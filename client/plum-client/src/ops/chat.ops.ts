@@ -4,7 +4,6 @@ import ActiveResponseStore from "../store/ActiveResponseStore";
 import ChatCountStore from "../store/ChatCountStore";
 import type { CraftedMailType, IntentionType, QueryType } from "../types/types";
 
-
 function createChat(title: string) {
     const { chat: chatState, setChatState } = ActiveChatStore.getState();
     setChatState({

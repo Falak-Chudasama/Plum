@@ -6,6 +6,7 @@ const SERVER_WS_URL = process.env.SERVER_WS_URL || "ws://localhost:4085";
 
 let serverSocket: WebSocket | null = null;
 let reconnectAttempts = 0;
+const retryDelay = 5000;
 const MAX_RETRIES = 1000;
 
 function connectToServer() {
@@ -24,7 +25,7 @@ function connectToServer() {
             const req = JSON.parse(data);
             logger.info("Message from server:", req);
             if (req.type === 'PROMPT') {
-                await chat(serverSocket, req.prompt, req.model);
+                await chat(serverSocket, req.prompt, req.model, req.chatCount);
             }
         } catch (err) {
             logger.error("Error handling message:", err);
@@ -48,9 +49,8 @@ function attemptReconnect() {
         return;
     }
 
-    const retryDelay = Math.min(5000 * Math.pow(2, reconnectAttempts), 60000);
-    logger.info(`Attempting reconnect in ${retryDelay / 1000}s...`);
-    reconnectAttempts;
+    logger.info(`Attempting reconnect (${MAX_RETRIES - reconnectAttempts - 1} attempts left) in ${retryDelay / 1000}s...`);
+    reconnectAttempts++;
 
     setTimeout(() => {
         logger.info("Reconnecting...");

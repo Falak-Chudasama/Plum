@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import constants from "../constants/constants";
 import utils from "../utils/utils";
 import socketMsgOps from "../ops/socketMsg.ops";
+import ChatCountStore from "../store/ChatCountStore";
+import { useStore } from "zustand";
 
 const maxRetries = 1000;
 const timeout = 5;
@@ -11,6 +13,7 @@ function useWebSocket() {
     const socketRef = useRef<WebSocket | null>(null);
     const socketRetries = useRef(0);
     const [isConnected, setIsConnected] = useState(false);
+    const { chatCount } = useStore(ChatCountStore);
 
     const initSocket = () => {
         const socket = new WebSocket(WS_URL);
@@ -98,6 +101,7 @@ function useWebSocket() {
             prompt,
             message: prompt,
             email: utils.parseGmailCookies().gmailCookie,
+            chatCount
         }
 
         console.log('Prompt sent: ' + prompt);

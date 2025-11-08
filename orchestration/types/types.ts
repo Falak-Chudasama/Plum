@@ -1,11 +1,11 @@
 export interface Intent {
-    intent: ('fetch_db' | 'craft_mail' | 'general')
+    intent: ('fetch_db' | 'craft_mail' | 'general' | 'titling')
 };
 
 export interface GenerateArgs {
     socket?: WebSocket,
-    model: string;
-    prompt: string;
+    model?: string;
+    prompt?: string;
     system?: string;
     intent?: Intent;
     temperature?: number,

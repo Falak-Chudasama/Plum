@@ -5,6 +5,7 @@ import TaskQueue from "../core/TaskQueue";
 import logger from "../utils/logger.utils";
 import utils from "../utils/utils";
 import lmsModelOps from "./lms.models";
+import globals from "../globals/globals";
 
 const filePath = "/adapters/lms.adapters.ts";
 const lmsQueue = new TaskQueue();
@@ -78,12 +79,19 @@ const lmsGenerateUtil = async ({
             throw new Error(`LM Studio response failed: ${response.status}`);
         }
 
-        logger.info("Streaming LMS Response in Chunks...");
+        if (intent === "general") {
+            globals.mostRecentPrompt = prompt;
+            globals.mostRecentResponse = '';
+        }
 
         if (!stream) {
+            logger.info("Successfully got LMS Response");
             const res = response.json();
+            console.log(res); // del it
             return res;
         }
+
+        logger.info("Streaming LMS Response in Chunks...");
 
         const decoder = new TextDecoder("utf-8");
         const reader = response.body.getReader();
@@ -101,6 +109,9 @@ const lmsGenerateUtil = async ({
                         return;
                     }
                     const textChunk = parsedChunk.delta.content ?? '';
+                    if (!thinking && intent === "general") {
+                        globals.mostRecentResponse += textChunk;
+                    }
                     if (utils.isCleanResponse(textChunk)) {
                         if (textChunk === '<think>') {
                             thinking = true;
@@ -124,7 +135,7 @@ const lmsGenerateUtil = async ({
                             success: true,
                             done: false
                         });
-                        console.log(chunkObj);
+                        // console.log(chunkObj);
                         socket?.send(
                             JSON.stringify(chunkObj)
                         );

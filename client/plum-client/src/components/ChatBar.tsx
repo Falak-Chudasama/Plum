@@ -121,7 +121,7 @@ function ChatBar(getToBottom: boolean) {
                 <input
                     ref={inputRef}
                     type="text"
-                    placeholder="Command me Anything..."
+                    placeholder="Command me..."
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     className="

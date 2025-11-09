@@ -28,7 +28,7 @@ function system(data: any) {
     if (data.subtype === 'INTENT') {
         chatOps.updatePromptIntent(data.intent);
     } else if (data.subtype === 'TITLE') {
-        chatOps.createChat(data.title);
+        chatOps.createChat(data.title.title);
     }
 }
 

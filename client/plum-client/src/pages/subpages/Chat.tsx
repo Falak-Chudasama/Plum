@@ -16,17 +16,10 @@ function Chats() {
         document.title = 'Plum | Chats';
     }, []);
 
-    // del it
+    useEffect(() => {}, [response, chat]);
     useEffect(() => {
         console.log(chat);
     }, [chat]);
-
-    useEffect(() => {
-        console.log(response);
-        if (chat.messageCount > 0 || response.length > 0) {
-            setExpandChatBar(true);
-        }
-    }, [response, chat]);
 
     return(
         <div className="w-screen min-h-[80vh] px-40 overflow-x-hidden">

@@ -2,9 +2,10 @@ import { useEffect, useState, useRef } from "react";
 import constants from "../constants/constants";
 import utils from "../utils/utils";
 import socketMsgOps from "../ops/socketMsg.ops";
-import ChatCountStore from "../store/ChatCountStore";
 import { useStore } from "zustand";
 import { flushSync } from "react-dom";
+import chatOps from "../ops/chat.ops";
+import ActiveChatStore from "../store/ActiveChatStore";
 
 const maxRetries = 1000;
 const timeout = 5;
@@ -14,7 +15,13 @@ function useWebSocket() {
     const socketRef = useRef<WebSocket | null>(null);
     const socketRetries = useRef(0);
     const [isConnected, setIsConnected] = useState(false);
-    const { chatCount } = useStore(ChatCountStore);
+    const { chat } = useStore(ActiveChatStore);
+
+    let chatCount = useRef(chat.messageCount);
+    
+    useEffect(() => {
+        chatCount.current = chat.messageCount;
+    }, [chat.messageCount])
 
     const initSocket = () => {
         const socket = new WebSocket(WS_URL);
@@ -28,25 +35,24 @@ function useWebSocket() {
 
         socket.onmessage = (event) => {
             const data = event.data;
-            const response = JSON.parse(data); // del it
+            const response = JSON.parse(data);
 
-            console.log(response);
             if (response.type === 'RESPONSE') {
                 if (response.done) {
                     flushSync(() => {
-                        socketMsgOps.response(data);
+                        socketMsgOps.response(response);
                     });
                 } else {
-                    socketMsgOps.response(data);
+                    socketMsgOps.response(response);
                 }
             } else if (response.type === 'THOUGHT') {
-                socketMsgOps.thought(data);
+                socketMsgOps.thought(response);
             } else if (response.type === 'INFO') {
-                socketMsgOps.info(data);
+                socketMsgOps.info(response);
             } else if (response.type === 'SYSTEM') {
-                socketMsgOps.system(data);
+                socketMsgOps.system(response);
             } else if (response.type === 'ERROR') {
-                socketMsgOps.error(data);
+                socketMsgOps.error(response);
             }
         }
 
@@ -104,13 +110,16 @@ function useWebSocket() {
         prompt = prompt.trim();
         if (!prompt) return;
 
+        console.log('CHAT COUNT: ' + chatCount.current);
         const promptObject = {
             type: 'PROMPT',
             prompt,
             message: prompt,
             email: utils.parseGmailCookies().gmailCookie,
-            chatCount
+            chatCount: chatCount.current
         }
+
+        chatOps.createPrompt(prompt);
 
         console.log('Prompt sent: ' + prompt);
         sendMessage(promptObject);

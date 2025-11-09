@@ -1,9 +1,13 @@
+import ResponseReceivingStore from "../store/ResponseReceivingStore";
 import chatOps from "./chat.ops";
 
 function response(data: any) {
+    const { setReceivingResponse } = ResponseReceivingStore.getState();
     if (!data.done) {
+        setReceivingResponse(true);
         chatOps.updateResponseToken(data.response, data.model);
     } else {
+        setReceivingResponse(false);
         chatOps.updateChat();
     }
 }

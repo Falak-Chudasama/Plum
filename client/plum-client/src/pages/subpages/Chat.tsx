@@ -1,31 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import ChatBar from "../../components/ChatBar";
-import ChatBanner from "../../components/ChatBanner";
-import { useStore } from "zustand";
-import ActiveChatStore from "../../store/ActiveChatStore";
-import ActiveResponseStore from "../../store/ActiveResponseStore";
 import ChatArea from "../../components/ChatArea";
 
+// TODO: Add the ChatBanner component
+// TODO: Fix the stuttering issue in rendering
+
 function Chats() {
-    const { chat } = useStore(ActiveChatStore);
-    const { response } = useStore(ActiveResponseStore);
-
-    const [expandChatBar, setExpandChatBar] = useState(false);
-
     useEffect(() => {
         document.title = 'Plum | Chats';
     }, []);
 
-    useEffect(() => {}, [response, chat]);
-    useEffect(() => {
-        console.log(chat);
-    }, [chat]);
-
     return(
-        <div className="w-screen min-h-[80vh] px-40 overflow-x-hidden">
-            {/* <ChatBanner getToTop={expandChatBar}/> */}
-            <ChatArea />
-            <ChatBar getToBottom={expandChatBar} />
+        <div className="w-screen h-[83vh] px-40 duration-300 grid justify-center items-end">
+            <div className="h-full w-[100vw] overflow-y-auto px-[15vw] pt-[6vh] pb-[10vh]"> {/* I want this to be scrollable but ChatBar must be in its place and  */}
+                <ChatArea />
+            </div>
+            <ChatBar />
         </div>
     );
 }

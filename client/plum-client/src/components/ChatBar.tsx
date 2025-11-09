@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import globals from "../globals/globals";
+import { useStore } from "zustand";
+import ResponseReceivingStore from "../store/ResponseReceivingStore";
 
 function SendButton({
     inputRef,
@@ -68,10 +70,11 @@ function StopButton() {
     );
 }
 
-function ChatBar(getToBottom: boolean) {
+function ChatBar() {
     const [isFocused, setIsFocused] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const sendPrompt = globals.wsConnection?.sendPrompt;
+    const { receivingResponse } = useStore(ResponseReceivingStore);
 
     const sendPromptHandler = () => {
         if (!inputRef.current) return;
@@ -103,21 +106,22 @@ function ChatBar(getToBottom: boolean) {
             bg-transparent rounded-full
             bg-cover bg-center
             ${isFocused ? "shadow-lg" : "shadow-sm"}
-            ${getToBottom ? 'translate-y-[6vh]' : 'translate-[80vh]'}
+            mb-6
         `}>
             <div className={`
             p-0.75
             duration-500
             rounded-full 
             flex justify-between items-center
-            bg-plum-bg-bold
             border-[2.15px]
             placeholder-plum-primary-dark
             placeholder-select-none
-            backdrop-blur-[2.3px]
+            backdrop-blur-[2px]
             ${isFocused ? 'w-xl' : 'w-lg'} 
             hover:w-xl
-            `}>
+            `} style={{
+                background: "rgba(238, 229, 255, 0.8)"
+            }}>
                 <input
                     ref={inputRef}
                     type="text"
@@ -142,8 +146,11 @@ function ChatBar(getToBottom: boolean) {
                 bg-transparent
             "
                 />
-                <SendButton inputRef={inputRef} sendPrompt={sendPrompt} />
-                <StopButton />
+                {receivingResponse ? (
+                    <StopButton />
+                ) : (
+                    <SendButton inputRef={inputRef} sendPrompt={sendPrompt} />
+                )}
             </div>
         </div>
     );

@@ -21,7 +21,7 @@ function Header() {
     const profileImage: string = pictureCookie;
 
     return (
-        <header className="grid gap-y-1.5">
+        <header className="grid h-[17vh]">
             <div className="px-5 py-3 w-full h-fit bg-plum-bg-bold flex items-center justify-between">
                 <PlumLogo scale={0.85} textBold />
                 <div className="h-12 w-12 rounded-full border-3 border-plum-primary bg-cover bg-center"

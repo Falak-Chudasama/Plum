@@ -9,7 +9,7 @@ function createChat(title: string) {
     setChatState({
         ...chatState,
         title
-    })
+    });
 }
 
 function updateChat() {

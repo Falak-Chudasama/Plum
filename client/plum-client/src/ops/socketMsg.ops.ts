@@ -17,11 +17,19 @@ function thought(data: any) {
 }
 
 function info(data: any) {
+    if (data.subtype === 'LOADING_MODEL') {
+        if (data.loading) {}
+        else {}
+    }
     // handle informational system events UI changes
 }
 
 function system(data: any) {
-    // handle system-level structured events (INTENT, CHAT_TITLE, etc.)
+    if (data.subtype === 'INTENT') {
+        chatOps.updatePromptIntent(data.intent);
+    } else if (data.subtype === 'TITLE') {
+        chatOps.createChat(data.title);
+    }
 }
 
 function error(data: any) {

@@ -10,7 +10,7 @@ const parseIntent = async (prompt: string): Promise<any> => {
         logger.info('Intent Parser Agent Called');
         const res = await msAPIs.intentSearch(prompt, 100);
         const rankedIntent = reRankingOps.routeIntent(prompt, res);
-        console.log(`Prompt Intent: ${rankedIntent.bestIntent}(${rankedIntent.bestScore})`);
+        logger.info(`Prompt Intent: ${rankedIntent.bestIntent}(${rankedIntent.bestScore})`);
         return {
             intent: rankedIntent.bestIntent,
             confidence: rankedIntent.bestScore

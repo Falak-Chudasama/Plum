@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-dotenv.config({ quiet: true });
+dotenv.config({ quiet: true })
 
 import app from "./app/app";
 import connectDB from "./config/config";

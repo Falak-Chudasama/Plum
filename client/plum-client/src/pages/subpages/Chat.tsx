@@ -16,6 +16,11 @@ function Chats() {
         document.title = 'Plum | Chats';
     }, []);
 
+    // del it
+    useEffect(() => {
+        console.log(chat);
+    }, [chat]);
+
     useEffect(() => {
         console.log(response);
         if (chat.messageCount > 0 || response.length > 0) {

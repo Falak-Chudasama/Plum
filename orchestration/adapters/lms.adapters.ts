@@ -25,16 +25,18 @@ const lmsGenerateUtil = async ({
         if (listedModel[0] !== model) {
             socket?.send(JSON.stringify({
                 type: 'INFO',
+                subtype: 'LOADING_MODEL',
                 message: `loading the model: ${model}`,
                 loading: true,
                 done: false
             }));
-
+            
             await lmsModelOps.unloadLMSModel('*');
             await lmsModelOps.loadLMSModel(model);
-
+            
             socket?.send(JSON.stringify({
                 type: 'INFO',
+                subtype: 'LOADING_MODEL',
                 message: `loaded the model: ${model}`,
                 loading: false,
                 done: true
@@ -56,12 +58,14 @@ const lmsGenerateUtil = async ({
 
         logger.info("LM Studio API Called");
 
-        const systemPrompt = `${constants.primarySysPrompt}\n${system}`;
+        const systemPrompt = intent === 'general' ? `${constants.primarySysPrompt}\n${system}` : system;
         const requestBody: any = {
             model,
-            messages: [
+            messages: intent === 'general' ? [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: prompt }
+            ] : [
+                { role: "system", content: `${systemPrompt}\n\n${prompt}` },
             ],
             temperature,
             stream
@@ -86,8 +90,7 @@ const lmsGenerateUtil = async ({
 
         if (!stream) {
             logger.info("Successfully got LMS Response");
-            const res = response.json();
-            console.log(res); // del it
+            const res = await response.json();
             return res;
         }
 
@@ -135,7 +138,7 @@ const lmsGenerateUtil = async ({
                             success: true,
                             done: false
                         });
-                        // console.log(chunkObj);
+                        console.log(chunkObj);
                         socket?.send(
                             JSON.stringify(chunkObj)
                         );
@@ -168,6 +171,7 @@ const lmsGenerateUtil = async ({
             }));
         } else {
             handleErrorUtil(filePath, "lmsGenerateUtil", err, "Calling LM Studio to generate response (Utility)");
+            lmsModelOps.unloadLMSModel('*');
         }
     }
 };

@@ -4,6 +4,7 @@ import utils from "../utils/utils";
 import socketMsgOps from "../ops/socketMsg.ops";
 import ChatCountStore from "../store/ChatCountStore";
 import { useStore } from "zustand";
+import { flushSync } from "react-dom";
 
 const maxRetries = 1000;
 const timeout = 5;
@@ -27,10 +28,17 @@ function useWebSocket() {
 
         socket.onmessage = (event) => {
             const data = event.data;
-            const response = JSON.parse(data);
+            const response = JSON.parse(data); // del it
 
+            console.log(response);
             if (response.type === 'RESPONSE') {
-                socketMsgOps.response(data);
+                if (response.done) {
+                    flushSync(() => {
+                        socketMsgOps.response(data);
+                    });
+                } else {
+                    socketMsgOps.response(data);
+                }
             } else if (response.type === 'THOUGHT') {
                 socketMsgOps.thought(data);
             } else if (response.type === 'INFO') {

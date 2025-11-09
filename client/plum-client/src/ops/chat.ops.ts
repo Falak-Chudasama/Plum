@@ -2,24 +2,34 @@ import ActiveChatStore from "../store/ActiveChatStore";
 import ActivePromptStore from "../store/ActivePromptStore";
 import ActiveResponseStore from "../store/ActiveResponseStore";
 import ChatCountStore from "../store/ChatCountStore";
-import type { CraftedMailType, IntentionType, QueryType } from "../types/types";
+import type { ChatType, CraftedMailType, IntentionType, QueryType } from "../types/types";
+import apis from "../apis/apis";
 
-function createChat(title: string) {
+async function createChat(title: string) {
     const { chat: chatState, setChatState } = ActiveChatStore.getState();
-    setChatState({
+
+    const updatedChat = {
         ...chatState,
         title
-    });
+    };
+
+    setChatState(updatedChat);
+    const res = await apis.createChat(updatedChat);
+    const savedChat = res.result as ChatType;
+    setChatState(savedChat);
+
+    return savedChat;
 }
 
-function updateChat() {
+async function updateChat() {
     const { chat, setChatState } = ActiveChatStore.getState();
     const { chatCount, setChatCount } = ChatCountStore.getState();
-    const { prompt } = ActivePromptStore.getState();
-    const { response } = ActiveResponseStore.getState();
+    const { prompt, resetPrompt } = ActivePromptStore.getState();
+    const { response, resetResponse } = ActiveResponseStore.getState();
 
     setChatCount(chatCount + 1);
-    setChatState({
+
+    const updatedChat = {
         ...chat,
         userPrompts: [
             ...chat.userPrompts,
@@ -30,8 +40,12 @@ function updateChat() {
             response
         ],
         messageCount: chatCount + 1
-    });
-    // server API call
+    }
+
+    setChatState(updatedChat);
+    await apis.updateChat(updatedChat);
+    resetPrompt();
+    resetResponse();
 }
 
 

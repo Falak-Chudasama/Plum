@@ -11,6 +11,20 @@ const maxRetries = 1000;
 const timeout = 5;
 const WS_URL = constants.serverWssOrigin;
 
+function ensureChatReady(maxWait = 50000, step = 100): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const start = Date.now();
+        const check = () => {
+            const { chat } = ActiveChatStore.getState();
+            if (chat?._id) return resolve();
+            if (Date.now() - start >= maxWait)
+                return reject(new Error("Chat _id not ready in time"));
+            setTimeout(check, step);
+        };
+        check();
+    });
+}
+
 function useWebSocket() {
     const socketRef = useRef<WebSocket | null>(null);
     const socketRetries = useRef(0);
@@ -18,10 +32,15 @@ function useWebSocket() {
     const { chat } = useStore(ActiveChatStore);
 
     let chatCount = useRef(chat.messageCount);
-    
+    let chatTitle = useRef(chat.title);
+
     useEffect(() => {
         chatCount.current = chat.messageCount;
-    }, [chat.messageCount])
+    }, [chat.messageCount]);
+
+    useEffect(() => {
+        chatTitle.current = chat.title;
+    }, [chat.title]);
 
     const initSocket = () => {
         const socket = new WebSocket(WS_URL);
@@ -33,28 +52,27 @@ function useWebSocket() {
             socketRetries.current = 0;
         };
 
-        socket.onmessage = (event) => {
+        socket.onmessage = async (event) => {
             const data = event.data;
             const response = JSON.parse(data);
 
-            if (response.type === 'RESPONSE') {
+            if (response.type === "RESPONSE") {
                 if (response.done) {
-                    flushSync(() => {
-                        socketMsgOps.response(response);
-                    });
+                    await ensureChatReady();
+                    flushSync(() => socketMsgOps.response(response));
                 } else {
                     socketMsgOps.response(response);
                 }
-            } else if (response.type === 'THOUGHT') {
+            } else if (response.type === "THOUGHT") {
                 socketMsgOps.thought(response);
-            } else if (response.type === 'INFO') {
+            } else if (response.type === "INFO") {
                 socketMsgOps.info(response);
-            } else if (response.type === 'SYSTEM') {
-                socketMsgOps.system(response);
-            } else if (response.type === 'ERROR') {
+            } else if (response.type === "SYSTEM") {
+                await socketMsgOps.system(response);
+            } else if (response.type === "ERROR") {
                 socketMsgOps.error(response);
             }
-        }
+        };
 
         socket.onclose = () => {
             setIsConnected(false);

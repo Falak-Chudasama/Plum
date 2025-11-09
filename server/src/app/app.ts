@@ -10,6 +10,7 @@ import categoryRouter from "../routes/category.routes";
 
 import authenticateUser from "../middlewares/auth.middlewares";
 import authenticateUserGoogle from "../middlewares/googleAuth.middlewares";
+import chatRouter from "../routes/chat.routes";
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use(morganMiddleware);
 app.use('/email', authenticateUser, authenticateUserGoogle, emailRouter);
 app.use('/user', userRouter);
 app.use('/category', authenticateUser, authenticateUserGoogle, categoryRouter);
+app.use('/chat', authenticateUser, authenticateUserGoogle, chatRouter);
 
 // Requests
 app.get('', (req: Request, res: Response) => {

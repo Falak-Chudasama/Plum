@@ -4,8 +4,6 @@ import handleError from "../utils/errors.utils";
 import utils from "../utils/utils";
 import type { CategoryType } from "../types/types";
 
-// TODO: Add an API to update the Server that the chat was viewed
-
 const axiosAuth = axios.create({
     baseURL: `${constants.serverOrigin}/user/`,
     withCredentials: true
@@ -23,6 +21,11 @@ const axiosUser = axios.create({
 
 const axiosCategory = axios.create({
     baseURL: `${constants.serverOrigin}/category/`,
+    withCredentials: true
+});
+
+const axiosChat = axios.create({
+    baseURL: `${constants.serverOrigin}/chat/`,
     withCredentials: true
 });
 
@@ -280,6 +283,98 @@ async function deleteCategory(category: CategoryType) {
     }
 }
 
+/*
+    Chat APIs
+*/
+
+async function createChat(chat: any) {
+    try {
+        const response = await axiosChat.post("create", chat);
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw new Error(response.data.message);
+        }
+
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+async function getChatById(id: string) {
+    try {
+        const response = await axiosChat.get(`get/${id}`);
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw new Error(response.data.message);
+        }
+
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+async function getChatByTitleDate(title: string, createdAt: string, email: string) {
+    try {
+        const response = await axiosChat.get("getByTitleDate", {
+            params: { title, createdAt, email }
+        });
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw new Error(response.data.message);
+        }
+
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+async function updateChat(chat: any) {
+    try {
+        const response = await axiosChat.put("update", chat);
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw new Error(response.data.message);
+        }
+
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+async function deleteChat(id: string) {
+    try {
+        const response = await axiosChat.delete("delete", { params: { id } });
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw new Error(response.data.message);
+        }
+
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+
 const apis = {
     googleAuth,
     login,
@@ -294,7 +389,12 @@ const apis = {
     findCategories,
     createCategory,
     editCategory,
-    deleteCategory
+    deleteCategory,
+    createChat,
+    getChatById,
+    getChatByTitleDate,
+    updateChat,
+    deleteChat
 };
 
 export default apis;

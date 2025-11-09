@@ -112,6 +112,7 @@ export type SystemPromptType = {
 };
 
 export type ChatType = {
+    _id: string
     title?: string;
     email: string;
     userPrompts: UserPromptType[];

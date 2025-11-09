@@ -6,12 +6,14 @@ import { inboundEmailSchema } from "../models/inboundEmail.models";
 import { outboundEmailSchema } from "../models/outboundEmail.models";
 import { categorySchema } from "../models/category";
 import { summarySchema } from "../models/summary";
+import { ChatSchema } from "../models/chat";
 
 export type UserType = InferSchemaType<typeof userSchema>; 
 export type InboundEmailType = InferSchemaType<typeof inboundEmailSchema>;
 export type OutboundEmailType = InferSchemaType<typeof outboundEmailSchema>;
 export type CategoryType = InferSchemaType<typeof categorySchema>;
 export type SummaryType = InferSchemaType<typeof summarySchema>;
+export type ChatType = InferSchemaType<typeof ChatSchema>;
 
 export interface AuthenticatedRequest extends Request {
     user: { email: string }

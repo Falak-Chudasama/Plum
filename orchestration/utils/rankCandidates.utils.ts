@@ -50,7 +50,7 @@ const FETCH_NEGATIVE = [
 ];
 
 const CRAFT_NEGATIVE = [
-    "\\bfrom\\s+db\\b", "\\bfrom\\s+database\\b", "\\bselect\\s+from\\b", "\\bquery\\s+db\\b", "\\bcrafting\\", "\\bcrafted\\"
+    "\\bfrom\\s+db\\b", "\\bfrom\\s+database\\b", "\\bselect\\s+from\\b", "\\bquery\\s+db\\b", "\\bcrafting\\b", "\\bcrafted\\b"
 ];
 
 const FETCH_STRONG = [

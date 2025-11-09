@@ -7,7 +7,7 @@ export interface GenerateArgs {
     model?: string;
     prompt?: string;
     system?: string;
-    intent?: Intent;
+    intent?: string;
     temperature?: number,
     stream?: boolean;
 };

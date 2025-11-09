@@ -33,6 +33,7 @@ function system(data: any) {
 }
 
 function error(data: any) {
+    console.error(data.error);
     // handle error events UI changes
 }
 

@@ -12,16 +12,19 @@ from models.embedder import LocalEmbedder, OllamaEmbedder
 
 logger = logging.getLogger("uvicorn.error")
 
-app = FastAPI(title="Embeddings microservice (categorization + intent)")
+app = FastAPI(title="Embeddings microservice (categorization + intent + chat)")
 
+# === Base configs ===
 DB_PATH = os.getenv("CHROMA_DB_PATH", "./chromadb")
+CHAT_DB_PATH = os.getenv("CHROMA_CHAT_DB_PATH", "./chromadb_chat")
+CHAT_COLLECTION = os.getenv("CHROMA_CHAT_COLLECTION", "chat-embeddings")
 
-# instantiate embedders:
-# - categorization uses local sentence-transformers
-# - intent uses Ollama HTTP embedder
-local_emb = LocalEmbedder()      # used by /embed/categorization and /search/categorization
-ollama_emb = OllamaEmbedder()    # used by /embed/intent and /search/intent
+# === Embedders ===
+local_emb = LocalEmbedder()
+ollama_emb = OllamaEmbedder()
+chat_emb = LocalEmbedder(model_name=os.getenv("CHAT_EMBED_MODEL", "BAAI/bge-large-en-v1.5"))
 
+# === Vector stores ===
 categ_store = ChromaStore(
     db_path=None,
     collection_name="categorization-embeddings",
@@ -33,15 +36,40 @@ intent_store = ChromaStore(
     db_path=None,
     collection_name="intent-embeddings",
     embedder=local_emb,
-    # embedder=ollama_emb,
     persist=False,
 )
 
+chat_store = ChromaStore(
+    db_path=CHAT_DB_PATH,
+    collection_name=CHAT_COLLECTION,
+    embedder=chat_emb,
+    persist=True,
+)
 
+# === Utility ===
 def safe_result_wrapper(message: str, ids: List[str]):
     return {"message": message, "ids": ids, "success": True}
 
 
+def chunk_text(text: str, max_chars: int = 1200, overlap: int = 150) -> List[str]:
+    """
+    Splits a long string into overlapping chunks to keep context continuity.
+    """
+    if not text or len(text) <= max_chars:
+        return [text]
+
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + max_chars
+        chunks.append(text[start:end])
+        start = end - overlap
+        if start >= len(text):
+            break
+    return chunks
+
+
+# === Root ===
 @app.get("/")
 async def index():
     return {
@@ -49,45 +77,43 @@ async def index():
         "collections": {
             "categorization": categ_store.collection_name,
             "intent": intent_store.collection_name,
+            "chat": chat_store.collection_name,
         },
     }
 
 
+# === CATEGORIZATION ENDPOINTS ===
 @app.post("/embed/categorization")
 async def embed_categorization(req: EmbedRequest):
     try:
         texts = [item.content for item in req.items]
         metadatas = [item.meta or {} for item in req.items]
-        logger.info("Embed categorization called", extra={"count": len(texts)})
         if len(texts) > 1000:
             raise HTTPException(status_code=413, detail="Too many items in request; split into smaller batches.")
         ids = await run_in_threadpool(categ_store.add_texts, texts, metadatas)
-        if not isinstance(ids, list):
-            logger.error("categ_store.add_texts returned non-list", extra={"type": type(ids)})
-            raise HTTPException(status_code=500, detail="Embedding failed: invalid store response.")
         return safe_result_wrapper(f"{len(ids)} categorization item(s) embedded successfully.", ids)
-    except HTTPException:
-        raise
-    except Exception:
+    except Exception as e:
         logger.exception("Categorization embedding failed")
-        raise HTTPException(status_code=500, detail="Categorization embedding failed (server error). Check logs.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/search/categorization")
 async def search_categorization(req: SearchRequest):
     try:
-        logger.info("Search categorization called", extra={"query": req.query, "k": req.k})
         results = await run_in_threadpool(categ_store.search, req.query, req.k)
         documents = results.get("documents", [[]])[0]
         metadatas = results.get("metadatas", [[]])[0]
         distances = results.get("distances", [[]])[0]
-        rows = [{"text": doc, "metadata": meta, "distance": dist} for doc, meta, dist in zip(documents, metadatas, distances)]
-        return {"results": rows, "success": True}
-    except HTTPException:
-        raise
-    except Exception:
+        return {
+            "results": [
+                {"text": doc, "metadata": meta, "distance": dist}
+                for doc, meta, dist in zip(documents, metadatas, distances)
+            ],
+            "success": True,
+        }
+    except Exception as e:
         logger.exception("Categorization search failed")
-        raise HTTPException(status_code=500, detail="Categorization search failed (server error). Check logs.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/delete-all/categorization")
@@ -95,103 +121,88 @@ async def delete_all_categorization():
     try:
         await run_in_threadpool(categ_store.delete_all)
         return {"status": "success", "message": f"Collection '{categ_store.collection_name}' cleared.", "success": True}
-    except Exception:
+    except Exception as e:
         logger.exception("Categorization delete-all failed")
-        raise HTTPException(status_code=500, detail="Categorization delete-all failed (server error). Check logs.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/delete-items/categorization")
 async def delete_items_categorization(req: DeleteRequest):
     try:
         await run_in_threadpool(categ_store.delete_items, req.ids)
-        return {"status": "success", "message": f"Successfully deleted {len(req.ids)} categorization item(s).", "success": True}
-    except Exception:
+        return {"status": "success", "message": f"Deleted {len(req.ids)} items.", "success": True}
+    except Exception as e:
         logger.exception("Categorization delete-items failed")
-        raise HTTPException(status_code=500, detail="Categorization delete-items failed (server error). Check logs.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
+# === INTENT ENDPOINTS ===
 @app.post("/embed/intent")
 async def embed_intent(req: EmbedRequest):
     try:
-        texts = [item.content for item in req.items]
+        texts = []
         metadatas = []
         for item in req.items:
             m = item.meta or {}
             if not isinstance(m, dict) or "intent" not in m:
-                raise HTTPException(status_code=400, detail="Each intent embed metadata must include an 'intent' key.")
+                raise HTTPException(status_code=400, detail="Each intent metadata must include 'intent'.")
+            texts.append(item.content)
             metadatas.append(m)
-        logger.info("Embed intent called", extra={"count": len(texts)})
-        if len(texts) > 1000:
-            raise HTTPException(status_code=413, detail="Too many items in request; split into smaller batches.")
         ids = await run_in_threadpool(intent_store.add_texts, texts, metadatas)
-        if not isinstance(ids, list):
-            logger.error("intent_store.add_texts returned non-list", extra={"type": type(ids)})
-            raise HTTPException(status_code=500, detail="Embedding failed: invalid store response.")
         return safe_result_wrapper(f"{len(ids)} intent item(s) embedded successfully.", ids)
-    except HTTPException:
-        raise
-    except Exception:
+    except Exception as e:
         logger.exception("Intent embedding failed")
-        raise HTTPException(status_code=500, detail="Intent embedding failed (server error). Check logs.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/search/intent")
 async def search_intent(req: SearchRequest):
     try:
-        logger.info("Search intent called", extra={"query": req.query, "k": req.k})
         results = await run_in_threadpool(intent_store.search, req.query, req.k)
         documents = results.get("documents", [[]])[0]
         metadatas = results.get("metadatas", [[]])[0]
         distances = results.get("distances", [[]])[0]
-        rows = [{"text": doc, "metadata": meta, "distance": dist} for doc, meta, dist in zip(documents, metadatas, distances)]
-        return {"results": rows, "success": True}
-    except HTTPException:
-        raise
-    except Exception:
+        return {
+            "results": [
+                {"text": doc, "metadata": meta, "distance": dist}
+                for doc, meta, dist in zip(documents, metadatas, distances)
+            ],
+            "success": True,
+        }
+    except Exception as e:
         logger.exception("Intent search failed")
-        raise HTTPException(status_code=500, detail="Intent search failed (server error). Check logs.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/parse/intent")
 async def parse_intent(req: SearchRequest, threshold: float = 0.84):
     try:
-        logger.info("Parse intent called", extra={"query": req.query, "k": req.k, "threshold": threshold})
         results = await run_in_threadpool(intent_store.search, req.query, req.k)
-        documents = results.get("documents", [[]])[0]
         metadatas = results.get("metadatas", [[]])[0]
         distances = results.get("distances", [[]])[0]
 
-        scores_by_intent: Dict[str, float] = {}
-        support_by_intent: Dict[str, int] = {}
-
+        scores = {}
+        support = {}
         for meta, score in zip(metadatas, distances):
-            intent_label = meta.get("intent") if isinstance(meta, dict) else None
-            if not intent_label:
-                intent_label = "unknown"
-            prev = scores_by_intent.get(intent_label, -1.0)
-            if score > prev:
-                scores_by_intent[intent_label] = score
-            support_by_intent[intent_label] = support_by_intent.get(intent_label, 0) + 1
+            label = meta.get("intent", "unknown") if isinstance(meta, dict) else "unknown"
+            if score > scores.get(label, -1):
+                scores[label] = score
+            support[label] = support.get(label, 0) + 1
 
-        if not scores_by_intent:
+        if not scores:
             return {"intent": "none", "confidence": 0.0, "candidates": [], "success": True}
 
-        sorted_candidates = sorted(scores_by_intent.items(), key=lambda x: x[1], reverse=True)
-        best_intent, best_score = sorted_candidates[0]
-        candidates = [
-            {"intent": it, "score": float(sc), "support": int(support_by_intent.get(it, 0))}
-            for it, sc in sorted_candidates
-        ]
+        sorted_candidates = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        best_label, best_score = sorted_candidates[0]
+        candidates = [{"intent": l, "score": float(s), "support": support[l]} for l, s in sorted_candidates]
 
         if best_score < threshold:
             return {"intent": "none", "confidence": float(best_score), "candidates": candidates, "success": True}
 
-        return {"intent": best_intent, "confidence": float(best_score), "candidates": candidates, "success": True}
-    except HTTPException:
-        raise
-    except Exception:
+        return {"intent": best_label, "confidence": float(best_score), "candidates": candidates, "success": True}
+    except Exception as e:
         logger.exception("Intent parse failed")
-        raise HTTPException(status_code=500, detail="Intent parse failed (server error). Check logs.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/delete-all/intent")
@@ -199,16 +210,118 @@ async def delete_all_intent():
     try:
         await run_in_threadpool(intent_store.delete_all)
         return {"status": "success", "message": f"Collection '{intent_store.collection_name}' cleared.", "success": True}
-    except Exception:
+    except Exception as e:
         logger.exception("Intent delete-all failed")
-        raise HTTPException(status_code=500, detail="Intent delete-all failed (server error). Check logs.")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/delete-items/intent")
 async def delete_items_intent(req: DeleteRequest):
     try:
         await run_in_threadpool(intent_store.delete_items, req.ids)
-        return {"status": "success", "message": f"Successfully deleted {len(req.ids)} intent item(s).", "success": True}
-    except Exception:
+        return {"status": "success", "message": f"Deleted {len(req.ids)} intent items.", "success": True}
+    except Exception as e:
         logger.exception("Intent delete-items failed")
-        raise HTTPException(status_code=500, detail="Intent delete-items failed (server error). Check logs.")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# === CHAT ENDPOINTS ===
+@app.post("/embed/chat")
+async def embed_chat(req: EmbedRequest):
+    try:
+        all_texts = []
+        all_metas = []
+
+        for item in req.items:
+            text = item.content.strip()
+            meta = item.meta or {}
+
+            chunks = chunk_text(text, max_chars=1200, overlap=150)
+            for idx, chunk in enumerate(chunks):
+                chunk_meta = dict(meta)
+                chunk_meta.update({
+                    "chunk_index": idx,
+                    "total_chunks": len(chunks),
+                    "chunk_length": len(chunk)
+                })
+                all_texts.append(chunk)
+                all_metas.append(chunk_meta)
+
+        if len(all_texts) > 5000:
+            raise HTTPException(status_code=413, detail="Too many chunks in request; split input smaller.")
+
+        ids = await run_in_threadpool(chat_store.add_texts, all_texts, all_metas)
+        return safe_result_wrapper(f"{len(ids)} chat chunk(s) embedded successfully.", ids)
+    except Exception as e:
+        logger.exception("Chat embedding failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/search/chat")
+async def search_chat(req: SearchRequest):
+    try:
+        results = await run_in_threadpool(chat_store.search, req.query, req.k)
+        documents = results.get("documents", [[]])[0]
+        metadatas = results.get("metadatas", [[]])[0]
+        distances = results.get("distances", [[]])[0]
+        return {
+            "results": [
+                {"text": doc, "metadata": meta, "distance": dist}
+                for doc, meta, dist in zip(documents, metadatas, distances)
+            ],
+            "success": True,
+        }
+    except Exception as e:
+        logger.exception("Chat search failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/parse/chat")
+async def parse_chat(req: SearchRequest, threshold: float = 0.84):
+    try:
+        results = await run_in_threadpool(chat_store.search, req.query, req.k)
+        metadatas = results.get("metadatas", [[]])[0]
+        distances = results.get("distances", [[]])[0]
+
+        scores = {}
+        support = {}
+        for meta, score in zip(metadatas, distances):
+            label = meta.get("label", "unknown") if isinstance(meta, dict) else "unknown"
+            if score > scores.get(label, -1):
+                scores[label] = score
+            support[label] = support.get(label, 0) + 1
+
+        if not scores:
+            return {"label": "none", "confidence": 0.0, "candidates": [], "success": True}
+
+        sorted_candidates = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        best_label, best_score = sorted_candidates[0]
+        candidates = [{"label": l, "score": float(s), "support": support[l]} for l, s in sorted_candidates]
+
+        if best_score < threshold:
+            return {"label": "none", "confidence": float(best_score), "candidates": candidates, "success": True}
+
+        return {"label": best_label, "confidence": float(best_score), "candidates": candidates, "success": True}
+    except Exception as e:
+        logger.exception("Chat parse failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/delete-all/chat")
+async def delete_all_chat():
+    try:
+        await run_in_threadpool(chat_store.delete_all)
+        return {"status": "success", "message": f"Collection '{chat_store.collection_name}' cleared.", "success": True}
+    except Exception as e:
+        logger.exception("Chat delete-all failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/delete-items/chat")
+async def delete_items_chat(req: DeleteRequest):
+    try:
+        await run_in_threadpool(chat_store.delete_items, req.ids)
+        return {"status": "success", "message": f"Deleted {len(req.ids)} chat items.", "success": True}
+    except Exception as e:
+        logger.exception("Chat delete-items failed")
+        raise HTTPException(status_code=500, detail=str(e))

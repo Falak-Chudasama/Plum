@@ -12,7 +12,7 @@ function Chats() {
 
     return(
         <div className="w-screen h-[83vh] px-40 duration-300 grid justify-center items-end">
-            <div className="h-full w-[100vw] overflow-y-auto px-[15vw] pt-[6vh] pb-[10vh]"> {/* I want this to be scrollable but ChatBar must be in its place and  */}
+            <div className="h-full w-[100vw] overflow-y-auto px-[15vw] pt-[8vh] pb-[12vh]">
                 <ChatArea />
             </div>
             <ChatBar />

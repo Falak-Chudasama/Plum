@@ -34,9 +34,7 @@ const catogEmbed = async (categories: string[]): Promise<InboundEmailType[] | nu
     try {
         logger.info('Categorize Embed API called');
         const result = await msAxios.post(`${constants.msOrigin}/embed/categorization`, { content: categories });
-
         if (!result.data || !result.data.success) throw Error('Failed to embed categories');
-
         return result.data;
     } catch (err) {
         handleErrorUtil(filePath, 'catogEmbed', err, 'Calling MS API to embed the categories');
@@ -48,9 +46,7 @@ const catogSearch = async (query: string, k: number = 3): Promise<Object> => {
     try {
         logger.info('Categorize Search API Called')
         const response = await msAxios.post(`${constants.msOrigin}/search/categorization`, { query, k });
-
         if (!response || !response.data.success) throw Error('Failed to search categories');
-
         return response.data.results;
     } catch (err) {
         handleErrorUtil(filePath, 'catogSearch', err, 'Calling MS API to search categories');
@@ -63,7 +59,6 @@ const catogDelAll = async (): Promise<boolean> => {
         logger.info('Categorizies Delete All API Called')
         const response = await msAxios.delete(`${constants.msOrigin}/delete-all/categorization`);
         if (!response || !response.data.success) throw Error('Failed to delete categories');
-
         return true;
     } catch (err) {
         handleErrorUtil(filePath, 'catogDelAll', err, 'Calling MS API to delete all categories');
@@ -71,13 +66,23 @@ const catogDelAll = async (): Promise<boolean> => {
     }
 };
 
-const chatEmbed = async (chat: string | string[]): Promise<InboundEmailType[] | null> => {
+const catogDelItems = async (ids: string[]): Promise<boolean> => {
+    try {
+        logger.info('Categorize Delete Items API Called');
+        const response = await msAxios.delete(`${constants.msOrigin}/delete-items/categorization`, { data: { ids } });
+        if (!response || !response.data.success) throw Error('Failed to delete categorization items');
+        return true;
+    } catch (err) {
+        handleErrorUtil(filePath, 'catogDelItems', err, 'Calling MS API to delete categorization items');
+        return false;
+    }
+};
+
+const chatEmbed = async (items: { content: string; meta?: Record<string, any> }[]): Promise<any | null> => {
     try {
         logger.info('Chat Embed API called');
-        const result = await msAxios.post(`${constants.msOrigin}/embed/chat`, { content: chat });
-
+        const result = await msAxios.post(`${constants.msOrigin}/embed/chat`, { items });
         if (!result.data || !result.data.success) throw Error('Failed to embed chat');
-
         return result.data;
     } catch (err) {
         handleErrorUtil(filePath, 'chatEmbed', err, 'Calling MS API to embed the chat');
@@ -85,17 +90,51 @@ const chatEmbed = async (chat: string | string[]): Promise<InboundEmailType[] | 
     return null;
 };
 
-const chatSearch = async (query: string, k: number): Promise<Object | []> => {
+const chatSearch = async (query: string, k: number = 5): Promise<Object | []> => {
     try {
         logger.info('Chat Search API Called')
         const response = await msAxios.post(`${constants.msOrigin}/search/chat`, { query, k });
-
         if (!response || !response.data.success) throw Error('Failed to search chats');
-
-        return response;
+        return response.data.results;
     } catch (err) {
         handleErrorUtil(filePath, 'chatSearch', err, 'Calling MS API to search chats');
-        return []
+        return [];
+    }
+};
+
+const chatParse = async (query: string, k: number = 5): Promise<Object | null> => {
+    try {
+        logger.info('Chat Parse API Called');
+        const response = await msAxios.post(`${constants.msOrigin}/parse/chat`, { query, k });
+        if (!response || !response.data.success) throw Error('Failed to parse chats');
+        return response.data;
+    } catch (err) {
+        handleErrorUtil(filePath, 'chatParse', err, 'Calling MS API to parse chats');
+        return null;
+    }
+};
+
+const chatDelAll = async (): Promise<boolean> => {
+    try {
+        logger.info('Chat Delete All API Called')
+        const response = await msAxios.delete(`${constants.msOrigin}/delete-all/chat`);
+        if (!response || !response.data.success) throw Error('Failed to delete chats');
+        return true;
+    } catch (err) {
+        handleErrorUtil(filePath, 'chatDelAll', err, 'Calling MS API to delete all chats');
+        return false;
+    }
+};
+
+const chatDelItems = async (ids: string[]): Promise<boolean> => {
+    try {
+        logger.info('Chat Delete Items API Called');
+        const response = await msAxios.delete(`${constants.msOrigin}/delete-items/chat`, { data: { ids } });
+        if (!response || !response.data.success) throw Error('Failed to delete chat items');
+        return true;
+    } catch (err) {
+        handleErrorUtil(filePath, 'chatDelItems', err, 'Calling MS API to delete chat items');
+        return false;
     }
 };
 
@@ -103,9 +142,7 @@ const intentEmbed = async (items: { content: string; meta: Record<string, any> }
     try {
         logger.info('Intent Embed API called');
         const result = await msAxios.post(`${constants.msOrigin}/embed/intent`, { items });
-
         if (!result.data || !result.data.success) throw Error('Failed to embed intents');
-
         return result.data;
     } catch (err) {
         handleErrorUtil(filePath, 'intentEmbed', err, 'Calling MS API to embed intents');
@@ -118,10 +155,21 @@ const intentDelAll = async (): Promise<boolean> => {
         logger.info('Intent Delete All API Called');
         const response = await msAxios.delete(`${constants.msOrigin}/delete-all/intent`);
         if (!response || !response.data.success) throw Error('Failed to delete intents');
-
         return true;
     } catch (err) {
         handleErrorUtil(filePath, 'intentDelAll', err, 'Calling MS API to delete all intents');
+        return false;
+    }
+};
+
+const intentDelItems = async (ids: string[]): Promise<boolean> => {
+    try {
+        logger.info('Intent Delete Items API Called');
+        const response = await msAxios.delete(`${constants.msOrigin}/delete-items/intent`, { data: { ids } });
+        if (!response || !response.data.success) throw Error('Failed to delete intent items');
+        return true;
+    } catch (err) {
+        handleErrorUtil(filePath, 'intentDelItems', err, 'Calling MS API to delete intent items');
         return false;
     }
 };
@@ -130,12 +178,22 @@ const intentSearch = async (query: string, k: number = 5): Promise<any | null> =
     try {
         logger.info('Intent Search API Called');
         const response = await msAxios.post(`${constants.msOrigin}/search/intent`, { query, k });
-
         if (!response || !response.data.success) throw Error('Failed to search intents');
-
         return response.data.results;
     } catch (err) {
         handleErrorUtil(filePath, 'intentSearch', err, 'Calling MS API to search intents');
+        return null;
+    }
+};
+
+const intentParse = async (query: string, k: number = 5): Promise<any | null> => {
+    try {
+        logger.info('Intent Parse API Called');
+        const response = await msAxios.post(`${constants.msOrigin}/parse/intent`, { query, k });
+        if (!response || !response.data.success) throw Error('Failed to parse intents');
+        return response.data;
+    } catch (err) {
+        handleErrorUtil(filePath, 'intentParse', err, 'Calling MS API to parse intents');
         return null;
     }
 };
@@ -144,11 +202,17 @@ const msAPIs = {
     catogEmbed,
     catogSearch,
     catogDelAll,
+    catogDelItems,
     chatEmbed,
     chatSearch,
+    chatParse,
+    chatDelAll,
+    chatDelItems,
     intentEmbed,
     intentDelAll,
-    intentSearch
+    intentDelItems,
+    intentSearch,
+    intentParse
 };
 
 export default msAPIs;

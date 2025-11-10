@@ -5,13 +5,14 @@ import { handleErrorUtil } from "../utils/errors.utils";
 import logger from "../utils/logger.utils";
 import chatTitler from "./chatTitler.agents";
 import parseIntent from "./intentParser.agents";
+import msAPIs from "../apis/ms.apis";
 
 const filePath = '/agents/chat.agents.ts';
 
 const defaultModel = constants.lmsModels.llm.llamaHermes;
 const temperature = 0;
 
-const generalSystemPrompt = ``;
+let generalSystemPrompt = ``;
 const fetchDBSystemPrompt = ``;
 const craftMailSystemPrompt = ``;
 
@@ -28,7 +29,22 @@ const chat = async (socket: WebSocket, prompt: string, model: string = defaultMo
             intent,
             success: true
         }));
+
+        if (chatCount > 0) {
+            const context = await msAPIs.chatSearch(prompt, 5);
+
+            generalSystemPrompt = `User's Previous Prompt(s): ${context.map((c) => {
+                if (c.metadata.role === 'user') return c.text
+            }).join('\n')}\nYour Previous Response(s): ${context.map((c) => {
+                if (c.metadata.role === 'plum') return c.text + '\n'
+            }).join('\n')}
+            `;
+
+            console.log(generalSystemPrompt);
+        }
+
         await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
+
         if (chatCount === 0) {
             const title = await chatTitler(socket, globals.mostRecentPrompt, globals.mostRecentResponse);
             socket.send(JSON.stringify({
@@ -38,7 +54,21 @@ const chat = async (socket: WebSocket, prompt: string, model: string = defaultMo
                 title,
                 success: true
             }));
+            await msAPIs.chatDelAll();
         }
+
+        const contextMessages = [
+            {
+                content: globals.mostRecentPrompt,
+                meta: { role: "user" },
+            },
+            {
+                content: globals.mostRecentResponse,
+                meta: { role: "plum" },
+            }
+        ];
+
+        await msAPIs.chatEmbed(contextMessages);
     } catch (err) {
         handleErrorUtil(filePath, 'chat', err, 'Sending user Prompt');
     }

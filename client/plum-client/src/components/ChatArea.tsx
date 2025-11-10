@@ -4,23 +4,28 @@ import type { ResponseType, UserPromptType } from "../types/types";
 import { useEffect, useState } from "react";
 import ActivePromptStore from "../store/ActivePromptStore";
 import ActiveResponseStore from "../store/ActiveResponseStore";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 function Response({ responseObj }: { responseObj: ResponseType }) {
     if (!responseObj.response) return;
     return(
         <div className="pr-8">
-            {responseObj.response}
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {responseObj.response}
+            </ReactMarkdown>
         </div>
     )
 }
 
 function Prompt({ promptObj }: { promptObj: UserPromptType }) {
-    if (!promptObj.prompt) return;
-    return(
-        <div className="w-fit px-3 py-1 text-md text-plum-bg rounded-2xl bg-plum-primary">
+    if (!promptObj.prompt) return null;
+
+    return (
+        <div className="px-3 py-1 text-md text-plum-bg rounded-2xl bg-plum-primary max-w-[40vw] break-words whitespace-pre-wrap">
             {promptObj.prompt}
         </div>
-    )
+    );
 }
 
 function ChatArea() {

@@ -42,8 +42,8 @@ async function updateChat() {
         messageCount: chatCount + 1
     }
 
-    setChatState(updatedChat);
     await apis.updateChat(updatedChat);
+    setChatState(updatedChat);
     resetPrompt();
     resetResponse();
 }

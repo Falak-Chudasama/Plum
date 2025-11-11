@@ -6,6 +6,9 @@ import logger from "../utils/logger.utils";
 import chatTitler from "./chatTitler.agents";
 import parseIntent from "./intentParser.agents";
 import msAPIs from "../apis/ms.apis";
+import mailCrafter from "./mailCrafter.agent";
+
+// TODO: Add context to previous response too and prompt for better understanding
 
 const filePath = '/agents/chat.agents.ts';
 
@@ -13,10 +16,7 @@ const defaultModel = constants.lmsModels.llm.llamaHermes;
 const temperature = 0;
 
 let generalSystemPrompt = ``;
-const fetchDBSystemPrompt = ``;
-const craftMailSystemPrompt = ``;
 
-// Send intent and title via socket
 const chat = async (socket: WebSocket, prompt: string, model: string = defaultModel, chatCount: number): Promise<void> => {
     try {
         logger.info('Chat Agent Called');
@@ -31,30 +31,34 @@ const chat = async (socket: WebSocket, prompt: string, model: string = defaultMo
         }));
 
         if (chatCount > 0) {
-            const context = await msAPIs.chatSearch(prompt, 5);
+            const context = await msAPIs.chatSearch(prompt, 10);
 
             generalSystemPrompt = `User's Previous Prompt(s): ${context.map((c) => {
                 if (c.metadata.role === 'user') return c.text
             }).join('\n')}\nYour Previous Response(s): ${context.map((c) => {
                 if (c.metadata.role === 'plum') return c.text + '\n'
+            }).join('\n')}\nYour Previous Crafted Mail(s): ${context.map((c) => {
+                if (c.metadata.role === 'mail_crafter') return c.text + '\n'
             }).join('\n')}
             `;
-
-            console.log(generalSystemPrompt);
         }
 
-        await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
+        if (intent.intent === 'craft_email') {
+            // send socket message that mail is being crafted
+            try {
+                const craftedEmail = await mailCrafter(socket, prompt, model)
+                // send socket message of crafted mail
+            } catch (err) {
+                if (err.message === "Could not Craft Email") {
+                    // send socket message that crafting of email failed
+                }
+            }
+        } else if (intent.intent === 'fetch_db') {
+            logger.info('FETCH DBBBBBBBBBBBBBBB')
+        } else {
 
-        if (chatCount === 0) {
-            const title = await chatTitler(socket, globals.mostRecentPrompt, globals.mostRecentResponse);
-            socket.send(JSON.stringify({
-                type: 'SYSTEM',
-                subtype: 'TITLE',
-                message: `Generated Title for the Conversation`,
-                title,
-                success: true
-            }));
-            await msAPIs.chatDelAll();
+            await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
+
         }
 
         const contextMessages = [
@@ -67,6 +71,13 @@ const chat = async (socket: WebSocket, prompt: string, model: string = defaultMo
                 meta: { role: "plum" },
             }
         ];
+
+        if (intent.intent === 'craft_email') {
+            contextMessages.push({
+                content: globals.mostRecentCraftedMail,
+                meta: { role: "mail_crafter" }
+            })
+        }
 
         await msAPIs.chatEmbed(contextMessages);
     } catch (err) {

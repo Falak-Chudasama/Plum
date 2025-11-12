@@ -1,3 +1,4 @@
+import EmailBeingCrafted from "../store/EmailBeingCraftedStore";
 import ResponseReceivingStore from "../store/ResponseReceivingStore";
 import chatOps from "./chat.ops";
 
@@ -35,9 +36,14 @@ async function system(data: any) {
     } else if (data.subtype === 'TITLE') {
         const savedChat = await chatOps.createChat(data.title.title);
     } else if (data.subtype === 'EMAIL') {
+        const { setIsCrafted } = EmailBeingCrafted.getState()
         if (data.done) {
-            chatOps.addResponseMail(data.email)
+            console.log('EMAIL BEING CRAFTED'); // delit
+            chatOps.addResponseMail(data.email);
+            setIsCrafted(false);
         } else {
+            console.log('EMAIL IS NOT BEING CRAFTED'); // delit
+            setIsCrafted(true);
         }
     }
 }

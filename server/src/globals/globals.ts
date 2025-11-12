@@ -2,6 +2,8 @@ import { OAuth2Client } from 'google-auth-library';
 
 const globals: {
     email: string | null;
+    userFn: string | null;
+    userLn: string | null;
     OAuthObject?: OAuth2Client | null;
     date: string | null;
     time: string | null;
@@ -11,6 +13,8 @@ const globals: {
     intentsFeedingJobRunning: boolean;
 } = {
     email: null,
+    userFn: null,
+    userLn: null,
     OAuthObject: null,
     date: null,
     time: null,

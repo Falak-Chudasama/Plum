@@ -6,6 +6,7 @@ import startGmailFetcherJob from "./gmailFetcher.jobs";
 import startCategoriesFeedingJob from "./categoriesFeedingJob.jobs";
 import startIntentsFeedingJob from "./intentFeedingJob.jobs";
 import utils from "../utils/utils";
+import userOps from "../controllers/user.controllers";
 
 const minutesDelay = 10;
 const delay = minutesDelay * 60 * 1000;
@@ -16,10 +17,15 @@ const runJobs = async () => {
     const email = await settingsOps.find('email');
     const date = await settingsOps.find('date');
     const time = await settingsOps.find('time');
-
+    
     if (!email || !date || !time) {
         throw Error('Failed to fetch settings from DB');
+    } else {
+        const user = await userOps.findUserUtil(email);
+        globals.userFn = user?.name!;
+        globals.userLn = user?.lastName!;
     }
+
 
     globals.email = email;
     globals.date = date;

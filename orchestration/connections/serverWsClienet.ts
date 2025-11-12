@@ -25,11 +25,12 @@ function connectToServer() {
 
     serverSocket.on("message", async (data: string) => {
         try {
+            logger.info(data);
             data = data.toString();
             const req = JSON.parse(data);
             logger.info("Message from server:", req);
             if (req.type === 'PROMPT') {
-                await chat(serverSocket, req.prompt, req.model, req.chatCount);
+                await chat(serverSocket, req.prompt, req.user, req.model, req.chatCount);
             }
         } catch (err) {
             logger.error("Error handling message:", err);

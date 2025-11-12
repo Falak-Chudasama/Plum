@@ -41,7 +41,7 @@ const FETCH_TOKENS = [
 ];
 
 const CRAFT_TOKENS = [
-    "\\bemail\\b", "\\bmail\\b", "\\bdraft\\b", "\\bcompose\\b", "\\breply\\b",
+    "\\bsend\\b", "\\bemail\\b", "\\bmail\\b", "\\bdraft\\b", "\\bcompose\\b", "\\breply\\b",
     "\\bsend\\b", "\\bsubject\\b", "\\bwrite\\b", "\\bmessage\\b", "\\bletter\\b"
 ];
 
@@ -59,7 +59,7 @@ const FETCH_STRONG = [
 
 
 const CRAFT_STRONG = [
-    "\\bwrite\\s+an?\\s+email\\b", "\\bdraft\\s+an?\\s+email\\b", "\\bcompose\\s+an?\\s+email\\b"
+    "\\bsend\\s+an?\\s+email\\b","\\bwrite\\s+a?\\s+mail\\b","\\bwrite\\s+an?\\s+email\\b", "\\bdraft\\s+an?\\s+email\\b", "\\bcompose\\s+an?\\s+email\\b"
 ];
 
 const NORMAL_BOOST_PER_MATCH = 0.05;

@@ -2,6 +2,12 @@ export interface Intent {
     intent: ('fetch_db' | 'craft_mail' | 'general' | 'titling')
 };
 
+export interface UserObjType {
+    email: string,
+    firstName: string,
+    lastName: string
+}
+
 export interface GenerateArgs {
     socket?: WebSocket,
     model?: string;

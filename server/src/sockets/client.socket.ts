@@ -1,6 +1,7 @@
 import { WebSocketServer } from "ws";
 import logger from "../utils/logger.utils";
 import orchWss from "./orchestration.socket";
+import globals from "../globals/globals";
 
 const WEB_SOCKET_PORT1 = Number(process.env.WEB_SOCKET_PORT1) || 4065;
 
@@ -23,7 +24,15 @@ clientWss.on('connection', (socket) => {
         if (fwdToOrchSocket.has(response.type)) {
             orchWss.clients.forEach((client) => {
                 logger.info(`Sent '${response.type}' to Orch`);
-                client.send(data);
+                const newResponse = {
+                    ...response,
+                    user: {
+                        email: globals.email,
+                        firstName: globals.userFn,
+                        lastName: globals.userLn,
+                    }
+                }
+                client.send(JSON.stringify(newResponse));
             });
         }
     });

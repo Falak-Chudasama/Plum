@@ -1,7 +1,8 @@
 const globals = {
     mostRecentPrompt: '',
     mostRecentResponse: '',
-    mostRecentCraftedMail: ''
+    mostRecentCraftedMail: '',
+    userObj: {},
 };
 
 export default globals;

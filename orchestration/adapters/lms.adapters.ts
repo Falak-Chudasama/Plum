@@ -1,5 +1,5 @@
 import { handleErrorUtil } from "../utils/errors.utils";
-import { GenerateArgs } from "../types/types";
+import { GenerateArgs, UserObjType } from "../types/types";
 import constants from "../constants/constants";
 import TaskQueue from "../core/TaskQueue";
 import logger from "../utils/logger.utils";
@@ -61,6 +61,14 @@ const lmsGenerateUtil = async ({
         let systemPrompt =
             intent === 'general' ? `${constants.primarySysPrompt}\n${system}`
                 : system;
+
+        const userObj = globals.userObj as UserObjType;
+
+        systemPrompt += `\nThese are User's Info: {
+            firstName: ${userObj.firstName},
+            lastName: ${userObj.lastName},
+            email: ${userObj.email}
+        }`;
 
         systemPrompt += `The current local date and time are as follows (IST reference):
             Date: ${utils.getISTDateTime().humanDate}

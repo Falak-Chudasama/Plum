@@ -59,13 +59,13 @@ export type IntentionType = {
 export type CraftedMailType = {
     from: string;
     to: string[];
-    cc: string[];
-    bcc: string[];
-    replyTo: string;
+    cc?: string[];
+    bcc?: string[];
+    replyTo?: string;
     subject: string;
     body: string;
-    category: string[];
-    status: 'draft' | 'sent' | 'unsaved';
+    category?: string[];
+    status?: 'draft' | 'sent' | 'unsaved';
     createdAt?: Date;
     updatedAt?: Date;
 };

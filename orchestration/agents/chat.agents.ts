@@ -45,14 +45,14 @@ const chat = async (socket: WebSocket, prompt: string, model: string = defaultMo
 
         if (intent.intent === 'craft_email') {
             // send socket message that mail is being crafted
-            // try {
-            //     const craftedEmail = await mailCrafter(socket, prompt, model)
-            //     // send socket message of crafted mail
-            // } catch (err) {
-            //     if (err.message === "Could not Craft Email") {
-            //         // send socket message that crafting of email failed
-            //     }
-            // }
+            try {
+                const craftedEmail = await mailCrafter(socket, prompt, model)
+                // send socket message of crafted mail
+            } catch (err) {
+                if (err.message === "Could not Craft Email") {
+                    // send socket message that crafting of email failed
+                }
+            }
         } else if (intent.intent === 'fetch_db') {
             logger.info('FETCH DBBBBBBBBBBBBBBB')
         } else {

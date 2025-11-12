@@ -30,10 +30,10 @@ const lmsGenerateUtil = async ({
                 loading: true,
                 done: false
             }));
-            
+
             await lmsModelOps.unloadLMSModel('*');
             await lmsModelOps.loadLMSModel(model);
-            
+
             socket?.send(JSON.stringify({
                 type: 'INFO',
                 subtype: 'LOADING_MODEL',
@@ -58,7 +58,17 @@ const lmsGenerateUtil = async ({
 
         logger.info("LM Studio API Called");
 
-        const systemPrompt = intent === 'general' ? `${constants.primarySysPrompt}\n${system}` : system;
+        let systemPrompt =
+            intent === 'general' ? `${constants.primarySysPrompt}\n${system}`
+                : system;
+
+        systemPrompt += `The current local date and time are as follows (IST reference):
+            Date: ${utils.getISTDateTime().humanDate}
+            Numeric Date: ${utils.getISTDateTime().numericDate}
+            Time: ${utils.getISTDateTime().time} IST
+
+            Use this as the present moment ("now") for all time or date reasoning and generation.`;
+
         const requestBody: any = {
             model,
             messages: intent === 'general' ? [

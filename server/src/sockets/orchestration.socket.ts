@@ -17,6 +17,10 @@ orchWss.on('listening', () => {
     logger.info(`orchWss is listening at -> localhost:${WEB_SOCKET_PORT2}`);
 });
 
+orchWss.on("close", (socket) => {
+    logger.info(`Socket Disconnected`);
+})
+
 orchWss.on('connection', (socket) => {
     logger.info('Orchestration <-> Server Connection Established');
 

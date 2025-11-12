@@ -3,7 +3,6 @@ import constants from "../constants/constants";
 import utils from "../utils/utils";
 import socketMsgOps from "../ops/socketMsg.ops";
 import { useStore } from "zustand";
-import { flushSync } from "react-dom";
 import chatOps from "../ops/chat.ops";
 import ActiveChatStore from "../store/ActiveChatStore";
 
@@ -59,7 +58,7 @@ function useWebSocket() {
             if (response.type === "RESPONSE") {
                 if (response.done) {
                     await ensureChatReady();
-                    flushSync(() => socketMsgOps.response(response));
+                    socketMsgOps.response(response);
                 } else {
                     socketMsgOps.response(response);
                 }

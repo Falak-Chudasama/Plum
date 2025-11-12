@@ -3,10 +3,10 @@ import chatOps from "./chat.ops";
 
 function response(data: any) {
     const { setReceivingResponse } = ResponseReceivingStore.getState();
-    if (!data.done) {
+    if (data.done === false) {
         setReceivingResponse(true);
         chatOps.updateResponseToken(data.response, data.model);
-    } else {
+    } else if (data.done === true) {
         setReceivingResponse(false);
         chatOps.updateChat();
     }

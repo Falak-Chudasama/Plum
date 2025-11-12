@@ -10,6 +10,10 @@ const retryDelay = 5000;
 const MAX_RETRIES = 1000;
 
 function connectToServer() {
+    if (serverSocket && (serverSocket.readyState === WebSocket.OPEN || serverSocket.readyState === WebSocket.CONNECTING)) {
+        logger.info("connectToServer: socket already open or connecting - skipping new connect");
+        return;
+    }
     logger.info(`Connecting to Server WebSocket at ${SERVER_WS_URL}...`);
 
     serverSocket = new WebSocket(SERVER_WS_URL);
@@ -39,7 +43,9 @@ function connectToServer() {
 
     serverSocket.on("error", (err) => {
         logger.error("WebSocket error:", err);
-        serverSocket?.close();
+        if (serverSocket && serverSocket.readyState !== WebSocket.CLOSED) {
+            serverSocket.close();
+        }
     });
 }
 

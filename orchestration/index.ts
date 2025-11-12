@@ -10,7 +10,7 @@ const ORIGIN = process.env.ORIGIN!;
 
 (async () => {
     try {
-        await import('./connections/serverWsClienet');
+        await import('./connections/serverWsClient');
         console.log("serverWsClienet import complete.");
     } catch (err) {
         console.error("Failed to import serverWsClienet:", err);

@@ -65,9 +65,9 @@ const lmsGenerateUtil = async ({
         const userObj = globals.userObj as UserObjType;
 
         systemPrompt += `\nThese are User's Info: {
-            firstName: ${userObj.firstName},
-            lastName: ${userObj.lastName},
-            email: ${userObj.email}
+            UserFirstName: ${userObj.firstName},
+            UserLastName: ${userObj.lastName},
+            UserEmail: ${userObj.email}
         }`;
 
         systemPrompt += `The current local date and time are as follows (IST reference):

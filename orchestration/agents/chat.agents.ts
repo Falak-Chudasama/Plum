@@ -41,7 +41,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 if (c.metadata.role === 'user') return c.text
             }).join('\n')}\nYour Previous Response(s): ${context.map((c) => {
                 if (c.metadata.role === 'plum') return c.text + '\n'
-            }).join('\n')}\nYour Previous Crafted Mail(s): ${context.map((c) => {
+            }).join('\n')}\nYour Previously Crafted Mail(s): ${context.map((c) => {
                 if (c.metadata.role === 'mail_crafter') return c.text + '\n'
             }).join('\n')}
             `;
@@ -73,6 +73,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 socket.send(JSON.stringify({
                     type: ''
                 }));
+                globals.mostRecentCraftedMail = craftedEmail;
                 // send socket message of crafted mail
             } catch (err) {
                 if (err.message === "Could not Craft Email") {

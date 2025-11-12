@@ -36,7 +36,7 @@ Agent must output exactly:
 {
     "to": ["john@example.com"],
     "subject": "Apology for delayed monthly report",
-    "body": "Hi John,\\n\\nI am sorry for the delay in delivering the monthly report. I take full responsibility and will send the completed report by end of day tomorrow. Thank you for your patience.\\n\\nRegards,\\nPlum AI"
+    "body": "Hi John,\\n\\nI am sorry for the delay in delivering the monthly report. I take full responsibility and will send the completed report by end of day tomorrow. Thank you for your patience.\\n\\nRegards,\\n[USER's NAME]"
 }
 
 EXAMPLE 2

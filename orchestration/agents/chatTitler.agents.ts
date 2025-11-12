@@ -21,12 +21,6 @@ const systemPrompt = `
     4. Do not include quotes, punctuation, or special characters inside the title string. The JSON must still use double quotes for the value.
     5. Produce a nonempty title. If a concise descriptive title cannot be derived, output a short placeholder that follows the rules above.
     6. Ensure the JSON is valid (double quotes, no trailing commas).
-
-    Example:
-    User: show me the latest emails from amazon support about my refund for the returned laptop
-    Assistant: Three emails from Amazon Support: return received, refund approved and processing, and refund completed. The refund should appear in your account within three to five business days. Would you like me to verify or draft a follow up?
-    Required output:
-    {"title":"Amazon Refund Status Emails"}
 `;
 
 const extractJSON = (text: string): string | null => {

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 export const Intention = new mongoose.Schema({
-    intent: { type: String, enum: ['fetch_db', 'craft_mail', 'general'], default: 'general' },
+    intent: { type: String, enum: ['fetch_db', 'craft_email', 'general'], default: 'general' },
     confidence: { type: Number, default: 0 }
 });
 

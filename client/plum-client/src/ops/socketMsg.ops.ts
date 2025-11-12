@@ -19,6 +19,8 @@ function thought(data: any) {
 }
 
 function info(data: any) {
+    console.log('INFO:');
+    console.log(data.message);
     if (data.subtype === 'LOADING_MODEL') {
         if (data.loading) {}
         else {}
@@ -26,10 +28,17 @@ function info(data: any) {
 }
 
 async function system(data: any) {
+    console.log('SYSTEM:');
+    console.log(data.message);
     if (data.subtype === 'INTENT') {
         chatOps.updatePromptIntent(data.intent);
     } else if (data.subtype === 'TITLE') {
         const savedChat = await chatOps.createChat(data.title.title);
+    } else if (data.subtype === 'EMAIL') {
+        if (data.done) {
+            chatOps.addResponseMail(data.email)
+        } else {
+        }
     }
 }
 

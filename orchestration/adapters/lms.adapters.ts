@@ -104,6 +104,14 @@ const lmsGenerateUtil = async ({
         if (intent === "general") {
             globals.mostRecentPrompt = prompt;
             globals.mostRecentResponse = '';
+        } else if (intent === "craft_mail") {
+            socket.send(JSON.stringify({
+                type: 'SYSTEM',
+                subtype: 'EMAIL',
+                message: 'Crafting Email',
+                done: false
+            }));
+            globals.mostRecentCraftedMail = '';
         }
 
         if (!stream) {
@@ -177,7 +185,6 @@ const lmsGenerateUtil = async ({
         console.log();
 
         logger.info('Sending END');
-        socket?.send(JSON.stringify({ type: "RESPONSE", message: "\n<RESPONSE_ENDED>", success: true, done: true }));
         logger.info("Successfully got LM Studio streaming response");
     } catch (err) {
         const errName = err.name as string;

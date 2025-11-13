@@ -118,7 +118,7 @@ function ChatArea() {
     }, [chat]);
 
     return (
-        <div className="items-end duration-300">
+        <div className="items-end duration-300 text-[18px]">
             {
                 [...sortedMessages, activePromptObj, activeResponseObj].map((msg) => {
                     if ('prompt' in msg) {

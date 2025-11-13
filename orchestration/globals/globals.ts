@@ -3,6 +3,8 @@ const globals = {
     mostRecentResponse: '',
     mostRecentCraftedMail: '',
     userObj: {},
+    mongoClient: {},
+    db: {}
 };
 
 export default globals;

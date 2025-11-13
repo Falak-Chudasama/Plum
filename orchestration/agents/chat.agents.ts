@@ -8,6 +8,8 @@ import parseIntent from "./intentParser.agents";
 import msAPIs from "../apis/ms.apis";
 import mailCrafter from "./mailCrafter.agent";
 import type { UserObjType } from "../types/types";
+import fetchDb from "./fetchDb.agents";
+import lmsModelOps from "../adapters/lms.models";
 
 // TODO: Add context to previous response too and prompt for better understanding
 
@@ -107,7 +109,12 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 }
             }
         } else if (intent.intent === 'fetch_db') {
-            logger.info('FETCH DBBBBBBBBBBBBBBB')
+            logger.info('FETCH DBBBBBBBBBBBBBBB');
+            const result = await fetchDb(socket, prompt);
+            console.log('$$$$$$$$$$$$$$$$$$$'); // delit
+            console.log(result); // delit
+            lmsModelOps.unloadLMSModel('*');
+            lmsModelOps.loadLMSModel(defaultModel);
         } else {
             await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
         }

@@ -10,6 +10,7 @@ const constants = {
             qwenMed: 'qwen/qwen3-1.7b',
             qwenBig: 'qwen/qwen3-4b-thinking-2507',
             qwenVision: 'qwen/qwen3-vl-4b',
+            llamaMongoQuery: 'llama-3.2-3b-mongo-query-generator',
         },
         embedding: {
             gemma: 'text-embedding-embeddinggemma-300m',

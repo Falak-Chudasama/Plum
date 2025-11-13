@@ -10,6 +10,7 @@ import mailCrafter from "./mailCrafter.agent";
 import type { UserObjType } from "../types/types";
 import fetchDb from "./fetchDb.agents";
 import lmsModelOps from "../adapters/lms.models";
+import { query } from "winston";
 
 // TODO: Add context to previous response too and prompt for better understanding
 
@@ -109,11 +110,68 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 }
             }
         } else if (intent.intent === 'fetch_db') {
-            logger.info('FETCH DBBBBBBBBBBBBBBB');
-            const result = await fetchDb(socket, prompt);
-            console.log(result); // delit
-            // lmsModelOps.unloadLMSModel('*');
-            // lmsModelOps.loadLMSModel(defaultModel);
+            try {
+                generalSystemPrompt = `
+                The user has just asked you to fetch or filter information from their data.
+
+                Your role:
+                You are Plum, a capable, confident assistant who interprets the user’s request and ensures the correct database query is created and handled. You do NOT show the query, explain the logic, or reveal anything about database operations. Your only job is to reassure the user that their request is fully understood and being taken care of.
+
+                Tone and style:
+                - Speak as if YOU are personally handling the data retrieval.
+                - Be concise, confident, and natural. Show the user that their request is clearly understood and already in motion.
+                - Never mention queries, databases, MongoDB, filters, execution, or any technical steps.
+                - Never describe or hint at the data structure, fields, or how the result will be fetched.
+                - Sound human, not procedural.
+
+                Examples of good responses:
+                - "Understood. I’ll get the exact information you’re looking for."
+                - "Got it. I know what you need, let me take care of this."
+                - "All clear. I’m retrieving that for you now."
+
+                Examples of what NOT to do:
+                - Do not mention query generation, MongoDB, data filtering, or processing.
+                - Do not show or summarize the query.
+                - Do not use JSON, technical language, or meta explanations.
+
+                Your entire response should be a single short sentence confirming confident understanding and execution.
+                `;
+
+                await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
+
+                socket.send(JSON.stringify({
+                    type: 'INFO',
+                    subtype: 'QUERY',
+                    message: 'Query is being generated & run...',
+                    done: false
+                }));
+
+                const result = await fetchDb(socket, prompt);
+
+                socket.send(JSON.stringify({
+                    type: 'SYSTEM',
+                    subtype: 'QUERY',
+                    message: 'Query was Generated and Run.',
+                    query: globals.mostRecentQuery,
+                    isSuccess: result.length > 0,
+                    result,
+                    resultCount: result.length,
+                    done: true,
+                    success: true
+                }));
+            } catch (err) {
+                socket.send(JSON.stringify({
+                    type: 'SYSTEM',
+                    subtype: 'QUERY',
+                    query: '',
+                    isSuccess: false,
+                    resultCount: 0
+                }));
+            }
+            setTimeout(() => {
+                lmsModelOps.unloadLMSModel('*');
+                lmsModelOps.loadLMSModel(defaultModel);
+            }, 2000);
         } else {
             await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
         }
@@ -134,6 +192,11 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 content: JSON.stringify(globals.mostRecentCraftedMail),
                 meta: { role: "mail_crafter" }
             })
+        } else if (intent.intent === 'fetch_db') {
+            contextMessages.push({
+                content: JSON.stringify(globals.mostRecentQueryResult),
+                meta: { role: "db_fetcher" }
+            });
         }
 
         if (chatCount === 0) {

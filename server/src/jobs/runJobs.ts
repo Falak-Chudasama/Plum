@@ -33,6 +33,8 @@ const runJobs = async () => {
 
     await OAuthObjectCheck(email);
     logger.info(`Waiting ${minutesDelay} minutes...`);
+    await startCategoriesFeedingJob();
+    await startIntentsFeedingJob();
     setInterval(async () => {
         try {
             if (globals.categoriesFeedingJobRunning === false) {

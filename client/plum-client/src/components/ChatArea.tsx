@@ -107,6 +107,11 @@ function ChatArea() {
     const { prompt: activePromptObj } = useStore(ActivePromptStore);
     const { response: activeResponseObj } = useStore(ActiveResponseStore);
 
+    // delit
+    useEffect(() => {
+        console.log(activeResponseObj); // delit
+    }, [activeResponseObj.query])
+
     const sortMessages = () => {
         return [...chat.userPrompts, ...chat.responses].sort((msgA, msgB) => msgA.chatCount - msgB.chatCount);
     }

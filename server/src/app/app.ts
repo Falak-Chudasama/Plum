@@ -15,8 +15,8 @@ import chatRouter from "../routes/chat.routes";
 const app = express();
 
 // Middlewares
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cors({
     origin: process.env.ACCEPTED_ORIGINS!.split(','),
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],

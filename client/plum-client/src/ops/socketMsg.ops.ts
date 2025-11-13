@@ -38,12 +38,17 @@ async function system(data: any) {
     } else if (data.subtype === 'EMAIL') {
         const { setIsCrafted } = EmailBeingCrafted.getState()
         if (data.done) {
-            console.log('EMAIL BEING CRAFTED'); // delit
             chatOps.addResponseMail(data.email);
             setIsCrafted(false);
         } else {
-            console.log('EMAIL IS NOT BEING CRAFTED'); // delit
             setIsCrafted(true);
+        }
+    } else if (data.subtype === 'QUERY') {
+        if (data.done) {
+            const { query, result, isSuccess } = data;
+            chatOps.addResponseQuery({ query, result, isSuccess });
+        } else {
+            // TODO: change the state
         }
     }
 }

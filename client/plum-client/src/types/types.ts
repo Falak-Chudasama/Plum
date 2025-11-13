@@ -79,7 +79,7 @@ export type FetchedMailsType = {
 export type QueryType = {
     query: string;
     isSuccess: boolean;
-    resultCount: number;
+    result: [any];
     createdAt?: Date;
     updatedAt?: Date;
 };

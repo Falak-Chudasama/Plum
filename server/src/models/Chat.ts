@@ -23,8 +23,8 @@ export const FetchedMails = new mongoose.Schema({
 
 export const Query = new mongoose.Schema({
     query: { type: String, required: true },
-    isSuccess: { type: Boolean, default: false },
-    resultCount: { type: Number, default: 0 }
+    isSuccess: { type: Boolean, default: true },
+    result: { type: [Object] },
 }, { timestamps: true });
 
 export const ResponseSchema = new mongoose.Schema({

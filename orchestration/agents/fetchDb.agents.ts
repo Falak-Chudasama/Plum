@@ -489,6 +489,7 @@ const fetchDb = async (socket: WebSocket, prompt: string): Promise<any | null> =
                 try {
                     const execRes = await executeQuery(extracted.type, parsedArgs);
                     finalResult = execRes;
+                    globals.mostRecentQuery = JSON.stringify(parsedArgs);
                     break;
                 } catch (execErr) {
                     logger.error(`Execution error: ${execErr}`);
@@ -503,6 +504,7 @@ const fetchDb = async (socket: WebSocket, prompt: string): Promise<any | null> =
         handleErrorUtil(filePath, "queryGenerator", err, "Generating Mongodb Query");
     }
 
+    globals.mostRecentQueryResult = finalResult;
     return finalResult;
 };
 

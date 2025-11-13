@@ -3,7 +3,6 @@ import constants from "../constants/constants";
 import globals from "../globals/globals";
 import { handleErrorUtil } from "../utils/errors.utils";
 import logger from "../utils/logger.utils";
-import util from "util";
 import vm from "vm";
 
 const filePath = "/agents/chat.agents.ts";
@@ -25,255 +24,38 @@ If a prompt is ambiguous or missing essential details, ask one short clarifying 
 Collection name: InboundEmail
 
 Fields:
-
-email: String
-
-id: String
-
-threadId: String
-
-to: String
-
-cc: String
-
-bcc: String
-
-senderEmail: String
-
-senderName: String
-
-subject: String
-
-parsedDate: {
-
-weekday: String
-
-day: String
-
-month: String
-
-year: String
-
-time: String
-}
-
-snippet: String
-
-bodyHtml: String
-
-bodyText: String
-
-attachments: [{
-
-filename: String
-
-mimeType: String
-
-size: Number
-
-attachmentId: String
-}]
-
-timestamp: String (ISO date string)
-
-sizeEstimate: Number
-
-categories: [String]
-
-isViewed: Boolean
-
-createdAt: Date
-
-updatedAt: Date
+email: String, id: String, threadId: String, to: String, cc: String, bcc: String
+senderEmail: String, senderName: String, subject: String
+parsedDate: { weekday: String, day: String, month: String, year: String, time: String }
+snippet: String, bodyHtml: String, bodyText: String
+attachments: [{ filename: String, mimeType: String, size: Number, attachmentId: String }]
+timestamp: String (ISO date string), sizeEstimate: Number, categories: [String]
+isViewed: Boolean, createdAt: Date, updatedAt: Date
 
 2. Core Rules (MUST ALWAYS FOLLOW)
-2.1 Collection name
 
-Use only:
+2.1 Collection name: Use only db.InboundEmail
 
-db.InboundEmail
+2.2 Field correctness: Use field names exactly from the schema
 
+2.3 parsedDate rules: parsedDate fields are strings only
+- Allowed: { "parsedDate.month": "October" }, { "parsedDate.weekday": { $in: ["Thu","Thursday"] } }
+- Forbidden: range operators on parsedDate, sorting by parsedDate, $toDate on parsedDate
 
-Never pluralize or change casing.
+2.4 Query Format:
+db.InboundEmail.find(FILTER, PROJECTION)
+Where FILTER is query criteria (required), PROJECTION is field selection (optional)
+Example: db.InboundEmail.find({ "parsedDate.month": "October", isViewed: false })
 
-2.2 Field correctness
+2.5 timestamp rules: Use timestamp with $toDate only for explicit date ranges
 
-Use field names exactly from the schema.
-If the user requests a field that does not exist, refuse briefly.
+2.6 Array handling: Use $elemMatch for arrays, $unwind before $group on array fields
 
-2.3 parsedDate rules (CRITICAL)
+2.7 Regex: Use JSON style only { $regex: "pattern", $options: "i" }
 
-parsedDate.* are strings only.
+2.8 Security: Forbidden operators: $where, $function, $accumulator, eval, new RegExp()
 
-You may use:
-
-equality: { "parsedDate.month": "October" }
-
-$in: { "parsedDate.weekday": { $in: ["Thu","Thursday"] } }
-
-You may NOT:
-
-compare parsedDate fields with numbers
-
-compare parsedDate fields with Date objects
-
-sort by parsedDate
-
-convert parsedDate using $toDate
-
-use $gte, $lte, $gt, $lt on parsedDate
-
-2.4 timestamp rules
-
-Use timestamp only when the user explicitly references:
-
-date ranges
-
-“between…”
-
-“yesterday”, “last week”, etc.
-
-When using timestamp:
-
-{ $addFields: { tsDate: { $toDate: "$timestamp" } } }
-{ $match: { tsDate: { $type: "date" } } }
-
-
-Then apply date filters on tsDate.
-
-If the user says “last week”, “this month”, “yesterday”:
-→ Ask for explicit ISO start/end dates.
-
-2.5 Array handling
-
-Attachments and categories are arrays.
-
-Allowed:
-
-attachments: { $elemMatch: {...} }
-
-"attachments.0": { $exists: true }
-
-categories: "Work"
-
-Aggregation on array elements requires:
-
-$unwind "$attachments"
-
-
-BEFORE any $group that references attachments.*.
-
-2.6 Regex rules
-
-Regex must be JSON style:
-
-{ subject: { $regex: "invoice", $options: "i" } }
-
-
-Forbidden:
-
-new RegExp()
-
-regex literals inside strings: "/invoice/"
-
-unescaped dots
-
-Domain matching must be:
-
-{ senderEmail: { $regex: "@domain\\.com$", $options: "i" } }
-
-2.7 Sorting rules
-
-Allowed sort fields:
-
-createdAt
-
-updatedAt
-
-tsDate (after conversion)
-
-numbers (sizeEstimate, attachments.size via unwind)
-
-string fields (senderEmail, senderName, subject)
-
-Forbidden:
-
-any parsedDate field
-
-parsedDate object
-
-month name ordering
-
-sorting without conversion on timestamp
-
-2.8 Security
-
-Forbidden operators:
-
-$where
-
-$function
-
-$accumulator
-
-eval
-
-server-side JS
-
-new RegExp(...)
-
-Use $expr only for inter-field comparisons, not for simple matches.
-
-3. Query Output Rules
-
-Unless the user explicitly asks for explanations:
-
-Output ONLY a single JavaScript code block, e.g.:
-db.InboundEmail.find({ isViewed: false })
-
-
-or:
-
-db.InboundEmail.aggregate([
-  ...
-])
-
-
-No text outside the code block.
-
-4. Ambiguity Handling
-
-If intent is unclear, ask ONE short question, such as:
-
-“Do you want to filter by sender name or sender email?”
-
-“Please provide explicit ISO start and end timestamps.”
-
-Do not guess.
-
-5. Validation Before Output (Internal)
-
-Before returning a query, validate:
-
-Correct collection name
-
-Only valid fields
-
-parsedDate used only as strings and only in equality or $in
-
-timestamp conversion guarded with $type: "date"
-
-arrays handled with $unwind before $group
-
-no forbidden operators
-
-regex is JSON-safe and escaped
-
-sort only on allowed fields
-
-grouping fields preserved correctly
-
-If validation fails → ask for clarification or refuse briefly.
+3. Output: Return ONLY the query in a code block, no explanations
 `;
 
 function extractCodeBlock(text: any): string | null {
@@ -290,14 +72,53 @@ function extractCodeBlock(text: any): string | null {
     return null;
 }
 
-function extractInnerArgs(code: string): { type: "find" | "aggregate"; inner: string } | null {
+function extractInnerArgs(code: string): { type: "find" | "aggregate"; args: string[] } | null {
     if (!code) return null;
     const m = code.match(/db\.InboundEmail\.(find|aggregate)\s*\(\s*([\s\S]*)\s*\)\s*;?$/im);
     if (!m) return null;
     const type = m[1].toLowerCase() === "aggregate" ? "aggregate" : "find";
     let inner = m[2].trim();
-    if (inner.endsWith(";")) inner = inner.slice(0, -1);
-    return { type, inner };
+    if (inner.endsWith(";")) inner = inner.slice(0, -1).trim();
+    
+    const args: string[] = [];
+    let depth = 0;
+    let currentArg = "";
+    let inString = false;
+    let stringChar = "";
+    
+    for (let i = 0; i < inner.length; i++) {
+        const char = inner[i];
+        const prevChar = i > 0 ? inner[i - 1] : "";
+        
+        if ((char === '"' || char === "'") && prevChar !== "\\") {
+            if (!inString) {
+                inString = true;
+                stringChar = char;
+            } else if (char === stringChar) {
+                inString = false;
+                stringChar = "";
+            }
+        }
+        
+        if (!inString) {
+            if (char === "{" || char === "[") depth++;
+            if (char === "}" || char === "]") depth--;
+            
+            if (char === "," && depth === 0) {
+                args.push(currentArg.trim());
+                currentArg = "";
+                continue;
+            }
+        }
+        
+        currentArg += char;
+    }
+    
+    if (currentArg.trim()) {
+        args.push(currentArg.trim());
+    }
+    
+    return { type, args };
 }
 
 function parseLiteralSafe(literal: string): any | null {
@@ -428,46 +249,123 @@ function pipelineHasUnwindBeforeGroupForAttachments(pipeline: any[]): boolean {
     return false;
 }
 
-function validateParsedQuery(type: "find" | "aggregate", parsed: any, rawSource: string): { valid: boolean; reason?: string } {
+function validateParsedQuery(
+    type: "find" | "aggregate",
+    parsedArgs: any[],
+    rawSource: string
+): { valid: boolean; reason?: string } {
     if (type === "find") {
-        if (typeof parsed !== "object" || Array.isArray(parsed)) {
-            return { valid: false, reason: "find() argument must be an object." };
+        if (parsedArgs.length === 0 || parsedArgs.length > 2) {
+            return { valid: false, reason: "find() requires 1 or 2 arguments (filter, projection)." };
         }
-        if (findHasTimestampRange(parsed)) {
+        
+        const filter = parsedArgs[0];
+        const projection = parsedArgs.length > 1 ? parsedArgs[1] : null;
+        
+        if (typeof filter !== "object" || Array.isArray(filter)) {
+            return { valid: false, reason: "find() filter must be an object." };
+        }
+        
+        if (projection !== null) {
+            if (typeof projection !== "object" || Array.isArray(projection)) {
+                return { valid: false, reason: "find() projection must be an object." };
+            }
+        }
+        
+        if (findHasTimestampRange(filter)) {
             return { valid: false, reason: "timestamp comparisons require aggregation with $toDate + guard." };
         }
-        if (parsedDateMisuse(parsed)) {
+        if (parsedDateMisuse(filter)) {
             return { valid: false, reason: "parsedDate fields cannot use range or object comparisons." };
         }
-        const forb = containsForbiddenOperators(parsed);
+        const forb = containsForbiddenOperators(filter);
         if (forb.found) return { valid: false, reason: `Disallowed operator: ${forb.op}` };
         if (usesRegexLiteral(rawSource) || containsNewRegExp(rawSource)) {
             return { valid: false, reason: "Regex must use JSON-style { $regex: 'x', $options: 'i' }." };
         }
         return { valid: true };
     } else {
-        if (!Array.isArray(parsed)) {
+        if (parsedArgs.length !== 1) {
+            return { valid: false, reason: "aggregate() requires exactly 1 argument (pipeline array)." };
+        }
+        
+        const pipeline = parsedArgs[0];
+        if (!Array.isArray(pipeline)) {
             return { valid: false, reason: "aggregate() argument must be an array." };
         }
-        if (pipelineHasToDateGuardIssue(parsed)) {
+        if (pipelineHasToDateGuardIssue(pipeline)) {
             return { valid: false, reason: "$toDate requires an immediate tsDate type guard." };
         }
-        if (pipelineHasUnwindBeforeGroupForAttachments(parsed)) {
+        if (pipelineHasUnwindBeforeGroupForAttachments(pipeline)) {
             return { valid: false, reason: "$group on attachments.* requires prior $unwind." };
         }
-        const forb = containsForbiddenOperators(parsed);
+        const forb = containsForbiddenOperators(pipeline);
         if (forb.found) return { valid: false, reason: `Disallowed operator: ${forb.op}` };
         if (usesRegexLiteral(rawSource) || containsNewRegExp(rawSource)) {
             return { valid: false, reason: "Regex must be JSON-style only." };
         }
-        if (parsedDateMisuse(parsed)) {
+        if (parsedDateMisuse(pipeline)) {
             return { valid: false, reason: "parsedDate fields misused." };
         }
         return { valid: true };
     }
 }
 
-async function executeQuery(type: "find" | "aggregate", parsed: any, options: { limit?: number } = {}) {
+async function findCollectionWithData(dbClient: any): Promise<{ collection: any; name: string } | null> {
+    const possibleNames = [
+        "InboundEmail", "inboundemail", "inboundEmail", "inbound_email", 
+        "InboundEmails", "inboundemails", "emails", "Emails", "email", "Email"
+    ];
+    
+    logger.info(`Database: ${dbClient.databaseName || 'unknown'}`);
+    
+    try {
+        const collections = await dbClient.listCollections().toArray();
+        const collectionNames = collections.map((c: any) => c.name);
+        logger.info(`Available collections: ${collectionNames.join(', ')}`);
+        
+        for (const name of possibleNames) {
+            if (collectionNames.includes(name)) {
+                const col = dbClient.collection(name);
+                try {
+                    const count = await col.countDocuments({}, { limit: 1 });
+                    if (count > 0) {
+                        logger.info(`Using collection '${name}' with data`);
+                        return { collection: col, name };
+                    }
+                } catch (e) {
+                    logger.warn(`Collection '${name}' exists but error checking: ${e}`);
+                }
+            }
+        }
+        
+        for (const name of collectionNames) {
+            if (name.toLowerCase().includes('email') || name.toLowerCase().includes('inbound')) {
+                const col = dbClient.collection(name);
+                try {
+                    const count = await col.countDocuments({}, { limit: 1 });
+                    if (count > 0) {
+                        logger.info(`Found email-related collection '${name}' with data`);
+                        return { collection: col, name };
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+        }
+    } catch (e) {
+        logger.error(`Error listing collections: ${e}`);
+    }
+    
+    logger.warn(`No collection with data found, using default 'InboundEmail'`);
+    return { collection: dbClient.collection("InboundEmail"), name: "InboundEmail" };
+}
+
+async function executeQuery(
+    type: "find" | "aggregate",
+    parsedArgs: any[],
+    options: { limit?: number } = {}
+) {
     let dbClient: any = null;
     try {
         if (globals && (globals.mongoClient || globals.db || globals.mongo)) {
@@ -482,17 +380,53 @@ async function executeQuery(type: "find" | "aggregate", parsed: any, options: { 
     } catch { }
     if (!dbClient) throw new Error("Mongo client missing in globals.");
 
-    const collection = dbClient.collection("InboundEmail");
+    const collectionInfo = await findCollectionWithData(dbClient);
+    if (!collectionInfo) throw new Error("No valid collection found");
+    const collection = collectionInfo.collection;
 
     if (type === "find") {
+        const filter = parsedArgs[0];
+        const projection = parsedArgs.length > 1 ? parsedArgs[1] : undefined;
         const lim = options.limit ?? 200;
-        const cursor = collection.find(parsed).limit(lim);
+        
+        logger.info(`Executing find: ${JSON.stringify(filter)}`);
+        if (projection) logger.info(`Projection: ${JSON.stringify(projection)}`);
+        
+        const totalCount = await collection.countDocuments({});
+        logger.info(`Total documents: ${totalCount}`);
+        
+        if (totalCount === 0) {
+            logger.warn(`Collection '${collectionInfo.name}' is empty`);
+            return [];
+        }
+        
+        const matchCount = await collection.countDocuments(filter);
+        logger.info(`Matching documents: ${matchCount}`);
+        
+        if (matchCount === 0 && totalCount > 0) {
+            const sample = await collection.findOne({});
+            logger.info(`Sample document keys: ${Object.keys(sample || {}).join(', ')}`);
+            if (sample && filter["parsedDate.month"]) {
+                logger.info(`Sample parsedDate: ${JSON.stringify(sample.parsedDate)}`);
+            }
+            if (sample && filter.isViewed !== undefined) {
+                logger.info(`Sample isViewed: ${sample.isViewed} (type: ${typeof sample.isViewed})`);
+            }
+        }
+        
+        const cursor = projection 
+            ? collection.find(filter, { projection }).limit(lim)
+            : collection.find(filter).limit(lim);
         return await cursor.toArray();
     } else {
-        const hasLimit = parsed.some((stage: any) => Object.keys(stage)[0] === "$limit");
-        const pipeline = Array.isArray(parsed) ? parsed.slice() : [];
-        if (!hasLimit) pipeline.push({ $limit: 1000 });
-        const cursor = collection.aggregate(pipeline, { allowDiskUse: true });
+        const pipeline = parsedArgs[0];
+        const hasLimit = pipeline.some((stage: any) => Object.keys(stage)[0] === "$limit");
+        const finalPipeline = Array.isArray(pipeline) ? pipeline.slice() : [];
+        if (!hasLimit) finalPipeline.push({ $limit: 1000 });
+        
+        logger.info(`Executing aggregation: ${JSON.stringify(finalPipeline)}`);
+        
+        const cursor = collection.aggregate(finalPipeline, { allowDiskUse: true });
         return await cursor.toArray();
     }
 }
@@ -508,7 +442,7 @@ const fetchDb = async (socket: WebSocket, prompt: string): Promise<any | null> =
         while (attempt < maxRetries && finalResult == null) {
             attempt++;
 
-            logger.info(`Trying ${attempt} times...`);
+            logger.info(`Attempt ${attempt}/${maxRetries}`);
             try {
                 const response = await lmsGenerate({
                     socket,
@@ -530,26 +464,40 @@ const fetchDb = async (socket: WebSocket, prompt: string): Promise<any | null> =
                 if (!extracted) continue;
 
                 const rawSource = codeBlock;
-                const parsed = parseLiteralSafe(extracted.inner);
-                if (parsed == null) continue;
+                
+                const parsedArgs: any[] = [];
+                for (const arg of extracted.args) {
+                    const parsed = parseLiteralSafe(arg);
+                    if (parsed === null) {
+                        logger.warn(`Failed to parse argument: ${arg}`);
+                        break;
+                    }
+                    parsedArgs.push(parsed);
+                }
+                
+                if (parsedArgs.length !== extracted.args.length) continue;
 
-                const validation = validateParsedQuery(extracted.type, parsed, rawSource);
+                const validation = validateParsedQuery(extracted.type, parsedArgs, rawSource);
                 if (!validation.valid) {
+                    logger.warn(`Validation failed: ${validation.reason}`);
                     if (attempt >= maxRetries) {
-                        return `I cannot produce a validated MongoDB ${extracted.type} query. ${validation.reason}`;
+                        return `Cannot produce validated MongoDB ${extracted.type} query. ${validation.reason}`;
                     }
                     continue;
                 }
 
                 try {
-                    const execRes = await executeQuery(extracted.type, parsed);
+                    const execRes = await executeQuery(extracted.type, parsedArgs);
                     finalResult = execRes;
                     break;
                 } catch (execErr) {
+                    logger.error(`Execution error: ${execErr}`);
                     if (attempt >= maxRetries) throw execErr;
                     continue;
                 }
-            } catch { }
+            } catch (err) {
+                logger.error(`Attempt ${attempt} failed: ${err}`);
+            }
         }
     } catch (err) {
         handleErrorUtil(filePath, "queryGenerator", err, "Generating Mongodb Query");

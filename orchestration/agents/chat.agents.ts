@@ -111,10 +111,9 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
         } else if (intent.intent === 'fetch_db') {
             logger.info('FETCH DBBBBBBBBBBBBBBB');
             const result = await fetchDb(socket, prompt);
-            console.log('$$$$$$$$$$$$$$$$$$$'); // delit
             console.log(result); // delit
-            lmsModelOps.unloadLMSModel('*');
-            lmsModelOps.loadLMSModel(defaultModel);
+            // lmsModelOps.unloadLMSModel('*');
+            // lmsModelOps.loadLMSModel(defaultModel);
         } else {
             await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
         }

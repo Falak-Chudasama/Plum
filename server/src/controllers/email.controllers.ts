@@ -40,6 +40,39 @@ const saveOutboundEmail = async (payload: OutboundEmailType) => {
     }
 };
 
+const saveDraftMail = async (payload: OutboundEmailType) => {
+    try {
+        const record = new models.OutboundEmail({
+            from: payload.from,
+            to: payload.to || [],
+            cc: payload.cc || [],
+            bcc: payload.bcc || [],
+            replyTo: payload.replyTo || "",
+            subject: payload.subject || "No Subject",
+            body: payload.body || "",
+            attachments: payload.attachments?.map((file) => ({
+                filename: file.filename,
+                mimeType: file.mimeType,
+                size: file.size,
+                attachmentId: file.attachmentId,
+            })) || [],
+            category: payload.category,
+            status: "draft",
+        });
+
+        const savedContent = await record.save();
+        return savedContent;
+    } catch (err) {
+        handleErrorUtil(
+            filePath,
+            "saveDraftMail",
+            err,
+            `Saving draft mail 'from': ${payload.from} 'to': ${payload.to}`
+        );
+        throw err;
+    }
+};
+
 const saveInboundEmails = async (emails: InboundEmailType[]): Promise<{ inserted: number; skipped: number }> => {
     try {
         if (emails.length === 0) return { inserted: 0, skipped: 0 };
@@ -295,14 +328,40 @@ const updateIsViewed = async (req: Request, res: Response) => {
 };
 
 // POST api.plum.com/email/draft
-const draftEmail = async (req: Request, res: Response) => { }
+const draftEmail = async (req: Request, res: Response) => {
+    try {
+        const payload = req.body.email as OutboundEmailType;
+
+        if (!payload.from) {
+            return handleError(
+                filePath,
+                "draftEmail",
+                res,
+                "Missing required field: `from`",
+                "InvalidRequest",
+                400
+            );
+        }
+
+        const record = await saveDraftMail(payload);
+
+        return res.status(200).json({
+            success: true,
+            message: "Draft saved successfully",
+            draftRecord: record,
+        });
+
+    } catch (err) {
+        return handleError(filePath, "draftEmail", res, err, "Saving Draft Email");
+    }
+};
 
 // POST api.plum.com/email/send
 const sendEmail = async (req: Request, res: Response) => {
     const googleReq = req as GoogleAuthenticatedRequest;
     const OAuth = googleReq.auth;
 
-    const payload = req.body as OutboundEmailType
+    const payload = req.body.email as OutboundEmailType
 
     if (!payload.from || !payload.to?.length) {
         return handleError(
@@ -345,7 +404,7 @@ const sendEmail = async (req: Request, res: Response) => {
             requestBody: { raw },
         });
 
-        const record = await saveOutboundMail(payload);
+        const record = await saveOutboundEmail(payload);
 
         return res.status(200).json({
             success: true,
@@ -367,6 +426,7 @@ const emailOps = {
     fetchEmailsDateUtil,
     updateIsViewed,
     draftEmail,
+    saveDraftMail,
     saveOutboundEmail,
     saveInboundEmails,
 };

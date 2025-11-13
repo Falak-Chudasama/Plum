@@ -63,9 +63,9 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 - Sound human — not robotic or scripted.
 
                 Examples of good responses:
-                - “Got it. I've understood everything — I'm on it now.”
-                - “Understood. I've taken note of all your details, leave this to me.”
-                - “All set. I'm handling it exactly as you described.”
+                - “Got it. I've understood everything, on it now...”
+                - “Understood. I've taken note of all your details, leave this to me...”
+                - “All set. I'm handling it exactly as you described...”
 
                 Examples of what NOT to do: 
                 - Don’t mention ‘Mail Crafter agent’, ‘email generation’, ‘in progress’, or ‘background process’.
@@ -73,7 +73,6 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 - Don’t use JSON, placeholders, or meta talk.
 
                 Your entire response should be a single short sentence confirming confident understanding and execution.
-
             `;
             await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
             try {

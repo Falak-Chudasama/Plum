@@ -2,7 +2,7 @@ import axios from "axios";
 import constants from "../constants/constants"
 import handleError from "../utils/errors.utils";
 import utils from "../utils/utils";
-import type { CategoryType } from "../types/types";
+import type { CategoryType, CraftedMailType } from "../types/types";
 
 const axiosAuth = axios.create({
     baseURL: `${constants.serverOrigin}/user/`,
@@ -101,9 +101,14 @@ async function getUser(email: string = utils.parseGmailCookies().gmailCookie) {
     Mail APIs
 */
 
-async function sendMail(email: any = '') {
+async function sendMail(email: CraftedMailType) {
     try {
-        console.log('Getting Mails');
+        console.log('Sending Crafted Mail');
+        email = {
+            ...email,
+            from: utils.parseGmailCookies().gmailCookie
+        }
+        console.log(email); // delit
         const response = await axiosEmail.post('send', { email });
 
         // @ts-ignore
@@ -190,7 +195,30 @@ async function updateIsViewed(id: string) {
     }
 }
 
-async function draftMail() { };
+async function draftMail(email: CraftedMailType) {
+    try {
+        console.log('Saving Draft Mail');
+
+        email = {
+            ...email,
+            from: utils.parseGmailCookies().gmailCookie
+        };
+
+        const response = await axiosEmail.post('draft', { email });
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+
+        console.log('Successfully Saved Draft Mail');
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
 
 /*
     Category APIs

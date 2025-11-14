@@ -68,7 +68,7 @@ function StopButton() {
     );
 }
 
-function ChatBar() {
+function ChatBar({ isNewChat }) {
     const [isFocused, setIsFocused] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const sendPrompt = globals.wsConnection?.sendPrompt;
@@ -97,7 +97,7 @@ function ChatBar() {
     return (
         <div className={`
             scale-105
-            fixed left-1/2 -translate-x-1/2 grid justify-center z-20
+            fixed left-1/2 ${isNewChat ? 'translate-y-20' : 'translate-y-0'} -translate-x-1/2 grid justify-center z-20
             transition-all duration-500 ease-in-out
             h-fit
             w-fit 

@@ -17,7 +17,7 @@ const runJobs = async () => {
     const email = await settingsOps.find('email');
     const date = await settingsOps.find('date');
     const time = await settingsOps.find('time');
-    
+
     if (!email || !date || !time) {
         throw Error('Failed to fetch settings from DB');
     } else {

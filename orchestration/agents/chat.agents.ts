@@ -168,10 +168,8 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                     resultCount: 0
                 }));
             }
-            setTimeout(() => {
-                lmsModelOps.unloadLMSModel('*');
-                lmsModelOps.loadLMSModel(defaultModel);
-            }, 2000);
+            lmsModelOps.unloadLMSModel('*');
+            lmsModelOps.loadLMSModel(defaultModel);
         } else {
             await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
         }

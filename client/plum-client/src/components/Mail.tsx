@@ -31,13 +31,78 @@ function modifiedTime(time?: string): string {
 type MailProps = {
     mail: InboundEmailType;
     showCategs?: boolean;
+    forType?: string;
 };
 
-export default function Mail({ mail, showCategs = true }: MailProps) {
+export default function Mail({ mail, showCategs = true, forType = "inbound" }: MailProps) {
     const { setMail } = useSelectedMailStore();
     const queryClient = useQueryClient();
 
     const [isViewed, setIsViewed] = useState(mail.isViewed);
+
+    if (forType === "outbound") {
+        const created = new Date(mail.createdAt || mail.sentAt || new Date());
+        const y = created.getFullYear();
+        const m = String(created.getMonth() + 1).padStart(2, "0");
+        const d = String(created.getDate()).padStart(2, "0");
+
+        const dayKey = utils.makeDayKeyFromDate(created);
+
+        const updateOutboundVisibility = async () => {
+            setIsViewed(true);
+
+            try {
+                await apis.updateOutboundIsViewed(mail.id);
+
+                queryClient.setQueryData<InboundEmailType[]>(
+                    ["outboundEmails", dayKey],
+                    (oldData: any[]) => {
+                        if (!oldData) return [];
+                        return oldData.map((e) =>
+                            e.id === mail.id ? { ...e, isViewed: true } : e
+                        );
+                    }
+                );
+            } catch (err) {
+                handleError(err);
+            }
+        };
+
+        const handleOutboundClick = async () => {
+            setMail(mail);
+            await updateOutboundVisibility();
+        };
+
+        return (
+            <div
+                onClick={handleOutboundClick}
+                className={`text-sm w-full h-9.5 px-4 shadow-plum-surface-xs rounded-full flex items-center justify-between ${!isViewed
+                        ? "bg-plum-bg-bold hover:bg-plum-bg"
+                        : "bg-white hover:bg-gray-100"
+                    } border-plum-secondary border-2 duration-200 cursor-pointer`}
+            >
+                <div className="flex items-center">
+                    <p className="text-plum-secondary font-medium w-52">
+                        {shortenText(mail.to?.[0] || mail.from, nameLim)}
+                    </p>
+
+                    <p className="text-plum-primary truncate max-w-120">
+                        {mail.subject}
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-x-4">
+                    <p className="font-medium text-plum-secondary">
+                        {modifiedTime(
+                            new Date(mail.sentAt || mail.createdAt)
+                                .toTimeString()
+                                .slice(0, 5)
+                        )}
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     const updateVisibility = async () => {
         setIsViewed(true);

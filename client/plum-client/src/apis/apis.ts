@@ -166,6 +166,31 @@ async function fetchMails(numberOfEmails: number = 10) {
     }
 };
 
+async function fetchOutboundMailsDate(date: string, month: string, year: string) {
+    try {
+        console.log('Getting Outbound Mails by Date');
+        const { gmailCookie: email } = utils.parseGmailCookies();
+
+        const response = await axiosEmail.post('fetch-outbound-by-date', {
+            email, date, month, year
+        });
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw new Error(response.data.message);
+        }
+
+        console.log('Successfully Got Outbound Mails by Date');
+        return response.data;
+
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+
 async function updateIsViewed(id: string) {
     try {
         const { gmailCookie: email } = utils.parseGmailCookies();
@@ -189,6 +214,36 @@ async function updateIsViewed(id: string) {
         }
 
         return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
+async function updateOutboundIsViewed(id: string) {
+    try {
+        const { gmailCookie: email } = utils.parseGmailCookies();
+
+        if (!id) {
+            throw Error("Email's ID is 'undefined'");
+        }
+        if (!email) {
+            throw Error("Gmail ID is blank");
+        }
+
+        const response = await axiosEmail.patch(
+            'set-outbound-is-viewed',
+            { id, email }
+        );
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw Error(response.data.message);
+        }
+
+        return response.data;
+
     } catch (err) {
         handleError(err);
         throw err;
@@ -408,16 +463,21 @@ const apis = {
     login,
     getUser,
     getCategories,
+
     sendMail,
     fetchMails,
     fetchMailsDate,
+    fetchOutboundMailsDate,
     updateIsViewed,
+    updateOutboundIsViewed,
     draftMail,
+
     findAllCategories,
     findCategories,
     createCategory,
     editCategory,
     deleteCategory,
+
     createChat,
     getChatById,
     getChatByTitleDate,

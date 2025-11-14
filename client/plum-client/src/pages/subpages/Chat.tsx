@@ -3,7 +3,6 @@ import ChatBar from "../../components/ChatBar";
 import ChatArea from "../../components/ChatArea";
 
 // TODO: Add the ChatBanner component
-// TODO: Fix the stuttering issue in rendering
 
 function Chats() {
     useEffect(() => {

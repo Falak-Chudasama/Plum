@@ -1,12 +1,13 @@
 import { useStore } from "zustand";
 import ActiveChatStore from "../store/ActiveChatStore";
-import type { ResponseType, UserPromptType } from "../types/types";
+import type { InboundEmailType, ResponseType, UserPromptType } from "../types/types";
 import { useEffect, useState } from "react";
 import ActivePromptStore from "../store/ActivePromptStore";
 import ActiveResponseStore from "../store/ActiveResponseStore";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import apis from "../apis/apis";
+import Mail from "./Mail";
 
 function Response({ responseObj }: { responseObj: ResponseType }) {
     if (!responseObj.response) return;
@@ -44,6 +45,14 @@ function Response({ responseObj }: { responseObj: ResponseType }) {
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {responseObj.response}
             </ReactMarkdown>
+
+            {responseObj.query?.result && (
+                <div className="max-h-[30vh] w-fit grid gap-2 rounded-xl bg-plum-bg-bold p-3 overflow-y-auto">
+                    {responseObj.query.result.map((mail) => (
+                        <Mail key={mail.id} mail={mail} showCategs={true} />
+                    ))}
+                </div>
+            )}
 
             {(
                 responseObj.craftedMail ? (

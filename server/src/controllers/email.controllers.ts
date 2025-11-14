@@ -220,6 +220,54 @@ const fetchEmailsUtil = async (OAuth: object, numberOfEmails: number = 10) => {
     }
 };
 
+const fetchOutboundEmailsDateUtil = async (
+    email: string,
+    day: string,
+    month: string,
+    year: string
+): Promise<OutboundEmailType[]> => {
+    try {
+        let monthIndex: number;
+
+        if (/^\d+$/.test(month)) {
+            monthIndex = Number(month) - 1;
+        } else {
+            monthIndex = new Date(`${month} 1, 2000`).getMonth();
+        }
+
+        if (isNaN(monthIndex)) {
+            throw new Error(`Invalid month value received: "${month}"`);
+        }
+
+        const start = new Date(Number(year), monthIndex, Number(day), 0, 0, 0, 0);
+        const end = new Date(Number(year), monthIndex, Number(day) + 1, 0, 0, 0, 0);
+
+        if (isNaN(start.getTime())) {
+            throw new Error(`Invalid date constructed: ${year}-${month}-${day}`);
+        }
+
+        const emails = await models.OutboundEmail.find({
+            from: email,
+            createdAt: {
+                $gte: start,
+                $lt: end
+            }
+        }).sort({ createdAt: -1 });
+
+        return emails ?? [];
+
+    } catch (err) {
+        handleErrorUtil(
+            filePath,
+            "fetchOutboundEmailsDateUtil",
+            err,
+            "Fetching Outbound Emails by Date"
+        );
+        return [];
+    }
+};
+
+
 const fetchUniqueEmails = async (emails: InboundEmailType[]): Promise<InboundEmailType[]> => {
     try {
         const ids = emails.map((email) => email.id);
@@ -293,6 +341,35 @@ const fetchEmailsDate = async (req: Request, res: Response) => {
     }
 };
 
+// GET api.plum.com/email/fetch-outbound-by-date
+const fetchOutboundEmailsDate = async (req: Request, res: Response) => {
+    const { email, date, month, year } = req.body;
+
+    try {
+        const emails = await fetchOutboundEmailsDateUtil(email, date, month, year);
+
+        if (!emails) {
+            throw Error("Could not fetch outbound emails");
+        }
+
+        return res.status(200).json({
+            emails,
+            emailsCount: emails.length,
+            success: true,
+        });
+
+    } catch (err) {
+        handleError(
+            filePath,
+            "fetchOutboundEmailsDate",
+            res,
+            err,
+            "Fetching Outbound Emails by Date"
+        );
+    }
+};
+
+
 // PUT api.plum.com/email/set-is-viewed
 const updateIsViewed = async (req: Request, res: Response) => {
     try {
@@ -326,6 +403,60 @@ const updateIsViewed = async (req: Request, res: Response) => {
         }
     }
 };
+
+// PUT api.plum.com/email/outbound/set-is-viewed
+const updateOutboundIsViewed = async (req: Request, res: Response) => {
+    try {
+        const { id, email } = req.body;
+
+        if (!id) {
+            throw Error("Email's ID was not given");
+        }
+
+        if (!email) {
+            throw Error("Gmail ID was not given");
+        }
+
+        const response = await models.OutboundEmail.updateOne(
+            { id },
+            {
+                $set: {
+                    isViewed: true
+                }
+            }
+        );
+
+        if (response.matchedCount === 0) {
+            throw Error("Email was not found");
+        }
+
+        return res.status(200).json({
+            result: response,
+            success: true
+        });
+
+    } catch (err) {
+        if (err.message.endsWith("not found")) {
+            handleError(
+                filePath,
+                "setOutboundIsViewed",
+                res,
+                err,
+                "Setting the outbound email as viewed (User gmail was not found)",
+                404
+            );
+        } else {
+            handleError(
+                filePath,
+                "setOutboundIsViewed",
+                res,
+                err,
+                "Setting the outbound email as viewed"
+            );
+        }
+    }
+};
+
 
 // POST api.plum.com/email/draft
 const draftEmail = async (req: Request, res: Response) => {
@@ -425,6 +556,8 @@ const emailOps = {
     fetchEmailsDate,
     fetchEmailsDateUtil,
     updateIsViewed,
+    fetchOutboundEmailsDate,
+    updateOutboundIsViewed,
     draftEmail,
     saveDraftMail,
     saveOutboundEmail,

@@ -7,7 +7,7 @@ import logger from "../utils/logger.utils";
 // TODO: Add context to previously generated emails, even prompts and responses
 
 const filePath = '/agents/chat.agents.ts';
-const defaultModel = constants.lmsModels.llm.llamaHermes;
+const defaultModel = constants.lmsModels.llm.BEST;
 const temperature = 0;
 
 let craftMailSystemPrompt = `

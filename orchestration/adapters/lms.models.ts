@@ -43,8 +43,8 @@ const loadLMSModel = async (modelId: string, identifier?: string) => {
         const model = await client.llm.load(modelId, {
             identifier: identifier || modelId,
             config: {
-                gpuOffload: "max",
-                contextLength: constants.defaultContextLength
+                contextLength: constants.defaultContextLength,
+                gpu: { ratio: 0.8 }
             }
         });
         logger.info(`Model ${modelId} loaded successfully.`);

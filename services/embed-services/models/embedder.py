@@ -17,6 +17,9 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+import os
+os.environ["HF_HUB_OFFLINE"] = "1"
+
 # Local (sentence-transformers)
 try:
     from sentence_transformers import SentenceTransformer

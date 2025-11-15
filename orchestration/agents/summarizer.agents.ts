@@ -6,7 +6,7 @@ import logger from "../utils/logger.utils";
 
 const filePath = '/agents/summarizer.agents.ts';
 
-const model = constants.ollamaModels.llamaBig;
+const model = constants.lmsModels.llm.BEST;
 const maxPoints = 6;
 const temperature = 0;
 

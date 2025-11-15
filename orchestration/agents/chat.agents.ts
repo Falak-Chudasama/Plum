@@ -16,10 +16,10 @@ import { query } from "winston";
 
 const filePath = '/agents/chat.agents.ts';
 
-const defaultModel = constants.lmsModels.llm.llamaHermes;
+const defaultModel = constants.lmsModels.llm.BEST;
 const temperature = 0;
 
-let generalSystemPrompt = ``;
+let generalSystemPrompt = `Do not use Emojis, Answer in brief to the user`;
 
 const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model: string = defaultModel, chatCount: number): Promise<void> => {
     try {
@@ -39,7 +39,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
         if (chatCount > 0) {
             const context = await msAPIs.chatSearch(prompt, 10);
 
-            generalSystemPrompt = `User's Previous Prompt(s): ${context.map((c) => {
+            generalSystemPrompt += `User's Previous Prompt(s): ${context.map((c) => {
                 if (c.metadata.role === 'user') return c.text
             }).join('\n')}\nYour Previous Response(s): ${context.map((c) => {
                 if (c.metadata.role === 'plum') return c.text + '\n'
@@ -52,7 +52,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
         }
 
         if (intent.intent === 'craft_email') {
-            generalSystemPrompt = `
+            generalSystemPrompt += `
                 The user has just asked you to craft an email.
 
                 Your role:
@@ -111,7 +111,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
             }
         } else if (intent.intent === 'fetch_db') {
             try {
-                generalSystemPrompt = `
+                generalSystemPrompt += `
                 The user has just asked you to fetch or filter information from their data.
 
                 Your role:

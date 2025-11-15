@@ -6,7 +6,7 @@ import logger from "../utils/logger.utils";
 import vm from "vm";
 
 const filePath = "/agents/chat.agents.ts";
-const defaultModel = constants.lmsModels.llm.llamaMongoQuery;
+const defaultModel = constants.lmsModels.llm.BEST;
 const temperature = 0;
 
 let fetchDbSystemPrompt = `

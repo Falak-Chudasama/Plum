@@ -5,7 +5,7 @@ import logger from "../utils/logger.utils";
 
 const filePath = '/agents/chatTitler.agents.ts';
 
-const titlerModel = constants.lmsModels.llm.llamaHermes;
+const titlerModel = constants.lmsModels.llm.BEST;
 const temperature = 0;
 
 const systemPrompt = `

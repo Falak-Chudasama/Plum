@@ -1,8 +1,6 @@
 import { create } from "zustand";
 import type { ResponseType } from "../types/types";
 
-// TODO: Handle THOUGHT
-
 const defaultResponse: ResponseType = {
     response: '',
     chatCount: 1

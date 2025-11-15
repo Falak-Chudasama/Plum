@@ -48,7 +48,7 @@ async function system(data: any) {
             const { query, result, isSuccess } = data;
             chatOps.addResponseQuery({ query, result, isSuccess });
         } else {
-            // TODO: change the state
+            
         }
     }
 }

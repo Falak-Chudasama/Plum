@@ -4,8 +4,6 @@ import globals from "../globals/globals";
 import { handleErrorUtil } from "../utils/errors.utils";
 import logger from "../utils/logger.utils";
 
-// TODO: Add context to previously generated emails, even prompts and responses
-
 const filePath = '/agents/chat.agents.ts';
 const defaultModel = constants.lmsModels.llm.BEST;
 const temperature = 0;
@@ -238,16 +236,19 @@ function validateJson(cleanedMail: any): { valid: boolean; errors: string[] } {
 const mailCrafter = async (
     socket: WebSocket, 
     prompt: string, 
+    context: string,
     model: string = defaultModel
 ): Promise<any | null> => {
     const maxRetries = 5;
     let attempt = 0;
     let finalMail: any | null = null;
 
+    craftMailSystemPrompt += `\n${context}`;
+
     craftMailSystemPrompt += `
     ${
         globals.mostRecentCraftedMail !== '' ? `
-        This is your last crafted Email(refer to this if user wants you to) : ${JSON.stringify(globals.mostRecentCraftedMail)}
+        \nThis is your very last crafted Email(refer to this if user wants you to) : ${JSON.stringify(globals.mostRecentCraftedMail)}
         ` : ``
     }
     `;

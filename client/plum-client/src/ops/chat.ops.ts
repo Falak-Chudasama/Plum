@@ -5,8 +5,6 @@ import ChatCountStore from "../store/ChatCountStore";
 import type { ChatType, CraftedMailType, IntentionType, QueryType } from "../types/types";
 import apis from "../apis/apis";
 
-// TODO: Fix the chatCount
-
 async function createChat(title: string) {
     const { chat: chatState, setChatState } = ActiveChatStore.getState();
 

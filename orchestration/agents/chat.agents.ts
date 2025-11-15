@@ -10,9 +10,6 @@ import mailCrafter from "./mailCrafter.agent";
 import type { UserObjType } from "../types/types";
 import fetchDb from "./fetchDb.agents";
 import lmsModelOps from "../adapters/lms.models";
-import { query } from "winston";
-
-// TODO: Add context to previous response too and prompt for better understanding
 
 const filePath = '/agents/chat.agents.ts';
 
@@ -36,17 +33,21 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
             success: true
         }));
 
+        let context = ``;
         if (chatCount > 0) {
-            const context = await msAPIs.chatSearch(prompt, 10);
+            const ragResult = await msAPIs.chatSearch(prompt, 10);
 
-            generalSystemPrompt += `User's Previous Prompt(s): ${context.map((c) => {
+            
+            context = `User's Previous Prompt(s): ${ragResult.map((c) => {
                 if (c.metadata.role === 'user') return c.text
-            }).join('\n')}\nYour Previous Response(s): ${context.map((c) => {
+            }).join('\n')}\nYour Previous Response(s): ${ragResult.map((c) => {
                 if (c.metadata.role === 'plum') return c.text + '\n'
-            }).join('\n')}\nYour Previously Crafted Mail(s): ${context.map((c) => {
+            }).join('\n')}\nYour Previously Crafted Mail(s): ${ragResult.map((c) => {
                 if (c.metadata.role === 'mail_crafter') return c.text + '\n'
             }).join('\n')}
             `;
+
+            generalSystemPrompt += context;
         } else {
             await msAPIs.chatDelAll();
         }
@@ -79,7 +80,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
             `;
             await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
             try {
-                const craftedEmail = await mailCrafter(socket, prompt, model)
+                const craftedEmail = await mailCrafter(socket, prompt, context, model)
                 globals.mostRecentCraftedMail = craftedEmail;
 
                 socket.send(JSON.stringify({

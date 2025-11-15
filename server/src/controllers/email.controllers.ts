@@ -9,8 +9,6 @@ import emailCleanser from "../utils/emailCleanser.utils";
 
 const filePath: string = '/src/controllers/email.controllers.ts'
 
-// TODO: Use dynamic fields from `email` if needed
-
 const saveOutboundEmail = async (payload: OutboundEmailType) => {
     try {
         const record = new models.OutboundEmail({

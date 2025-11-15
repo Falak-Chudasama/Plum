@@ -58,13 +58,10 @@ const intents = [
     { content: "Resend the previous email with a short note", meta: { intent: "craft_email" } },
 
     // scheduling, attachments, legal, translations
-    { content: "Create an email with an attachment note and ask them to confirm receipt", meta: { intent: "craft_email" } },
-    { content: "Draft an email inviting participants to a meeting and include suggested times", meta: { intent: "craft_email" } },
+    { content: "Create an email", meta: { intent: "craft_email" } },
+    { content: "Draft an email", meta: { intent: "craft_email" } },
+    { content: "Write an email", meta: { intent: "craft_email" } },
     { content: "Translate this message into a formal English email", meta: { intent: "craft_email" } },
-
-    // templates and bulk
-    { content: "Generate an outreach template for cold emails", meta: { intent: "craft_email" } },
-    { content: "Create a bulk email template for customers announcing maintenance", meta: { intent: "craft_email" } },
 
     // edge cases that often confuse classifiers, explicitly crafting
     { content: "Make this into an email that sounds confident but polite", meta: { intent: "craft_email" } },

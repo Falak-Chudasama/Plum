@@ -73,10 +73,10 @@
 }
 
 ::selection {
-    background: var(--color-plum-primary);
+    background: var(--color-plum-primary-dark);
     color: white;
 }
 ::-moz-selection {
-    background: var(--color-plum-primary);
+    background: var(--color-plum-primary-dark);
     color: white;
 }

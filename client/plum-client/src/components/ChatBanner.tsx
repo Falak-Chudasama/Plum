@@ -5,21 +5,24 @@ function ChatBanner(getToTop: boolean) {
 
     if (isLoading) return;
 
-    return(
+    const greetings = ["Howdy", "Hello", "Hi", "Heya", "Ssup?", "Welcome", "Greetings", "Hey"];
+    const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
+
+    return (
         <div className={`h-fit w-full place-items-center p-2 m-1 select-none duration-300 ${getToTop ? 'translate-y-[10vh]' : '-translate-y-[10vh]'}`}>
             <div className="flex items-center justify-center gap-3 font-cabin text-6xl scale-115">
                 <span>
                     <img src="../plum-logo.png" alt="plum logo" className="h-15 w-auto" />
                 </span>
                 <span>
-                    Howdy
+                    {randomGreeting}
                 </span>
                 <span className="text-plum-primary">
-                    { user.name ?? 'User' }
+                    {user.name ?? 'User'}
                 </span>
             </div>
             <div className="text-xl font-light mt-5 scale-110">
-                Want me to 
+                Want me to
                 <span className="m-1 font-normal text-plum-primary">
                     fetch
                 </span>

@@ -16,7 +16,7 @@ const filePath = '/agents/chat.agents.ts';
 const defaultModel = constants.lmsModels.llm.BEST;
 const temperature = 0;
 
-let generalSystemPrompt = `Do not use Emojis, Answer in brief to the user`;
+let generalSystemPrompt = `You must respond without emojis. Keep responses concise, direct, and limited to essential information only.`;
 
 const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model: string = defaultModel, chatCount: number): Promise<void> => {
     try {
@@ -37,7 +37,6 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
         if (chatCount > 0) {
             const ragResult = await msAPIs.chatSearch(prompt, 10);
 
-            
             context = `User's Previous Prompt(s): ${ragResult.map((c) => {
                 if (c.metadata.role === 'user') return c.text
             }).join('\n')}\nYour Previous Response(s): ${ragResult.map((c) => {
@@ -47,6 +46,8 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
             }).join('\n')}
             `;
 
+            generalSystemPrompt += `Do not greet the user unnecessarily, it is not the first prompt
+            `;
             generalSystemPrompt += context;
         } else {
             await msAPIs.chatDelAll();

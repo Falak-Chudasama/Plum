@@ -11,6 +11,14 @@ function makeDayKeyFromDate(d: Date): string {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function toIST(timestamp: Date | string) {
+    const date = new Date(timestamp);
+    const istDate = new Date(
+        date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+    );
+    return istDate;
+}
+
 function capitalizeWords(str: string) {
     return str
         .split(/[_\s]+/)
@@ -21,7 +29,8 @@ function capitalizeWords(str: string) {
 const utils = {
     parseGmailCookies,
     makeDayKeyFromDate,
-    capitalizeWords
+    capitalizeWords,
+    toIST
 };
 
 export default utils;

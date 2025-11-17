@@ -423,6 +423,25 @@ async function getChatByTitleDate(title: string, createdAt: string, email: strin
     }
 }
 
+async function getChatList(email: string, limit: number = 20, cursor: string | null = null) {
+    try {
+        const response = await axiosChat.get("getList", {
+            params: { email, limit, cursor }
+        });
+
+        // @ts-ignore
+        if (!response.data.success) {
+            // @ts-ignore
+            throw new Error(response.data.message);
+        }
+
+        return response.data;
+    } catch (err) {
+        handleError(err);
+        throw err;
+    }
+}
+
 async function updateChat(chat: any) {
     try {
         const response = await axiosChat.put("update", chat);
@@ -479,6 +498,7 @@ const apis = {
     deleteCategory,
 
     createChat,
+    getChatList,
     getChatById,
     getChatByTitleDate,
     updateChat,

@@ -30,9 +30,9 @@ async function getById(req: Request, res: Response) {
 
 async function getChatList(req: Request, res: Response) {
     try {
-        const { limit = 20, cursor } = req.query;
+        const { email, limit = 20, cursor } = req.query;
 
-        const chats = await chatOps.getList(Number(limit), cursor as string | null);
+        const chats = await chatOps.getList(email as string, Number(limit), cursor as string | null);
         return res.status(200).json({ success: true, result: chats });
     } catch (err) {
         handleError(filePath, "getChatList", res, err, "fetching chat list");

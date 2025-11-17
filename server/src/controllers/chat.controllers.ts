@@ -25,8 +25,41 @@ async function getById(id: string) {
     }
 }
 
-async function getList(limit: number, cursor: string | null) {
+async function getList(email: string, limit: number, cursor: string | null) {
+    try {
+        if (email.trim() === '') {
+            return {
+                chats: [],
+                nextCursor: cursor,
+                hasMore: false
+            }
+        }
 
+        const query: any = { email };
+        if (cursor) {
+            query.createdAt = { $lt: new Date(cursor) }
+        }
+
+        const chats = await Chats.find(query).select("_id email title archived isViewed createdAt").sort({ createdAt: -1 }).limit(limit + 1);
+
+        const hasMore = chats.length > limit;
+
+        if (hasMore) {
+            chats.pop();
+        }
+
+        const nextCursor = chats.length > 0 ? chats[chats.length - 1].createdAt.toISOString() : null;
+
+        const response = {
+            chats,
+            nextCursor,
+            hasMore
+        };
+        return response
+    } catch (err) {
+        handleErrorUtil(filePath, "getList", err, "fetching chat list");
+        throw err;
+    }
 }
 
 async function getByTitleDate(title: string, createdAt: string, email: string) {

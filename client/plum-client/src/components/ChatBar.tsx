@@ -3,6 +3,8 @@ import globals from "../globals/globals";
 import { useStore } from "zustand";
 import ResponseReceivingStore from "../store/ResponseReceivingStore";
 
+// TODO: If user types any character, auto focus on the ChatBar
+
 function SendButton({
     inputRef,
     sendPrompt

@@ -106,8 +106,8 @@ function SideButtons() {
                             duration-400
                             ${subpage === 'chats' ? isExpanded ? 'translate-x-0' : '-translate-x-[100%]' : '-translate-x-[100%]'}
                         `}>
-                        <div className="flex p-2 items-center justify-between">
-                            <h3 className="text-[22px] flex gap-x-1 ml-1 font-semibold font-cabin">
+                        <div className="flex p-2 items-start justify-between">
+                            <h3 className="text-[24px] flex gap-x-1 ml-1.5 font-semibold font-cabin">
                                 <span className="font-semibold">
                                     Chats
                                 </span>

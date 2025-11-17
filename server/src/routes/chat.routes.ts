@@ -28,18 +28,32 @@ async function getById(req: Request, res: Response) {
     }
 }
 
+async function getChatList(req: Request, res: Response) {
+    try {
+        const { limit = 20, cursor } = req.query;
+
+        const chats = await chatOps.getList(Number(limit), cursor as string | null);
+        return res.status(200).json({ success: true, result: chats });
+    } catch (err) {
+        handleError(filePath, "getChatList", res, err, "fetching chat list");
+    }
+}
+
 async function getByTitleDate(req: Request, res: Response) {
     try {
         const { title, createdAt, email } = req.query;
         if (!title || !createdAt || !email)
             return res.status(400).json({ success: false, message: "Missing query params" });
+
         const result = await chatOps.getByTitleDate(
             String(title),
             String(createdAt),
             String(email)
         );
+
         if (!result) return res.status(404).json({ success: false, message: "Chat not found" });
         return res.status(200).json({ success: true, result });
+
     } catch (err) {
         handleError(filePath, "getByTitleDate", res, err, "fetching chat by title/date");
     }
@@ -60,9 +74,12 @@ async function del(req: Request, res: Response) {
     try {
         const { id } = req.query;
         if (!id) return res.status(400).json({ success: false, message: "Missing chat ID" });
+
         const result = await chatOps.del(String(id));
         if (!result) return res.status(404).json({ success: false, message: "Chat not found" });
+
         return res.status(200).json({ success: true, result });
+
     } catch (err) {
         handleError(filePath, "del", res, err, "deleting chat");
     }
@@ -72,14 +89,8 @@ async function del(req: Request, res: Response) {
 chatRouter.post("/create", create);
 chatRouter.get("/get/:id", getById);
 chatRouter.get("/getByTitleDate", getByTitleDate);
+chatRouter.get("/getList", getChatList);
 chatRouter.put("/update", update);
 chatRouter.delete("/delete", del);
 
 export default chatRouter;
-export const chatRouterOps = {
-    create,
-    getById,
-    getByTitleDate,
-    update,
-    del
-};

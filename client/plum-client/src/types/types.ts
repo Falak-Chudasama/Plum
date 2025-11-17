@@ -125,3 +125,12 @@ export type ChatType = {
     createdAt?: Date;
     updatedAt?: Date;
 };
+
+export type ChatMeta = {
+    _id: string,
+    email: string,
+    title: string,
+    archived: boolean,
+    isViewed: boolean,
+    createdAt: Date,
+}

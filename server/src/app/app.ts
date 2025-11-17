@@ -10,7 +10,7 @@ import categoryRouter from "../routes/category.routes";
 
 import authenticateUser from "../middlewares/auth.middlewares";
 import authenticateUserGoogle from "../middlewares/googleAuth.middlewares";
-import chatRouter from "../routes/chat.routes";
+import chatRouter from "../routes/chat.routes"; 
 
 const app = express();
 

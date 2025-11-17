@@ -25,6 +25,10 @@ async function getById(id: string) {
     }
 }
 
+async function getList(limit: number, cursor: string | null) {
+
+}
+
 async function getByTitleDate(title: string, createdAt: string, email: string) {
     try {
         const date = new Date(createdAt);
@@ -74,6 +78,7 @@ async function del(id: string) {
 const chatOps = {
     create,
     getById,
+    getList,
     getByTitleDate,
     update,
     del

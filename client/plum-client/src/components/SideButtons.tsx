@@ -8,9 +8,8 @@ import ActiveResponseStore from "../store/ActiveResponseStore";
 import ChatStore from "../store/ChatStore";
 import apis from "../apis/apis";
 import utils from "../utils/utils";
-import type { ChatMeta } from "../types/types";
 
-const batchSize = 5;
+const batchSize = 20;
 
 function ChatMenu() {
     const chatList = useStore(ChatStore, s => s.chatList);
@@ -33,6 +32,25 @@ function ChatMenu() {
         const month = (d.getMonth() + 1).toString().padStart(2, "0");
         return `${day}-${month}`;
     };
+
+    const labelDate = (dateLike: string | Date) => {
+        const d = toISTDate(dateLike);
+
+        const today = toISTDate(new Date());
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+
+        const sameDay = (a: Date, b: Date) =>
+            a.getDate() === b.getDate() &&
+            a.getMonth() === b.getMonth() &&
+            a.getFullYear() === b.getFullYear();
+
+        if (sameDay(d, today)) return "Today";
+        if (sameDay(d, yesterday)) return "Yesterday";
+
+        return ddmm(d);
+    };
+
 
     const fetchChatBatch = async () => {
         if (isFetchingRef.current) return;
@@ -112,14 +130,17 @@ function ChatMenu() {
     return (
         <div
             ref={scrollRef}
-            className="px-4 mt-3 mr-2 overflow-y-auto max-h-60"
+            className="pr-4 mt-3 mr-2 overflow-y-auto max-h-60"
             style={{ WebkitOverflowScrolling: "touch" }}
         >
             {Object.entries(grouped).map(([date, chats]) => (
                 <div key={date} className="mb-4">
-                    <div className="text-sm font-semibold text-gray-400 mb-1">{date}</div>
+                    <div className="font-bold font-cabin text-plum-secondary mb-1 ml-4 flex items-center gap-x-1">
+                        <div className="h-4 w-[2.5px] rounded-full bg-plum-secondary"></div>
+                        <p>{labelDate(chats[0].createdAt)}</p>
+                    </div>
                     {chats.map(chat => (
-                        <div key={chat._id} className="pl-2 py-1">
+                        <div key={chat._id} className="duration-200 hover:bg-plum-primary cursor-pointer hover:text-plum-bg rounded-tr-full rounded-br-full p-1 pl-5 pr-2 whitespace-nowrap overflow-hidden text-ellipsis">
                             {chat.title}
                         </div>
                     ))}

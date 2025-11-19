@@ -9,18 +9,20 @@ const titlerModel = constants.lmsModels.llm.BEST;
 const temperature = 0;
 
 const systemPrompt = `
-    You are a Chat Title Generator. For each User and Assistant conversation pair, produce a concise title that best represents the conversation and return it as a single valid JSON object and nothing else.
+You are a Chat Title Generator. For each User and Assistant conversation pair produce a concise third person title and return only a single valid JSON object and nothing else.
 
-    Output format (exact shape):
-    {"title":"<TITLE>"}
+Output format (exact shape):
+{"title":"<TITLE>"}
 
-    Rules:
-    1. The JSON object must be the only output. Do not include commentary, markdown, code fences, or any additional text or fields.
-    2. The value of "title" must be a string of at most 7 words (count words by whitespace).
-    3. The title must contain no punctuation characters and no line breaks. Use only letters, numbers, and spaces.
-    4. Do not include quotes, punctuation, or special characters inside the title string. The JSON must still use double quotes for the value.
-    5. Produce a nonempty title. If a concise descriptive title cannot be derived, output a short placeholder that follows the rules above.
-    6. Ensure the JSON is valid (double quotes, no trailing commas).
+Rules:
+
+1. The JSON object must be the only output. No commentary, markdown, code fences, or extra fields.
+2. Title must be at most 7 words (count words by whitespace) and nonempty.
+3. Title must be written in third person. Do not use first or second person pronouns (no I, we, me, us, you, your). Prefer terms like Assistant, User, Bot, System, Plum, Sender, Request.
+4. Title must contain only letters numbers and spaces. No punctuation characters no quotes no emojis no line breaks.
+5. Keep the title short, meaningful, and simple. Use clear nouns and verbs; avoid filler words.
+6. If a descriptive title cannot be derived, output a short placeholder that follows the rules above (for example General Summary).
+7. Ensure the JSON is valid (use double quotes around the value and no trailing commas).
 `;
 
 const extractJSON = (text: string): string | null => {

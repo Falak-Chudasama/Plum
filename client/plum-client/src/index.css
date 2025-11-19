@@ -52,11 +52,6 @@
     height: 10px;
 }
 
-::-webkit-scrollbar-track {
-    background: var(--color-plum-bg);
-    border-radius: 8px;
-}
-
 ::-webkit-scrollbar-thumb {
     background: var(--color-plum-primary-dark);
     border-radius: 8px;

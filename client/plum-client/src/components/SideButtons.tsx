@@ -150,11 +150,11 @@ function ChatMenu() {
     return (
         <div
             ref={scrollRef}
-            className="pr-4 mt-3 mr-2 overflow-y-auto max-h-60"
+            className="h-[100%] overflow-y-auto max-h-60"
             style={{ WebkitOverflowScrolling: "touch" }}
         >
             {Object.entries(grouped).length > 0 ? Object.entries(grouped).map(([date, chats]) => (
-                <div key={date} className="mb-4">
+                <div key={date} className="mb-4 pr-4 mt-3 mr-2 ">
                     <div className="font-bold font-cabin text-plum-secondary mb-1 ml-4 flex items-center gap-x-1">
                         <div className="h-4 w-[2.5px] rounded-full bg-plum-secondary"></div>
                         <p>{labelDate(chats[0].createdAt)}</p>
@@ -165,10 +165,10 @@ function ChatMenu() {
                         </div>
                     ))}
                 </div>
-            )) : <div className="h-full w-full flex items-center justify-center">
-                <p className="text-center text-plum-primary">
-                    Seems like we've never had any conversation, let's start one!
-                </p>
+            )) : <div className="h-[100%] w-full px-4 flex items-center justify-center text-center text-plum-secondary opacity-80">
+                <span>
+                    Seems like we've never had any conversation, <span className="font-bold font-cabin">let's start one...</span>
+                </span>
             </div>}
         </div>
     );

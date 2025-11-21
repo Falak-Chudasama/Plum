@@ -3,8 +3,6 @@ import globals from "../globals/globals";
 import { useStore } from "zustand";
 import ResponseReceivingStore from "../store/ResponseReceivingStore";
 
-// TODO: If user types any character, auto focus on the ChatBar
-
 function SendButton({
     inputRef,
     sendPrompt
@@ -96,6 +94,33 @@ function ChatBar({ isNewChat }) {
         };
     }, []);
 
+    useEffect(() => {
+        const focusOnKeyPress = (event: KeyboardEvent) => {
+            const target = event.target as HTMLElement;
+            const isInputField =
+                target.tagName === "INPUT" ||
+                target.tagName === "TEXTAREA" ||
+                target.isContentEditable;
+
+            if (isInputField) return;
+            if (event.altKey || event.ctrlKey) return;
+
+            if (inputRef.current) {
+                inputRef.current.focus();
+                if (!event.shiftKey && !event.altKey && !event.ctrlKey) {
+                    inputRef.current.value += event.key;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        };
+
+        window.addEventListener("keydown", focusOnKeyPress, true);
+        return () => {
+            window.removeEventListener("keydown", focusOnKeyPress, true);
+        };
+    }, []);
+
     return (
         <div className={`
             scale-105
@@ -120,8 +145,8 @@ function ChatBar({ isNewChat }) {
             ${isFocused ? 'w-xl' : 'w-lg'} 
             hover:w-xl
             `} style={{
-                background: "rgba(238, 229, 255, 0.8)"
-            }}>
+                    background: "rgba(238, 229, 255, 0.8)"
+                }}>
                 <input
                     ref={inputRef}
                     type="text"

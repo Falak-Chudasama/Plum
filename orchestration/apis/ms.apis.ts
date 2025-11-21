@@ -95,6 +95,7 @@ const chatSearch = async (query: string, k: number = 5): Promise<Object | []> =>
         logger.info('Chat Search API Called')
         const response = await msAxios.post(`${constants.msOrigin}/search/chat`, { query, k });
         if (!response || !response.data.success) throw Error('Failed to search chats');
+        console.log(response.data.results); // delit
         return response.data.results;
     } catch (err) {
         handleErrorUtil(filePath, 'chatSearch', err, 'Calling MS API to search chats');

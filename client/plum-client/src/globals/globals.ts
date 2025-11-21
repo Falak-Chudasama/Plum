@@ -3,6 +3,7 @@ type wsConnection = {
     isConnected: boolean;
     sendMessage: (data: any) => void;
     sendPrompt: (prompt: string) => void;
+    sendCommand: (command: string) => void;
 }
 
 

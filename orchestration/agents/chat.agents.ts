@@ -9,7 +9,6 @@ import msAPIs from "../apis/ms.apis";
 import mailCrafter from "./mailCrafter.agent";
 import type { UserObjType } from "../types/types";
 import fetchDb from "./fetchDb.agents";
-import lmsModelOps from "../adapters/lms.models";
 
 const filePath = '/agents/chat.agents.ts';
 
@@ -34,9 +33,10 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
         }));
 
         let context = ``;
+
         if (chatCount > 0) {
             const ragResult = await msAPIs.chatSearch(prompt, 10);
-
+            
             context = `User's Previous Prompt(s): ${ragResult.map((c) => {
                 if (c.metadata.role === 'user') return c.text
             }).join('\n')}\nYour Previous Response(s): ${ragResult.map((c) => {
@@ -45,13 +45,14 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 if (c.metadata.role === 'mail_crafter') return c.text + '\n'
             }).join('\n')}
             `;
-
+            
             generalSystemPrompt += `Do not greet the user unnecessarily, it is not the first prompt
             `;
             generalSystemPrompt += context;
         } else {
-            await msAPIs.chatDelAll();
+            globals.clearGlobalContext();
         }
+
 
         if (intent.intent === 'craft_email') {
             generalSystemPrompt += `
@@ -161,6 +162,8 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                     done: true,
                     success: true
                 }));
+
+                // TODO: Do the after chat too
             } catch (err) {
                 socket.send(JSON.stringify({
                     type: 'SYSTEM',
@@ -170,8 +173,6 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                     resultCount: 0
                 }));
             }
-            lmsModelOps.unloadLMSModel('*');
-            lmsModelOps.loadLMSModel(defaultModel);
         } else {
             await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
         }
@@ -179,23 +180,36 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
         const contextMessages = [
             {
                 content: globals.mostRecentPrompt,
-                meta: { role: "user" },
+                meta: {
+                    role: "user",
+                    app: 'plum'
+                },
             },
             {
                 content: globals.mostRecentResponse,
-                meta: { role: "plum" },
+                meta: {
+                    role: "plum",
+                    app: 'plum'
+                },
             }
         ];
 
         if (intent.intent === 'craft_email') {
             contextMessages.push({
                 content: JSON.stringify(globals.mostRecentCraftedMail),
-                meta: { role: "mail_crafter" }
+                meta: {
+                    role: "mail_crafter",
+                    app: 'plum'
+                }
             })
         } else if (intent.intent === 'fetch_db') {
             contextMessages.push({
+                // TODO: Instead of passing only the query result, pass entire query along with its result (also return only the ids of the emails that were fetched from db), isSuccess. NOT JUST THE QUERY RESULT
                 content: JSON.stringify(globals.mostRecentQueryResult),
-                meta: { role: "db_fetcher" }
+                meta: {
+                    role: "db_fetcher",
+                    app: 'plum'
+                }
             });
         }
 

@@ -10,6 +10,8 @@ import globals from "../globals/globals";
 const filePath = "/adapters/lms.adapters.ts";
 const lmsQueue = new TaskQueue();
 
+// TODO: Use official LMStudio
+
 const lmsGenerateUtil = async ({
     socket,
     model,

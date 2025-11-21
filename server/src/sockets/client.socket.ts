@@ -2,6 +2,7 @@ import { WebSocketServer } from "ws";
 import logger from "../utils/logger.utils";
 import orchWss from "./orchestration.socket";
 import globals from "../globals/globals";
+import chatOps from "../controllers/chat.controllers";
 
 const WEB_SOCKET_PORT1 = Number(process.env.WEB_SOCKET_PORT1) || 4065;
 
@@ -18,10 +19,20 @@ clientWss.on('listening', () => {
 clientWss.on('connection', (socket) => {
     logger.info('Client <-> Server Connection Established');
 
-    socket.on("message", (data: string) => {
+    socket.on("message", async (data: string) => {
         data = data.toString();
-        const response = JSON.parse(data);
+        let response = JSON.parse(data);
         if (fwdToOrchSocket.has(response.type)) {
+            if (response.type === 'COMMAND' && response.command.split(':')[0] === 'NEW_CHAT_CLICKED') {
+                const id = response.command.split(':')[1];
+                const chat = await chatOps.getById(id);
+                response = {
+                    ...response,
+                    command: 'NEW_CONTEXT',
+                    chat
+                };
+            }
+
             orchWss.clients.forEach((client) => {
                 logger.info(`Sent '${response.type}' to Orch`);
                 const newResponse = {

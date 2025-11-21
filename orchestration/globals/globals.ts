@@ -1,3 +1,5 @@
+import msAPIs from "../apis/ms.apis";
+
 const globals = {
     mostRecentPrompt: '',
     mostRecentResponse: '',
@@ -6,7 +8,16 @@ const globals = {
     mostRecentQueryResult: [],
     userObj: {},
     mongoClient: {},
-    db: {}
+    db: {},
+    clearGlobalContext: async function () {
+        this.mostRecentCraftedMail = '';
+        this.mostRecentPrompt = '';
+        this.mostRecentQuery = '';
+        this.mostRecentQueryResult = [];
+        this.mostRecentResponse = '';
+
+        await msAPIs.chatDelAll();
+    }
 };
 
 export default globals;

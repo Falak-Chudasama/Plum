@@ -64,8 +64,34 @@ class ChromaStore:
         self.collection.delete(ids=ids)
 
     def delete_all(self):
+        result = {
+            "collection": self.collection_name,
+            "deleted": 0,
+            "status": "ok",
+        }
+
         try:
+            try:
+                count_before = self.collection.count()
+                result["deleted"] = int(count_before)
+            except Exception:
+                result["deleted"] = None
+
             self.client.delete_collection(name=self.collection_name)
-        except Exception:
-            pass
-        self.collection = self.client.get_or_create_collection(self.collection_name)
+
+            self.collection = self.client.get_or_create_collection(self.collection_name)
+
+            if self.persist:
+                try:
+                    self.client.persist()
+                except Exception as e:
+                    result["persist_error"] = str(e)
+
+            return result
+
+        except Exception as e:
+            return {
+                "collection": self.collection_name,
+                "status": "error",
+                "error": str(e),
+            }

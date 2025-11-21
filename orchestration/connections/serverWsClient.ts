@@ -1,6 +1,9 @@
 import WebSocket from "ws";
 import logger from "../utils/logger.utils";
 import chat from "../agents/chat.agents";
+import msAPIs from "../apis/ms.apis";
+import { ChatType } from "../types/types";
+import globals from "../globals/globals";
 
 const SERVER_WS_URL = process.env.SERVER_WS_URL || "ws://localhost:4085";
 
@@ -8,6 +11,42 @@ let serverSocket: WebSocket | null = null;
 let reconnectAttempts = 0;
 const retryDelay = 5000;
 const MAX_RETRIES = 1000;
+
+async function switchContext(chat: ChatType) {
+    const items = [
+        ...chat.userPrompts.map((u) => ({
+            content: u.prompt,
+            meta: { role: "user", app: "plum" }
+        })),
+
+        ...chat.responses.map((r) => ({
+            content: r.response,
+            meta: { role: "plum", app: "plum" }
+        })),
+
+        ...chat.responses.flatMap((r) =>
+            r.craftedMail
+                ? [{
+                    content: JSON.stringify(r.craftedMail),
+                    meta: { role: "mail_crafter", app: "plum" }
+                }]
+                : []
+        ),
+
+        ...chat.responses.flatMap((r) =>
+            r.query
+                ? [{
+                    content: typeof r.query === "string"
+                        ? r.query
+                        : JSON.stringify(r.query),
+                    meta: { role: "db_fetcher", app: "plum" }
+                }]
+                : []
+        )
+    ];
+
+    await msAPIs.chatEmbed(items);
+}
 
 function connectToServer() {
     if (serverSocket && (serverSocket.readyState === WebSocket.OPEN || serverSocket.readyState === WebSocket.CONNECTING)) {
@@ -31,6 +70,12 @@ function connectToServer() {
             logger.info("Message from server:", req);
             if (req.type === 'PROMPT') {
                 await chat(serverSocket, req.prompt, req.user, req.model, req.chatCount);
+            } else if (req.type === 'COMMAND' && req.command === 'CLEAR_CONTEXT') {
+                globals.clearGlobalContext();
+            } else if (req.type === 'COMMAND' && req.command === 'NEW_CONTEXT') {
+                const chat = req.chat as ChatType;
+                globals.clearGlobalContext();
+                await switchContext(chat);
             }
         } catch (err) {
             logger.error("Error handling message:", err);

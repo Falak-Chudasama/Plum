@@ -8,6 +8,7 @@ import ActiveResponseStore from "../store/ActiveResponseStore";
 import ChatStore from "../store/ChatStore";
 import apis from "../apis/apis";
 import utils from "../utils/utils";
+import globals from "../globals/globals";
 
 const batchSize = 20;
 
@@ -16,6 +17,16 @@ function ChatMenu() {
 
     const setChatList = ChatStore.getState().setChatList;
     const appendChatList = ChatStore.getState().appendChatList;
+
+    const { chat, setChatState, resetActiveChatState } = useStore(ActiveChatStore);
+    const { resetPrompt } = useStore(ActivePromptStore);
+    const { resetResponse } = useStore(ActiveResponseStore);
+
+    const { sendCommand } = globals.wsConnection!;
+
+    const newChatClicked = (_id: string) => {
+        sendCommand(`NEW_CHAT_CLICKED:${_id}`);
+    }
 
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const isFetchingRef = useRef(false);
@@ -96,9 +107,18 @@ function ChatMenu() {
         return groups;
     }, [chatList.chats]);
 
+    const handleChatClick = async (id: string) => {
+        const response = await apis.getChatById(id);
+        const clickedChat = response.result;
+        if (clickedChat && clickedChat.messageCount > 0) {
+            setChatState(clickedChat);
+            newChatClicked(id);
+        }
+    }
+
     useEffect(() => {
         fetchChatBatch();
-    }, []);
+    }, [chat]);
 
     useEffect(() => {
         const el = scrollRef.current;
@@ -125,7 +145,7 @@ function ChatMenu() {
 
         el.addEventListener("scroll", onScroll, { passive: true });
         return () => el.removeEventListener("scroll", onScroll);
-    }, []);
+    }, [chatList]);
 
     return (
         <div
@@ -133,19 +153,23 @@ function ChatMenu() {
             className="pr-4 mt-3 mr-2 overflow-y-auto max-h-60"
             style={{ WebkitOverflowScrolling: "touch" }}
         >
-            {Object.entries(grouped).map(([date, chats]) => (
+            {Object.entries(grouped).length > 0 ? Object.entries(grouped).map(([date, chats]) => (
                 <div key={date} className="mb-4">
                     <div className="font-bold font-cabin text-plum-secondary mb-1 ml-4 flex items-center gap-x-1">
                         <div className="h-4 w-[2.5px] rounded-full bg-plum-secondary"></div>
                         <p>{labelDate(chats[0].createdAt)}</p>
                     </div>
                     {chats.map(chat => (
-                        <div key={chat._id} className="duration-200 hover:bg-plum-primary cursor-pointer hover:text-plum-bg rounded-tr-full rounded-br-full p-1 pl-5 pr-2 whitespace-nowrap overflow-hidden text-ellipsis">
+                        <div onClick={() => handleChatClick(chat._id)} key={chat._id} className="duration-200 hover:bg-plum-primary cursor-pointer hover:text-plum-bg rounded-tr-full rounded-br-full p-1 pl-5 pr-2 whitespace-nowrap overflow-hidden text-ellipsis">
                             {chat.title}
                         </div>
                     ))}
                 </div>
-            ))}
+            )) : <div className="h-full w-full flex items-center justify-center">
+                <p className="text-center text-plum-primary">
+                    Seems like we've never had any conversation, let's start one!
+                </p>
+            </div>}
         </div>
     );
 }
@@ -159,6 +183,12 @@ function SideButtons() {
     const [mailsHover, setMailsHover] = useState(false);
     const [chatsHover, setChatsHover] = useState(false);
 
+    const { sendCommand } = globals.wsConnection!;
+
+    const clearContext = () => {
+        sendCommand('CLEAR_CONTEXT');
+    }
+
     useEffect(() => {
         if (subpage !== 'chats') {
             setIsExpanded(false);
@@ -169,6 +199,7 @@ function SideButtons() {
         resetActiveChatState();
         resetPrompt();
         resetResponse();
+        clearContext();
     }
 
     const handleExpandSideBarBtn = () => {

@@ -46,7 +46,7 @@ function Response({ responseObj }: { responseObj: ResponseType }) {
     }
 
     return (
-        <div className="pr-8">
+        <div className="pr-8 text-xl font-light">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {responseObj.response}
             </ReactMarkdown>
@@ -104,7 +104,7 @@ function Prompt({ promptObj }: { promptObj: UserPromptType }) {
     if (!promptObj.prompt) return null;
 
     return (
-        <div className="px-3 py-1 text-md text-plum-bg rounded-2xl bg-plum-primary max-w-[40vw] break-words whitespace-pre-wrap">
+        <div className="px-4 py-1 mb-2 text-lg text-plum-bg rounded-3xl bg-plum-primary max-w-[40vw] break-words whitespace-pre-wrap">
             {promptObj.prompt}
         </div>
     );

@@ -6,11 +6,14 @@ import logger from "../utils/logger.utils";
 import utils from "../utils/utils";
 import lmsModelOps from "./lms.models";
 import globals from "../globals/globals";
+import { LMStudioClient } from "@lmstudio/sdk";
 
 const filePath = "/adapters/lms.adapters.ts";
 const lmsQueue = new TaskQueue();
 
-// TODO: Use official LMStudio
+const lmClient = new LMStudioClient();
+
+// TODO: Use official LMStudio and avoid using the /v1/chat/completion API, prefer stateless API for response completion
 
 const lmsGenerateUtil = async ({
     socket,

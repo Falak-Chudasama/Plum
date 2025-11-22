@@ -9,6 +9,7 @@ import ChatStore from "../store/ChatStore";
 import apis from "../apis/apis";
 import utils from "../utils/utils";
 import globals from "../globals/globals";
+import ChatCountStore from "../store/ChatCountStore";
 
 const batchSize = 20;
 
@@ -18,13 +19,13 @@ function ChatMenu() {
     const setChatList = ChatStore.getState().setChatList;
     const appendChatList = ChatStore.getState().appendChatList;
 
-    const { chat, setChatState, resetActiveChatState } = useStore(ActiveChatStore);
-    const { resetPrompt } = useStore(ActivePromptStore);
-    const { resetResponse } = useStore(ActiveResponseStore);
+    const { chat, setChatState } = useStore(ActiveChatStore);
+    const { setChatCount, resetChatCount } = useStore(ChatCountStore);
 
     const { sendCommand } = globals.wsConnection!;
 
     const newChatClicked = (_id: string) => {
+        resetChatCount();
         sendCommand(`NEW_CHAT_CLICKED:${_id}`);
     }
 
@@ -113,6 +114,7 @@ function ChatMenu() {
         if (clickedChat && clickedChat.messageCount > 0) {
             setChatState(clickedChat);
             newChatClicked(id);
+            setChatCount(clickedChat.messageCount);
         }
     }
 
@@ -180,6 +182,7 @@ function SideButtons() {
     const { resetActiveChatState } = ActiveChatStore();
     const { resetPrompt } = ActivePromptStore();
     const { resetResponse } = ActiveResponseStore();
+    const { resetChatCount } = useStore(ChatCountStore);
     const [mailsHover, setMailsHover] = useState(false);
     const [chatsHover, setChatsHover] = useState(false);
 
@@ -196,6 +199,7 @@ function SideButtons() {
     }, [subpage])
 
     const handleNewChatBtn = () => {
+        resetChatCount();
         resetActiveChatState();
         resetPrompt();
         resetResponse();

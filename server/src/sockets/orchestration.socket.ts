@@ -22,6 +22,11 @@ orchWss.on("close", (socket) => {
 })
 
 orchWss.on('connection', (socket) => {
+    if (orchWss.clients.size > 1) {
+        orchWss.clients.forEach(c => c.close());
+        logger.warn("Closed previous orch connection and accepted the new one.");
+    }
+
     logger.info('Orchestration <-> Server Connection Established');
 
     socket.on("message", (data: string) => {

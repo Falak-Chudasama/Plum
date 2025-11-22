@@ -1,6 +1,5 @@
 import { LMStudioClient } from "@lmstudio/sdk";
 import logger from "../utils/logger.utils";
-import { cli } from "winston/lib/winston/config";
 import constants from "../constants/constants";
 
 const client = new LMStudioClient();

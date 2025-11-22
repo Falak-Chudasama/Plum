@@ -127,7 +127,6 @@ function useWebSocket() {
         prompt = prompt.trim();
         if (!prompt) return;
 
-        console.log('CHAT COUNT: ' + chatCount.current);
         const promptObject = {
             type: 'PROMPT',
             prompt,
@@ -137,8 +136,6 @@ function useWebSocket() {
         }
 
         chatOps.createPrompt(prompt);
-
-        console.log('Prompt sent: ' + prompt);
         sendMessage(promptObject);
     }
 

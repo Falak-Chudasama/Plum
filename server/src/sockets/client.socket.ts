@@ -17,6 +17,11 @@ clientWss.on('listening', () => {
 });
 
 clientWss.on('connection', (socket) => {
+    if (clientWss.clients.size > 1) {
+        clientWss.clients.forEach(c => c.close());
+        logger.warn("Closed previous client connection and accepted the new one.");
+    }
+
     logger.info('Client <-> Server Connection Established');
 
     socket.on("message", async (data: string) => {

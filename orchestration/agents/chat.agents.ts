@@ -99,7 +99,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
 
                 socket.send(JSON.stringify({
                     type: 'RESPONSE',
-                    done: true,
+                    done: false,
                     success: true
                 }))
             } catch (err) {

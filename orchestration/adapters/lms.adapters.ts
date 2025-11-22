@@ -13,7 +13,7 @@ const lmsQueue = new TaskQueue();
 
 const lmClient = new LMStudioClient();
 
-// TODO: Use official LMStudio and avoid using the /v1/chat/completion API, prefer stateless API for response completion
+// TODO: Use Stateless alternatives
 
 const lmsGenerateUtil = async ({
     socket,

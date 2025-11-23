@@ -3,10 +3,12 @@ import SignIn from "../pages/auth/SignIn";
 import SignUp from "../pages/auth/SignUp";
 import Error from "../pages/Error";
 import Home from "../pages/Home";
+import AlertPopupContainer from "../components/AlertPopup";
 
 export default function App() {
 	return (
 		<>
+			<AlertPopupContainer></AlertPopupContainer>
 			<Routes>
 				<Route path="/signup" element={<SignUp />} />
 				<Route path="/signup?warning=:warning" element={<SignUp />} />

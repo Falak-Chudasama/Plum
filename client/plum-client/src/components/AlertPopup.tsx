@@ -53,38 +53,47 @@ const colorMap = {
     }
 };
 
-function AlertPopup({ alertType = "info", alert }: { alertType: "success" | "info" | "warn" | "error", alert: string }) {
+export function AlertPopup({ alertType = "info", alert }: { alertType: "success" | "info" | "warn" | "error", alert: string }) {
     const c = colorMap[alertType];
 
     return (
-        <div className="p-3 select-none fixed">
-            <div
-                role="alert"
-                className={`max-w-150 w-fit flex items-center justify-between px-2 py-2 gap-x-5 rounded-3xl shadow-sm border-[1.2px] ${c.border} ${c.popup}`}
-            >
-                <div className="flex items-center gap-3">
-                    <div
-                        className={`h-7 w-7 rounded-full ${c.bg} flex justify-center items-center`}
-                    >
-                        {c.icon}
-                    </div>
-
-                    <p className={`${c.text}`}>
-                        {alert}
-                    </p>
+        <div
+            role="alert"
+            className={`select-none max-w-150 w-fit flex items-center justify-between px-2 py-2 gap-x-5 rounded-3xl shadow-sm border-[1.2px] ${c.border} ${c.popup}`}
+        >
+            <div className="flex items-center gap-3">
+                <div
+                    className={`h-7 w-7 rounded-full ${c.bg} flex justify-center items-center`}
+                >
+                    {c.icon}
                 </div>
 
-                <button
-                    className="h-6 w-6 rounded-full bg-transparent duration-200 cursor-pointer hover:bg-gray-50 flex justify-center items-center"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 11 11" fill="none">
-                        <path d="M0.219681 10.1192C-0.0732124 9.82627 -0.0732124 9.3514 0.219681 9.05851L9.05852 0.21967C9.35141 -0.0732234 9.82628 -0.0732232 10.1192 0.21967C10.4121 0.512563 10.4121 0.987437 10.1192 1.28033L1.28034 10.1192C0.987447 10.4121 0.512574 10.4121 0.219681 10.1192Z" fill={c.iconColor} />
-                        <path d="M10.1192 10.4121C10.4121 10.1192 10.4121 9.64429 10.1192 9.3514L1.28033 0.512562C0.987437 0.219669 0.512563 0.219669 0.21967 0.512563C-0.0732233 0.805456 -0.0732233 1.28033 0.21967 1.57322L9.05851 10.4121C9.3514 10.705 9.82627 10.705 10.1192 10.4121Z" fill={c.iconColor} />
-                    </svg>
-                </button>
+                <p className={`${c.text}`}>
+                    {alert}
+                </p>
             </div>
+
+            <button
+                className="h-6 w-6 rounded-full bg-transparent duration-200 cursor-pointer hover:bg-gray-50 flex justify-center items-center"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 11 11" fill="none">
+                    <path d="M0.219681 10.1192C-0.0732124 9.82627 -0.0732124 9.3514 0.219681 9.05851L9.05852 0.21967C9.35141 -0.0732234 9.82628 -0.0732232 10.1192 0.21967C10.4121 0.512563 10.4121 0.987437 10.1192 1.28033L1.28034 10.1192C0.987447 10.4121 0.512574 10.4121 0.219681 10.1192Z" fill={c.iconColor} />
+                    <path d="M10.1192 10.4121C10.4121 10.1192 10.4121 9.64429 10.1192 9.3514L1.28033 0.512562C0.987437 0.219669 0.512563 0.219669 0.21967 0.512563C-0.0732233 0.805456 -0.0732233 1.28033 0.21967 1.57322L9.05851 10.4121C9.3514 10.705 9.82627 10.705 10.1192 10.4121Z" fill={c.iconColor} />
+                </svg>
+            </button>
         </div>
     );
 }
 
-export default AlertPopup;
+function AlertPopupContainer() {
+    return (
+        <div className="absolute w-fit h-fit z-100 right-0 top-20 flex flex-col-reverse gap-y-3 mr-5">
+            <AlertPopup alert="This is a Success Popup" alertType="success"></AlertPopup>
+            <AlertPopup alert="This is a Success Popup" alertType="info"></AlertPopup>
+            <AlertPopup alert="This is a Success Popup" alertType="warn"></AlertPopup>
+            <AlertPopup alert="This is a Success Popup" alertType="error"></AlertPopup>
+        </div>
+    );
+}
+
+export default AlertPopupContainer;

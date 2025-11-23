@@ -251,7 +251,7 @@ function SideButtons() {
                         rounded-br-3xl
                         absolute
                         z-30
-                        duration-400
+                        duration-400 shadow-plum-secondary-sm
                         ${subpage === 'chats' ? isExpanded ? 'translate-x-0' : '-translate-x-[100%]' : '-translate-x-[100%]'}
                     `}>
                         <div className="flex p-2 items-start justify-between">

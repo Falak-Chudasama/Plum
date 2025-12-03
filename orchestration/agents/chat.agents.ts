@@ -10,6 +10,8 @@ import mailCrafter from "./mailCrafter.agent";
 import type { UserObjType } from "../types/types";
 import fetchDb from "./fetchDb.agents";
 
+// TODO: Make the Plum aware about the output of the DB, and generate response based on that output. 
+
 const filePath = '/agents/chat.agents.ts';
 
 const defaultModel = constants.lmsModels.llm.BEST;
@@ -36,7 +38,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
 
         if (chatCount > 0) {
             const ragResult = await msAPIs.chatSearch(prompt, 10);
-            
+
             context = `User's Previous Prompt(s): ${ragResult.map((c) => {
                 if (c.metadata.role === 'user') return c.text
             }).join('\n')}\nYour Previous Response(s): ${ragResult.map((c) => {
@@ -45,7 +47,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 if (c.metadata.role === 'mail_crafter') return c.text + '\n'
             }).join('\n')}
             `;
-            
+
             generalSystemPrompt += `Do not greet the user unnecessarily, it is not the first prompt
             `;
             generalSystemPrompt += context;
@@ -55,32 +57,6 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
 
 
         if (intent.intent === 'craft_email') {
-            generalSystemPrompt += `
-                The user has just asked you to craft an email.
-
-                Your role:
-                You are Plum — a capable, confident assistant who takes user requests seriously. You do NOT generate or preview the email content. Instead, your only job is to reassure the user that their email request is fully understood and being taken care of by you personally.
-
-                Tone and style:
-                - Speak as if YOU are crafting the email yourself (do NOT mention any “other agent” or “Mail Crafter”).
-                - Be concise, confident, and natural — show the user that their request matters and is being handled.
-                - Never mention email generation, background processes, or system tasks.
-                - Never include or hint at the email body, structure, or summary.
-                - Sound human — not robotic or scripted.
-
-                Examples of good responses:
-                - “Got it. I've understood everything, on it now...”
-                - “Understood. I've taken note of all your details, leave this to me...”
-                - “All set. I'm handling it exactly as you described...”
-
-                Examples of what NOT to do: 
-                - Don’t mention ‘Mail Crafter agent’, ‘email generation’, ‘in progress’, or ‘background process’.
-                - Don’t show or summarize the email.
-                - Don’t use JSON, placeholders, or meta talk.
-
-                Your entire response should be a single short sentence confirming confident understanding and execution.
-            `;
-            await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
             try {
                 const craftedEmail = await mailCrafter(socket, prompt, context, model)
                 globals.mostRecentCraftedMail = craftedEmail;
@@ -96,6 +72,41 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                     done: true,
                     success: true,
                 }));
+
+                generalSystemPrompt += `
+                This is the most recent email crafted by you: ${JSON.stringify(globals.mostRecentCraftedMail)}
+                `;
+
+                generalSystemPrompt += `
+                The email requested by the user has been crafted successfully.
+
+                You must NOT reveal, restate, paraphrase, quote, or summarize the email body or any of its wording.
+                You do NOT have access to the email body content directly; you only know the high-level intent and structural purpose of the email.
+
+                Your task:
+                Continue the conversation naturally by briefly explaining what type of email you produced and what it accomplishes — without showing or referencing the body in any form.
+
+                Allowed information:
+                - Purpose of the email (e.g., a follow-up, complaint, formal request)
+                - The tone (formal, polite, concise, assertive)
+                - Whether the structure fits the user’s instructions
+                - Whether anything seemed missing in the instruction
+                - High-level observations about what the email achieves
+
+                Forbidden content:
+                - No email sentences, fragments, or rephrased versions
+                - No exposure of subject, greeting, closing, or message body
+                - No JSON fields, metadata, or internal objects
+                - No references to how the email was generated or which system generated it
+                - No new greeting or acknowledgement; continue the reply naturally
+
+                Tone:
+                Direct, minimal, helpful, and seamless — as if you are continuing the same message thread.
+
+                Your output must be a human-like continuation that describes what you accomplished, without exposing or hinting at any of the actual text inside the email.
+
+                `;
+                await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
 
                 socket.send(JSON.stringify({
                     type: 'RESPONSE',
@@ -114,34 +125,6 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
             }
         } else if (intent.intent === 'fetch_db') {
             try {
-                generalSystemPrompt += `
-                The user has just asked you to fetch or filter information from their data.
-
-                Your role:
-                You are Plum, a capable, confident assistant who interprets the user’s request and ensures the correct database query is created and handled. You do NOT show the query, explain the logic, or reveal anything about database operations. Your only job is to reassure the user that their request is fully understood and being taken care of.
-
-                Tone and style:
-                - Speak as if YOU are personally handling the data retrieval.
-                - Be concise, confident, and natural. Show the user that their request is clearly understood and already in motion.
-                - Never mention queries, databases, MongoDB, filters, execution, or any technical steps.
-                - Never describe or hint at the data structure, fields, or how the result will be fetched.
-                - Sound human, not procedural.
-
-                Examples of good responses:
-                - "Understood. I’ll get the exact information you’re looking for."
-                - "Got it. I know what you need, let me take care of this."
-                - "All clear. I’m retrieving that for you now."
-
-                Examples of what NOT to do:
-                - Do not mention query generation, MongoDB, data filtering, or processing.
-                - Do not show or summarize the query.
-                - Do not use JSON, technical language, or meta explanations.
-
-                Your entire response should be a single short sentence confirming confident understanding and execution.
-                `;
-
-                await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
-
                 socket.send(JSON.stringify({
                     type: 'INFO',
                     subtype: 'QUERY',
@@ -163,7 +146,46 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                     success: true
                 }));
 
-                // TODO: Do the after chat too
+                generalSystemPrompt += `
+                This is the Query executed by you: ${JSON.stringify(globals.mostRecentQuery)}
+                And this is the Query's result: ${JSON.stringify(globals.mostRecentQueryResult)}
+                `
+
+                generalSystemPrompt += `
+                The database query has already been executed. You now have full access to:
+                - The user’s original request
+                - The exact query that was executed
+                - The complete query result set
+
+                Your job:
+                Provide the user with a clear, factual interpretation of the data. Do not be a yes-man. Do not blindly approve the user’s assumption if the data contradicts it. Your response must reflect what the data actually shows.
+
+                You are not starting a new reply.
+                You are continuing your ongoing response naturally, using the query results as additional information the user expects you to interpret.
+
+                How to respond:
+                - Give a concise, accurate, human-like explanation of what the results mean.
+                - If the user asked for a summary, provide a clean, direct summary.
+                - If the user asked for a comparison, ranking, or filtering, apply that logic and explain the outcome.
+                - If the user’s assumption is wrong, correct them respectfully with the data.
+                - If the data is empty, tell them plainly and guide them on what might be adjusted.
+
+                Rules:
+                - Do NOT show the actual query text.
+                - Do NOT talk about databases, MongoDB, filters, or any technical details.
+                - Do NOT mention internal agents, execution steps, or metadata.
+                - Do NOT say “the result contains X fields”; just interpret it naturally.
+                - Base every statement strictly on the query result.
+
+                Tone:
+                - Confident, neutral, human, analytical.
+                - Not sugar-coated, not overly polite.
+                - Professional and direct.
+
+                Your answer should directly address the user’s original intent and rely ONLY on the data you were given.
+                `;
+
+                await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
             } catch (err) {
                 socket.send(JSON.stringify({
                     type: 'SYSTEM',

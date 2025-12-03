@@ -16,6 +16,7 @@
     "framer-motion": "^12.23.12",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.542.0",
+    "path": "^0.12.7",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-markdown": "^10.1.0",

@@ -134,3 +134,11 @@ export type ChatMeta = {
     isViewed: boolean,
     createdAt: Date,
 }
+
+export type ToastType = 'success' | 'info' | 'warn' | 'error';
+
+export interface Toast {
+    id: string;
+    type: ToastType;
+    message: string;
+}

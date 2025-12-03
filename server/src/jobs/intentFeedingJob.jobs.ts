@@ -24,6 +24,7 @@ const intents = [
     { content: "Pull information from the orders collection where status pending", meta: { intent: "fetch_db" } },
     { content: "Read all entries in the logs table and return last 100", meta: { intent: "fetch_db" } },
     { content: "Find records matching this criteria and export CSV", meta: { intent: "fetch_db" } },
+    { content: "Get me emails", meta: { intent: "fetch_db" } },
 
     // ---------------- CRAFT EMAIL ----------------
     // explicit write or draft requests

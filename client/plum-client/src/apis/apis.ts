@@ -3,6 +3,7 @@ import constants from "../constants/constants"
 import handleError from "../utils/errors.utils";
 import utils from "../utils/utils";
 import type { CategoryType, CraftedMailType } from "../types/types";
+import ops from "@/hooks/useToastOps";
 
 const axiosAuth = axios.create({
     baseURL: `${constants.serverOrigin}/user/`,
@@ -110,14 +111,17 @@ async function sendMail(email: CraftedMailType) {
         }
         console.log(email); // delit
         const response = await axiosEmail.post('send', { email });
-
+        
         // @ts-ignore
         if (!response.data.success) {
             // @ts-ignore
             throw Error(response.data.message);
+        } else {
+            ops.add(new Date().toString(), "success", `Email was successfully sent to ${email.to}`);
+            console.log('Successfully Got Mails');
         }
 
-        console.log('Successfully Got Mails');
+
         return response.data;
     } catch (err) {
         handleError(err);

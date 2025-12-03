@@ -3,12 +3,12 @@ import SignIn from "../pages/auth/SignIn";
 import SignUp from "../pages/auth/SignUp";
 import Error from "../pages/Error";
 import Home from "../pages/Home";
-import AlertPopupContainer from "../components/AlertPopup";
+import ToasterManager from "../components/Toaster";
 
 export default function App() {
 	return (
 		<>
-			<AlertPopupContainer></AlertPopupContainer>
+			<ToasterManager></ToasterManager>
 			<Routes>
 				<Route path="/signup" element={<SignUp />} />
 				<Route path="/signup?warning=:warning" element={<SignUp />} />

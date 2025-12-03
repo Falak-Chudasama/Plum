@@ -1,3 +1,8 @@
+import ops from "@/hooks/useToastOps";
+import ToastStore from "@/store/ToastStore";
+import { useEffect, useState } from "react";
+import { useStore } from "zustand";
+
 const colorMap = {
     success: {
         text: "text-green-600",
@@ -53,13 +58,46 @@ const colorMap = {
     }
 };
 
-export function AlertPopup({ alertType = "info", alert }: { alertType: "success" | "info" | "warn" | "error", alert: string }) {
+const defaultToastTimeout = 10;
+const fadeTimeoutBuffer = 450;
+
+export function AlertPopup({ id, alertType = "info", alert }: { id: string, alertType: "success" | "info" | "warn" | "error", alert: string }) {
     const c = colorMap[alertType];
+
+    const { removeToast } = useStore(ToastStore);
+    const [isVisible, setVisible] = useState(false);
+
+
+    const handleCancelClick = () => {
+        const fadeTimer = setTimeout(() => setVisible(false), 0);
+    
+        const removeTimer = setTimeout(() => removeToast(id), fadeTimeoutBuffer);
+    
+        return () => {
+            clearTimeout(fadeTimer);
+            clearTimeout(removeTimer);
+        };
+    }
+
+    useEffect(() => {
+        const visibleTimer = setTimeout(() => setVisible(true), fadeTimeoutBuffer);
+
+        const fadeTimer = setTimeout(() => setVisible(false), defaultToastTimeout * 1000 - fadeTimeoutBuffer);
+
+        const removeTimer = setTimeout(() => removeToast(id), defaultToastTimeout * 1000);
+
+        return () => {
+            clearTimeout(visibleTimer);
+            clearTimeout(fadeTimer);
+            clearTimeout(removeTimer);
+        };
+    }, []);
+
 
     return (
         <div
             role="alert"
-            className={`select-none max-w-150 w-fit flex items-center justify-between px-2 py-2 gap-x-5 rounded-3xl shadow-sm border-[1.2px] ${c.border} ${c.popup}`}
+            className={`${isVisible ? 'translate-x-0' : 'translate-x-[120%]'} duration-400 select-none max-w-150 w-fit flex items-center justify-between px-2 py-2 gap-x-5 rounded-3xl shadow-sm border-[1.2px] ${c.border} ${c.popup}`}
         >
             <div className="flex items-center gap-3">
                 <div
@@ -74,6 +112,7 @@ export function AlertPopup({ alertType = "info", alert }: { alertType: "success"
             </div>
 
             <button
+                onClick={() => handleCancelClick()}
                 className="h-6 w-6 rounded-full bg-transparent duration-200 cursor-pointer hover:bg-gray-50 flex justify-center items-center"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 11 11" fill="none">
@@ -85,15 +124,33 @@ export function AlertPopup({ alertType = "info", alert }: { alertType: "success"
     );
 }
 
-function AlertPopupContainer() {
+function ToasterManager() {
+    const { toasts } = useStore(ToastStore);
+
+    useEffect(() => {
+        // setTimeout(() => {
+        //     ops.add('123131', 'success', 'This is a Success toast');
+        // }, 1000);
+        // setTimeout(() => {
+        //     ops.add('123132', 'info', 'This is an Info toast');
+        // }, 3000);
+        // setTimeout(() => {
+        //     ops.add('123134', 'warn', 'This is a Warn toast');
+        // }, 5000);
+        // setTimeout(() => {
+        //     ops.add('123136', 'error', 'This is an Error toast');
+        // }, 7000);
+    }, []);
+
     return (
-        <div className="absolute w-fit h-fit z-100 right-0 top-20 flex flex-col-reverse gap-y-3 mr-5">
-            <AlertPopup alert="This is a Success Popup" alertType="success"></AlertPopup>
-            <AlertPopup alert="This is a Success Popup" alertType="info"></AlertPopup>
-            <AlertPopup alert="This is a Success Popup" alertType="warn"></AlertPopup>
-            <AlertPopup alert="This is a Success Popup" alertType="error"></AlertPopup>
+        <div className="absolute w-fit overflow-x-hidden h-fit z-100 right-0 top-20 flex flex-col-reverse gap-y-3 pr-5">
+            {
+                toasts.map((toast) => {
+                    return <AlertPopup id={toast.id} alertType={toast.type} alert={toast.message} />
+                })
+            }
         </div>
     );
 }
 
-export default AlertPopupContainer;
+export default ToasterManager;

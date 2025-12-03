@@ -139,6 +139,7 @@ function ChatBar({ isNewChat }) {
             rounded-full 
             flex justify-between items-center
             border-[2.15px]
+            ${isFocused ? 'border-plum-secondary' : 'border-plum-primary-dark'}
             placeholder-plum-primary-dark
             placeholder-select-none
             backdrop-blur-[2px]

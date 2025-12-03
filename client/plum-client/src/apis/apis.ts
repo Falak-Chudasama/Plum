@@ -109,7 +109,6 @@ async function sendMail(email: CraftedMailType) {
             ...email,
             from: utils.parseGmailCookies().gmailCookie
         }
-        console.log(email); // delit
         const response = await axiosEmail.post('send', { email });
         
         // @ts-ignore
@@ -118,7 +117,6 @@ async function sendMail(email: CraftedMailType) {
             throw Error(response.data.message);
         } else {
             ops.add(new Date().toString(), "success", `Email was successfully sent to ${email.to}`);
-            console.log('Successfully Got Mails');
         }
 
 
@@ -269,6 +267,8 @@ async function draftMail(email: CraftedMailType) {
         if (!response.data.success) {
             // @ts-ignore
             throw Error(response.data.message);
+        } else {
+            ops.add(new Date().toString(), "success", `Email was successfully drafted`);
         }
 
         console.log('Successfully Saved Draft Mail');

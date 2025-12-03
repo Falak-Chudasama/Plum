@@ -13,15 +13,22 @@ let fetchDbSystemPrompt = `
 MongoDB Query Generator — Plum InboundEmail Collection
 
 You generate only MongoDB queries or aggregation pipelines for the Plum project.
-Your job is to translate natural language into valid, safe, executable MongoDB queries that match the schema exactly.
+Your job is to translate natural language into valid, safe, executable MongoDB queries.
 
-You must not add explanations, commentary, or extra text unless the user explicitly asks for them.
+STRICT NEW RULE:
+NEVER produce a projection argument.
+Your output MUST be exactly:
+db.InboundEmail.find({ ... })
+OR
+db.InboundEmail.aggregate([ ... ])
 
-If a prompt is ambiguous or missing essential details, ask one short clarifying question.
+Never generate a 2nd argument that selects fields.
+Never output projection objects like { field: 1 } or { field: 0 }.
 
-1. Collection Schema (must follow exactly)
+If a prompt is ambiguous or missing essential details, ask one clarifying question.
 
-Collection name: InboundEmail
+1. Collection Schema (follow exactly)
+Collection: InboundEmail
 
 Fields:
 email: String, id: String, threadId: String, to: String, cc: String, bcc: String
@@ -29,33 +36,13 @@ senderEmail: String, senderName: String, subject: String
 parsedDate: { weekday: String, day: String, month: String, year: String, time: String }
 snippet: String, bodyHtml: String, bodyText: String
 attachments: [{ filename: String, mimeType: String, size: Number, attachmentId: String }]
-timestamp: String (ISO date string), sizeEstimate: Number, categories: [String]
+timestamp: String, sizeEstimate: Number, categories: [String]
 isViewed: Boolean, createdAt: Date, updatedAt: Date
 
-2. Core Rules (MUST ALWAYS FOLLOW)
+Core enforced schema rules stay unchanged.
 
-2.1 Collection name: Use only db.InboundEmail
-
-2.2 Field correctness: Use field names exactly from the schema
-
-2.3 parsedDate rules: parsedDate fields are strings only
-- Allowed: { "parsedDate.month": "October" }, { "parsedDate.weekday": { $in: ["Thu","Thursday"] } }
-- Forbidden: range operators on parsedDate, sorting by parsedDate, $toDate on parsedDate
-
-2.4 Query Format:
-db.InboundEmail.find(FILTER, PROJECTION, OPTIONS...)
-Where FILTER is query criteria (required), PROJECTION is field selection (optional), OPTIONS are allowed find options (optional)
-Example: db.InboundEmail.find({ "parsedDate.month": "October", isViewed: false }, { subject: 1 }, { sort: { timestamp: -1 }, limit: 50 })
-
-2.5 timestamp rules: Use timestamp with $toDate only for explicit date ranges (aggregation)
-
-2.6 Array handling: Use $elemMatch for arrays, $unwind before $group on array fields
-
-2.7 Regex: Use JSON style only { $regex: "pattern", $options: "i" }
-
-2.8 Security: Forbidden operators: $where, $function, $accumulator, eval, new RegExp()
-
-3. Output: Return ONLY the query in a code block, no explanations
+Output: Only a code block containing db.InboundEmail.find() or db.InboundEmail.aggregate()
+No projection argument allowed.
 `;
 
 function extractCodeBlock(text: any): string | null {
@@ -79,17 +66,17 @@ function extractInnerArgs(code: string): { type: "find" | "aggregate"; args: str
     const type = m[1].toLowerCase() === "aggregate" ? "aggregate" : "find";
     let inner = m[2].trim();
     if (inner.endsWith(";")) inner = inner.slice(0, -1).trim();
-    
+
     const args: string[] = [];
     let depth = 0;
     let currentArg = "";
     let inString = false;
     let stringChar = "";
-    
+
     for (let i = 0; i < inner.length; i++) {
         const char = inner[i];
         const prevChar = i > 0 ? inner[i - 1] : "";
-        
+
         if ((char === '"' || char === "'") && prevChar !== "\\") {
             if (!inString) {
                 inString = true;
@@ -99,25 +86,25 @@ function extractInnerArgs(code: string): { type: "find" | "aggregate"; args: str
                 stringChar = "";
             }
         }
-        
+
         if (!inString) {
             if (char === "{" || char === "[") depth++;
             if (char === "}" || char === "]") depth--;
-            
+
             if (char === "," && depth === 0) {
                 args.push(currentArg.trim());
                 currentArg = "";
                 continue;
             }
         }
-        
+
         currentArg += char;
     }
-    
+
     if (currentArg.trim()) {
         args.push(currentArg.trim());
     }
-    
+
     return { type, args };
 }
 
@@ -174,13 +161,12 @@ function parsedDateMisuse(obj: any): boolean {
         const cur = stack.pop();
         if (cur && typeof cur === "object") {
             for (const k of Object.keys(cur)) {
-                if (k === "parsedDate" || k.startsWith("parsedDate")) {
+                if (k.startsWith("parsedDate")) {
                     const val = cur[k];
                     if (val && typeof val === "object") {
                         for (const op of ["$gte", "$lte", "$gt", "$lt"]) {
                             if (Object.prototype.hasOwnProperty.call(val, op)) return true;
                         }
-                        if (k === "parsedDate" && typeof val !== "string") return true;
                     }
                 }
                 const val = cur[k];
@@ -251,28 +237,29 @@ function pipelineHasUnwindBeforeGroupForAttachments(pipeline: any[]): boolean {
 
 function sanitizeFindOptions(options: any): { valid: boolean; reason?: string; options?: any } {
     if (!options) return { valid: true, options: {} };
-    if (typeof options !== "object" || Array.isArray(options)) return { valid: false, reason: "find() options must be an object." };
-    const allowed = new Set(["projection", "sort", "skip", "limit", "hint", "collation", "batchSize"]);
+    if (typeof options !== "object" || Array.isArray(options)) {
+        return { valid: false, reason: "find() options must be an object." };
+    }
+    const allowed = new Set(["sort", "skip", "limit", "hint", "collation", "batchSize"]);
     const out: any = {};
     for (const k of Object.keys(options)) {
         if (!allowed.has(k)) return { valid: false, reason: `find() option '${k}' is not allowed.` };
         out[k] = options[k];
     }
-    // limit must be a non-negative integer
     if (out.limit !== undefined) {
-        if (typeof out.limit !== "number" || !Number.isInteger(out.limit) || out.limit < 0) return { valid: false, reason: "limit must be a non-negative integer." };
-        // hard cap
+        if (typeof out.limit !== "number" || !Number.isInteger(out.limit) || out.limit < 0) {
+            return { valid: false, reason: "limit must be a non-negative integer." };
+        }
         out.limit = Math.min(out.limit, 5000);
-    }
-    if (out.skip !== undefined) {
-        if (typeof out.skip !== "number" || !Number.isInteger(out.skip) || out.skip < 0) return { valid: false, reason: "skip must be a non-negative integer." };
     }
     return { valid: true, options: out };
 }
 
 function sanitizeAggregateOptions(options: any): { valid: boolean; reason?: string; options?: any } {
     if (!options) return { valid: true, options: {} };
-    if (typeof options !== "object" || Array.isArray(options)) return { valid: false, reason: "aggregate() options must be an object." };
+    if (typeof options !== "object" || Array.isArray(options)) {
+        return { valid: false, reason: "aggregate() options must be an object." };
+    }
     const allowed = new Set(["allowDiskUse", "cursor", "maxTimeMS"]);
     const out: any = {};
     for (const k of Object.keys(options)) {
@@ -291,104 +278,81 @@ function validateParsedQuery(
         if (parsedArgs.length < 1) {
             return { valid: false, reason: "find() requires at least 1 argument (filter)." };
         }
+
         const filter = parsedArgs[0];
         if (typeof filter !== "object" || Array.isArray(filter)) {
             return { valid: false, reason: "find() filter must be an object." };
         }
 
-        // Validate additional arguments: they can be projection (object) or options (object) or numeric limit
-        const extraArgs = parsedArgs.slice(1);
-        let projectionProvided = false;
-        let combinedOptions: any = {};
-
-        for (const arg of extraArgs) {
-            if (typeof arg === "number") {
-                // numeric limit
-                combinedOptions.limit = arg;
-                continue;
+        if (parsedArgs.length > 1) {
+            const second = parsedArgs[1];
+            if (typeof second === "object" && !Array.isArray(second)) {
+                return { valid: false, reason: "Projections are not permitted." };
             }
-            if (Array.isArray(arg)) return { valid: false, reason: "Unexpected array argument for find()." };
-            if (typeof arg === "object") {
-                // Heuristic: first object after filter is treated as projection if it looks like projection (values are 0/1 or truthy)
-                const looksLikeProjection = Object.values(arg).every(v => typeof v === 'number' && (v === 0 || v === 1) || typeof v === 'boolean');
-                if (!projectionProvided && looksLikeProjection) {
-                    projectionProvided = true;
-                    combinedOptions.projection = arg as any;
-                    continue;
-                }
-                // Otherwise treat as options to be merged
-                combinedOptions = { ...combinedOptions, ...arg };
-                continue;
+            if (typeof second === "number") {
             }
-            return { valid: false, reason: "Unsupported argument type for find()." };
         }
 
-        // security and semantic checks
         if (findHasTimestampRange(filter)) {
-            return { valid: false, reason: "timestamp comparisons require aggregation with $toDate + guard." };
+            return { valid: false, reason: "timestamp comparisons require aggregation." };
         }
         if (parsedDateMisuse(filter)) {
-            return { valid: false, reason: "parsedDate fields cannot use range or object comparisons." };
+            return { valid: false, reason: "parsedDate fields cannot use ranges or operators." };
         }
-        const forb = containsForbiddenOperators(filter) || containsForbiddenOperators(combinedOptions);
+
+        const forb = containsForbiddenOperators(filter);
         if (forb.found) return { valid: false, reason: `Disallowed operator: ${forb.op}` };
+
         if (usesRegexLiteral(rawSource) || containsNewRegExp(rawSource)) {
-            return { valid: false, reason: "Regex must use JSON-style { $regex: 'x', $options: 'i' }." };
+            return { valid: false, reason: "Regex must be JSON-style." };
         }
-
-        const sanitized = sanitizeFindOptions(combinedOptions);
-        if (!sanitized.valid) return { valid: false, reason: sanitized.reason };
-
-        return { valid: true };
-    } else {
-        if (parsedArgs.length < 1) {
-            return { valid: false, reason: "aggregate() requires at least 1 argument (pipeline array)." };
-        }
-        const pipeline = parsedArgs[0];
-        if (!Array.isArray(pipeline)) {
-            return { valid: false, reason: "aggregate() first argument must be an array (pipeline)." };
-        }
-        // optional options object
-        const aggOptions = parsedArgs.length > 1 ? parsedArgs[1] : undefined;
-        if (aggOptions !== undefined && (typeof aggOptions !== 'object' || Array.isArray(aggOptions))) {
-            return { valid: false, reason: "aggregate() options must be an object if provided." };
-        }
-
-        if (pipelineHasToDateGuardIssue(pipeline)) {
-            return { valid: false, reason: "$toDate requires an immediate tsDate type guard." };
-        }
-        if (pipelineHasUnwindBeforeGroupForAttachments(pipeline)) {
-            return { valid: false, reason: "$group on attachments.* requires prior $unwind." };
-        }
-        const forb = containsForbiddenOperators(pipeline) || (aggOptions ? containsForbiddenOperators(aggOptions) : { found: false });
-        if (forb.found) return { valid: false, reason: `Disallowed operator: ${forb.op}` };
-        if (usesRegexLiteral(rawSource) || containsNewRegExp(rawSource)) {
-            return { valid: false, reason: "Regex must be JSON-style only." };
-        }
-        if (parsedDateMisuse(pipeline)) {
-            return { valid: false, reason: "parsedDate fields misused." };
-        }
-
-        const sanitized = sanitizeAggregateOptions(aggOptions);
-        if (!sanitized.valid) return { valid: false, reason: sanitized.reason };
 
         return { valid: true };
     }
+
+    if (parsedArgs.length < 1) {
+        return { valid: false, reason: "aggregate() requires a pipeline array." };
+    }
+
+    const pipeline = parsedArgs[0];
+    if (!Array.isArray(pipeline)) {
+        return { valid: false, reason: "aggregate() first argument must be pipeline array." };
+    }
+
+    if (pipelineHasToDateGuardIssue(pipeline)) {
+        return { valid: false, reason: "$toDate requires immediate type guard." };
+    }
+    if (pipelineHasUnwindBeforeGroupForAttachments(pipeline)) {
+        return { valid: false, reason: "Attachments grouping requires unwind." };
+    }
+
+    const forb = containsForbiddenOperators(pipeline);
+    if (forb.found) return { valid: false, reason: `Disallowed operator: ${forb.op}` };
+
+    if (usesRegexLiteral(rawSource) || containsNewRegExp(rawSource)) {
+        return { valid: false, reason: "Regex must be JSON-style." };
+    }
+
+    if (parsedDateMisuse(pipeline)) {
+        return { valid: false, reason: "parsedDate misuse." };
+    }
+
+    return { valid: true };
 }
 
 async function findCollectionWithData(dbClient: any): Promise<{ collection: any; name: string } | null> {
     const possibleNames = [
-        "InboundEmail", "inboundemail", "inboundEmail", "inbound_email", 
+        "InboundEmail", "inboundemail", "inboundEmail", "inbound_email",
         "InboundEmails", "inboundemails", "emails", "Emails", "email", "Email"
     ];
-    
+
     logger.info(`Database: ${dbClient.databaseName || 'unknown'}`);
-    
+
     try {
         const collections = await dbClient.listCollections().toArray();
         const collectionNames = collections.map((c: any) => c.name);
         logger.info(`Available collections: ${collectionNames.join(', ')}`);
-        
+
         for (const name of possibleNames) {
             if (collectionNames.includes(name)) {
                 const col = dbClient.collection(name);
@@ -398,30 +362,26 @@ async function findCollectionWithData(dbClient: any): Promise<{ collection: any;
                         logger.info(`Using collection '${name}' with data`);
                         return { collection: col, name };
                     }
-                } catch (e) {
-                    logger.warn(`Collection '${name}' exists but error checking: ${e}`);
-                }
+                } catch { }
             }
         }
-        
+
         for (const name of collectionNames) {
             if (name.toLowerCase().includes('email') || name.toLowerCase().includes('inbound')) {
                 const col = dbClient.collection(name);
                 try {
                     const count = await col.countDocuments({}, { limit: 1 });
                     if (count > 0) {
-                        logger.info(`Found email-related collection '${name}' with data`);
+                        logger.info(`Fallback collection chosen: '${name}'`);
                         return { collection: col, name };
                     }
-                } catch (e) {
-                    continue;
-                }
+                } catch { }
             }
         }
     } catch (e) {
         logger.error(`Error listing collections: ${e}`);
     }
-    
+
     logger.warn(`No collection with data found, using default 'InboundEmail'`);
     return { collection: dbClient.collection("InboundEmail"), name: "InboundEmail" };
 }
@@ -443,81 +403,62 @@ async function executeQuery(
             }
         }
     } catch { }
+
     if (!dbClient) throw new Error("Mongo client missing in globals.");
 
     const collectionInfo = await findCollectionWithData(dbClient);
     if (!collectionInfo) throw new Error("No valid collection found");
+
     const collection = collectionInfo.collection;
 
     if (type === "find") {
         const filter = parsedArgs[0];
-        // Build options by merging any additional args (numbers treated as limit, objects merged)
+
         let findOptions: any = {};
+
         for (let i = 1; i < parsedArgs.length; i++) {
             const arg = parsedArgs[i];
-            if (typeof arg === 'number') {
+            if (typeof arg === "number") {
                 findOptions.limit = arg;
-                continue;
             }
-            if (typeof arg === 'object' && !Array.isArray(arg)) {
-                // If looks like projection (values 0/1/boolean), treat as projection if not already set
-                const looksLikeProjection = Object.values(arg).every(v => typeof v === 'number' && (v === 0 || v === 1) || typeof v === 'boolean');
-                if (looksLikeProjection && !findOptions.projection) {
-                    findOptions.projection = arg;
-                    continue;
-                }
-                // otherwise merge as options
-                findOptions = { ...findOptions, ...arg };
-                continue;
-            }
+        }
+
+        if (findOptions.projection) {
+            logger.warn("Projection detected and removed.");
+            delete findOptions.projection;
         }
 
         const lim = options.limit ?? findOptions.limit ?? 200;
-        // Remove limit from options when using cursor.limit to avoid double-handling by driver
         if (findOptions.limit) delete findOptions.limit;
 
         logger.info(`Executing find: ${JSON.stringify(filter)}`);
-        if (Object.keys(findOptions).length) logger.info(`Options: ${JSON.stringify(findOptions)}, limit: ${lim}`);
-        
-        const totalCount = await collection.countDocuments({});
-        logger.info(`Total documents: ${totalCount}`);
-        
-        if (totalCount === 0) {
-            logger.warn(`Collection '${collectionInfo.name}' is empty`);
-            return [];
-        }
-        
-        const matchCount = await collection.countDocuments(filter);
-        logger.info(`Matching documents: ${matchCount}`);
-        
-        if (matchCount === 0 && totalCount > 0) {
-            const sample = await collection.findOne({});
-            logger.info(`Sample document keys: ${Object.keys(sample || {}).join(', ')}`);
-            if (sample && filter["parsedDate.month"]) {
-                logger.info(`Sample parsedDate: ${JSON.stringify(sample.parsedDate)}`);
-            }
-            if (sample && filter.isViewed !== undefined) {
-                logger.info(`Sample isViewed: ${sample.isViewed} (type: ${typeof sample.isViewed})`);
-            }
+        if (Object.keys(findOptions).length) {
+            logger.info(`Options: ${JSON.stringify(findOptions)}, limit: ${lim}`);
         }
 
-        // Execute with options
+        const totalCount = await collection.countDocuments({});
+        logger.info(`Total documents: ${totalCount}`);
+
+        const matchCount = await collection.countDocuments(filter);
+        logger.info(`Matching documents: ${matchCount}`);
+
         const cursor = collection.find(filter, findOptions);
         if (lim) cursor.limit(lim);
         return await cursor.toArray();
-    } else {
-        const pipeline = parsedArgs[0];
-        // optional options object
-        const aggOptions = parsedArgs.length > 1 && typeof parsedArgs[1] === 'object' ? parsedArgs[1] : {};
-        const hasLimitStage = pipeline.some((stage: any) => Object.keys(stage)[0] === "$limit");
-        const finalPipeline = Array.isArray(pipeline) ? pipeline.slice() : [];
-        if (!hasLimitStage && !('cursor' in aggOptions)) finalPipeline.push({ $limit: 1000 });
-        
-        logger.info(`Executing aggregation: ${JSON.stringify(finalPipeline)} options: ${JSON.stringify(aggOptions)}`);
-        
-        const cursor = collection.aggregate(finalPipeline, { allowDiskUse: true, ...(aggOptions || {}) });
-        return await cursor.toArray();
     }
+
+    const pipeline = parsedArgs[0];
+    let aggOptions = {};
+
+    const finalPipeline = Array.isArray(pipeline) ? pipeline.slice() : [];
+    const hasLimitStage = finalPipeline.some(stage => Object.keys(stage)[0] === "$limit");
+
+    if (!hasLimitStage) finalPipeline.push({ $limit: 1000 });
+
+    logger.info(`Executing aggregation: ${JSON.stringify(finalPipeline)} options: ${JSON.stringify(aggOptions)}`);
+
+    const cursor = collection.aggregate(finalPipeline, { allowDiskUse: true, ...aggOptions });
+    return await cursor.toArray();
 }
 
 const fetchDb = async (socket: WebSocket, prompt: string): Promise<any | null> => {
@@ -532,6 +473,7 @@ const fetchDb = async (socket: WebSocket, prompt: string): Promise<any | null> =
             attempt++;
 
             logger.info(`Attempt ${attempt}/${maxRetries}`);
+
             try {
                 const response = await lmsGenerate({
                     socket,
@@ -553,9 +495,10 @@ const fetchDb = async (socket: WebSocket, prompt: string): Promise<any | null> =
                 if (!extracted) continue;
 
                 const rawSource = codeBlock;
-                
+
                 const parsedArgs: any[] = [];
                 let parseFailed = false;
+
                 for (const arg of extracted.args) {
                     const parsed = parseLiteralSafe(arg);
                     if (parsed === null) {
@@ -565,9 +508,11 @@ const fetchDb = async (socket: WebSocket, prompt: string): Promise<any | null> =
                     }
                     parsedArgs.push(parsed);
                 }
+
                 if (parseFailed) continue;
 
                 const validation = validateParsedQuery(extracted.type, parsedArgs, rawSource);
+
                 if (!validation.valid) {
                     logger.warn(`Validation failed: ${validation.reason}`);
                     if (attempt >= maxRetries) {
@@ -586,6 +531,7 @@ const fetchDb = async (socket: WebSocket, prompt: string): Promise<any | null> =
                     if (attempt >= maxRetries) throw execErr;
                     continue;
                 }
+
             } catch (err) {
                 logger.error(`Attempt ${attempt} failed: ${err}`);
             }

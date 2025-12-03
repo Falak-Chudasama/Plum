@@ -179,7 +179,7 @@ function SignIn(): JSX.Element {
                             aria-busy={loading || mutation.isLoading}
                         >
                             {loading || mutation.isLoading ? (
-                                <span className="flex items-center justify-center gap-2 text-xl font-cabin">
+                                <span className="flex items-center justify-center gap-2 text-2xl font-cabin">
                                     Just a sec...
                                     <span className="animate-spin h-5 w-5 border-2 border-t-transparent rounded-full" />
                                 </span>

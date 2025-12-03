@@ -1,6 +1,9 @@
 import EmailBeingCrafted from "../store/EmailBeingCraftedStore";
 import ResponseReceivingStore from "../store/ResponseReceivingStore";
 import chatOps from "./chat.ops";
+import SystemMsgStore from "@/store/SystemMsgStore";
+
+const SystemMsgState = SystemMsgStore.getState();
 
 function response(data: any) {
     const { setReceivingResponse } = ResponseReceivingStore.getState();
@@ -20,9 +23,14 @@ function thought(data: any) {
 }
 
 function info(data: any) {
-    if (data.subtype === 'LOADING_MODEL') {
-        if (data.loading) {}
-        else {}
+    if (data.loading) { 
+        SystemMsgState.setSystemMsg({
+            message: data.showMessage,
+            isLoading: true,
+            show: true
+        });
+    } else {
+        SystemMsgState.resetSystemMsg();
     }
 }
 
@@ -30,7 +38,7 @@ async function system(data: any) {
     if (data.subtype === 'INTENT') {
         chatOps.updatePromptIntent(data.intent);
     } else if (data.subtype === 'TITLE') {
-        const savedChat = await chatOps.createChat(data.title.title);
+        await chatOps.createChat(data.title.title);
     } else if (data.subtype === 'EMAIL') {
         const { setIsCrafted } = EmailBeingCrafted.getState()
         if (data.done) {
@@ -44,7 +52,7 @@ async function system(data: any) {
             const { query, result, isSuccess } = data;
             chatOps.addResponseQuery({ query, result, isSuccess });
         } else {
-            
+
         }
     }
 }

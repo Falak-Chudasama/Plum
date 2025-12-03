@@ -24,6 +24,8 @@ const lmsGenerateUtil = async ({
     intent = 'general',
     temperature = 0,
 }: GenerateArgs) => {
+    let modelWasLoaded = false;
+
     try {
         const listedModel = await lmsModelOps.listLoadedModels();
 
@@ -32,6 +34,7 @@ const lmsGenerateUtil = async ({
                 type: 'INFO',
                 subtype: 'LOADING_MODEL',
                 message: `loading the model: ${model}`,
+                showMessage: `loading the model...`,
                 loading: true,
                 done: false
             }));
@@ -39,13 +42,7 @@ const lmsGenerateUtil = async ({
             await lmsModelOps.unloadLMSModel('*');
             await lmsModelOps.loadLMSModel(model);
 
-            socket?.send(JSON.stringify({
-                type: 'INFO',
-                subtype: 'LOADING_MODEL',
-                message: `loaded the model: ${model}`,
-                loading: false,
-                done: true
-            }));
+            modelWasLoaded = true;
         }
 
         const controller = new AbortController();
@@ -104,6 +101,16 @@ const lmsGenerateUtil = async ({
         if (!response.ok || !response.body) {
             socket?.send(JSON.stringify({ type: "ERROR", message: "LM Studio stream failed" }));
             throw new Error(`LM Studio response failed: ${response.status}`);
+        }
+
+        if (modelWasLoaded) {
+            socket?.send(JSON.stringify({
+                type: 'INFO',
+                subtype: 'LOADING_MODEL',
+                message: `loaded the model: ${model}`,
+                loading: false,
+                done: true
+            }));
         }
 
         if (intent === "general") {

@@ -58,8 +58,23 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
 
         if (intent.intent === 'craft_email') {
             try {
+                socket?.send(JSON.stringify({
+                    type: 'INFO',
+                    subtype: 'EMAIL',
+                    message: `Crafting user's email`,
+                    showMessage: `Crafting your email...`,
+                    loading: true,
+                }));
+
                 const craftedEmail = await mailCrafter(socket, prompt, context, model)
                 globals.mostRecentCraftedMail = craftedEmail;
+
+                socket?.send(JSON.stringify({
+                    type: 'INFO',
+                    subtype: 'EMAIL',
+                    message: `Crafted user's email`,
+                    loading: false,
+                }));
 
                 socket.send(JSON.stringify({
                     type: 'SYSTEM',
@@ -125,14 +140,22 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
             }
         } else if (intent.intent === 'fetch_db') {
             try {
-                socket.send(JSON.stringify({
+                socket?.send(JSON.stringify({
                     type: 'INFO',
                     subtype: 'QUERY',
-                    message: 'Query is being generated & run...',
-                    done: false
+                    message: `Query is being generated & run`,
+                    showMessage: `Fetching from Database...`,
+                    loading: true,
                 }));
-
+                
                 const result = await fetchDb(socket, prompt);
+                
+                socket?.send(JSON.stringify({
+                    type: 'INFO',
+                    subtype: 'QUERY',
+                    message: `Query is generated & run`,
+                    loading: false,
+                }));
 
                 socket.send(JSON.stringify({
                     type: 'SYSTEM',

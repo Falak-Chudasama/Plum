@@ -8,9 +8,13 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import apis from "../apis/apis";
 import Mail from "./Mail";
+import SystemMsgStore from "@/store/SystemMsgStore";
 
 function Response({ responseObj }: { responseObj: ResponseType }) {
-    if (!responseObj.response) return;
+    const { response: activeResponseObj } = useStore(ActiveResponseStore);
+    const { message } = useStore(SystemMsgStore);
+
+    const isCurrentResponse = responseObj.chatCount === activeResponseObj.chatCount;
 
     function SendMailBtn() {
         return (
@@ -46,7 +50,14 @@ function Response({ responseObj }: { responseObj: ResponseType }) {
     }
 
     return (
-        <div className="pr-8 text-xl font-light">
+        <div className={`pr-8 text-xl duration-300 font-light ${isCurrentResponse ? '' : ''}`}>
+            {isCurrentResponse && message.show ? (
+                <div className="pr-10 pl-3 duration-300 w-fit flex items-center bg-plum-bg-bold p-2 text-[18px] rounded-lg">
+                    <span className="animate-spin h-5 w-5 border-2 border-t-plum-secondary border-plum-bg-bold rounded-full mr-3" />
+                    {message.message}
+                </div>
+            ) : (<></>)}
+
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {responseObj.response}
             </ReactMarkdown>
@@ -125,10 +136,12 @@ function ChatArea() {
         setSortedMessages(sortMessages());
     }, [chat]);
 
+    const chatArr = [...sortedMessages, activePromptObj, activeResponseObj];
+
     return (
         <div className="items-end duration-300 text-[18px]">
             {
-                [...sortedMessages, activePromptObj, activeResponseObj].map((msg, idx) => {
+                chatArr.map((msg, idx) => {
                     if ('prompt' in msg) {
                         return (
                             <div id={msg.prompt + msg.createdAt + idx} className="flex justify-end mb-3">

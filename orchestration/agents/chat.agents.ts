@@ -10,8 +10,6 @@ import mailCrafter from "./mailCrafter.agent";
 import type { UserObjType } from "../types/types";
 import fetchDb from "./fetchDb.agents";
 
-// TODO: Make the Plum aware about the output of the DB, and generate response based on that output. 
-
 const filePath = '/agents/chat.agents.ts';
 
 const defaultModel = constants.lmsModels.llm.BEST;

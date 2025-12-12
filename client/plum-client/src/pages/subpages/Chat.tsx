@@ -23,18 +23,20 @@ function Chats() {
         }
     }, [chat, prompt])
 
+    return (
+        <div className="w-screen h-[83vh] flex flex-col relative">
 
-    return(
-        <div className={`w-screen h-[83vh] px-40 duration-300 grid justify-center ${isNewChat ? 'items-center' : 'items-end'}`}>
-            {(
-                isNewChat ? (
-                    <ChatBanner getToTop={isNewChat} />
-                ) : <></>
+            {isNewChat && (
+                <ChatBanner getToTop={isNewChat} />
             )}
-            <div className="h-full w-[100vw] overflow-y-auto px-[15vw] pt-[8vh] pb-[12vh]">
+
+            <div className="h-full w-[100vw] overflow-y-auto px-[22vw] pt-[8vh] pb-[12vh]">
                 <ChatArea />
             </div>
-            <ChatBar isNewChat={isNewChat} />
+
+            <div className="absolute bottom-0">
+                <ChatBar isNewChat={isNewChat} />
+            </div>
         </div>
     );
 }

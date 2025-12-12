@@ -124,7 +124,7 @@ function ChatBar({ isNewChat }) {
     return (
         <div className={`
             scale-105
-            fixed left-1/2 ${isNewChat ? 'translate-y-20' : 'translate-y-0'} -translate-x-1/2 grid justify-center z-20
+            fixed left-1/2 ${isNewChat ? '-translate-y-55' : '-translate-y-20'} -translate-x-1/2 grid justify-center z-20
             transition-all duration-500 ease-in-out
             h-fit
             w-fit 

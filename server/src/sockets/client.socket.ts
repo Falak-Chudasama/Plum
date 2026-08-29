@@ -22,10 +22,15 @@ clientWss.on('connection', (socket) => {
         logger.warn("Closed previous client connection and accepted the new one.");
     }
 
+    socket.on("close", (code, reason) => {
+        console.log("CLOSED", code, reason.toString());
+    });
+
     logger.info('Client <-> Server Connection Established');
 
     socket.on("message", async (data: string) => {
         data = data.toString();
+        console.log(data) // delit
         let response = JSON.parse(data);
         if (fwdToOrchSocket.has(response.type)) {
             if (response.type === 'COMMAND' && response.command.split(':')[0] === 'NEW_CHAT_CLICKED') {

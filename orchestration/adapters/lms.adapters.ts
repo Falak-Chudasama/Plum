@@ -15,7 +15,7 @@ const lmClient = new LMStudioClient();
 
 // TODO: Use Stateless alternatives
 
-const lmsGenerateUtil = async ({
+const groqGenerateUtil = async ({
     socket,
     model,
     prompt,
@@ -208,20 +208,20 @@ const lmsGenerateUtil = async ({
                 done: true,
             }));
         } else {
-            handleErrorUtil(filePath, "lmsGenerateUtil", err, "Calling LM Studio to generate response (Utility)");
+            handleErrorUtil(filePath, "groqGenerateUtil", err, "Calling LM Studio to generate response (Utility)");
             lmsModelOps.unloadLMSModel('*');
         }
     }
 };
 
-const lmsGenerate = async (args: GenerateArgs): Promise<string | null> => {
+const groqGenerate = async (args: GenerateArgs): Promise<string | null> => {
     try {
-        const result = await lmsQueue.add(lmsGenerateUtil, args);
+        const result = await lmsQueue.add(groqGenerateUtil, args);
         return result;
     } catch (err) {
-        handleErrorUtil(filePath, "lmsGenerate", err, "Calling LM Studio to generate response (Utility)");
+        handleErrorUtil(filePath, "groqGenerate", err, "Calling LM Studio to generate response (Utility)");
         return null;
     }
 };
 
-export default lmsGenerate;
+export default groqGenerate;

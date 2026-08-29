@@ -230,7 +230,7 @@ function SideButtons() {
     const iconClass = `auto cursor-pointer`;
 
     return (
-        <div className="duration-200 select-none absolute mt-5">
+        <div className="duration-200 select-none absolute mt-5 z-200">
             <div className={`${containerClass} ${subpage === 'mails' ? "text-plum-secondary" : "text-plum-primary"} ${mailsHover ? 'translate-x-0' : '-translate-x-[calc(100%-3rem)]'}`}
                 onMouseEnter={() => setMailsHover(true)}
                 onMouseLeave={() => setMailsHover(false)}

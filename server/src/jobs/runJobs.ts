@@ -32,14 +32,14 @@ const runJobs = async () => {
     globals.time = time;
 
     await OAuthObjectCheck(email);
+    await startCategoriesFeedingJob();
+    await startGmailFetcherJob();
     logger.info(`Waiting ${minutesDelay} minutes...`);
     setInterval(async () => {
         try {
             if (globals.categoriesFeedingJobRunning === false) {
-                await startCategoriesFeedingJob();
             }
             if (globals.gmailFetcherJobRunning === false) {
-                await startGmailFetcherJob();
             }
             if (globals.intentsFeedingJobRunning === false) {
                 await startIntentsFeedingJob();

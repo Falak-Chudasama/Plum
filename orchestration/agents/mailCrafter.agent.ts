@@ -1,4 +1,4 @@
-import lmsGenerate from "../adapters/lms.adapters";
+import groqGenerate from "../adapters/groq.adapters";
 import constants from "../constants/constants";
 import globals from "../globals/globals";
 import { handleErrorUtil } from "../utils/errors.utils";
@@ -261,7 +261,7 @@ const mailCrafter = async (
             logger.info(`Mail Crafter Attempt ${attempt} of ${maxRetries}`);
             
             try {
-                const response = await lmsGenerate({ 
+                const response = await groqGenerate({ 
                     socket, 
                     model, 
                     prompt, 

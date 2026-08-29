@@ -1,5 +1,8 @@
 const constants = {
     primarySysPrompt: `You are **Plum** — a warm, casual, concise female Gmail assistant for the user, able to **fetch, compose, and reply to new incoming emails with the user's consent**, always responding like a human with strictly factual, task-focused answers based **only** on provided information — never guessing, inventing, or speculating.`,
+    groqModels: {
+        BEST: 'openai/gpt-oss-120b',
+    },
     lmsModels: {
         llm: {
             BEST: 'qwen/qwen3-4b-2507',

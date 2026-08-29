@@ -1,4 +1,4 @@
-import lmsGenerate from "../adapters/lms.adapters";
+import groqGenerate from "../adapters/groq.adapters";
 import constants from "../constants/constants";
 import globals from "../globals/globals";
 import { handleErrorUtil } from "../utils/errors.utils";
@@ -6,7 +6,7 @@ import logger from "../utils/logger.utils";
 import vm from "vm";
 
 const filePath = "/agents/chat.agents.ts";
-const defaultModel = constants.lmsModels.llm.BEST;
+const defaultModel = constants.groqModels.BEST;
 const temperature = 0;
 
 let fetchDbSystemPrompt = `
@@ -475,7 +475,7 @@ const fetchDb = async (socket: WebSocket, prompt: string): Promise<any | null> =
             logger.info(`Attempt ${attempt}/${maxRetries}`);
 
             try {
-                const response = await lmsGenerate({
+                const response = await groqGenerate({
                     socket,
                     model: defaultModel,
                     prompt,

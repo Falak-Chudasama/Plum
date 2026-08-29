@@ -1,4 +1,3 @@
-# app.py
 import os
 import logging
 from typing import List, Dict, Optional
@@ -14,17 +13,14 @@ logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(title="Embeddings microservice (categorization + intent + chat)")
 
-# === Base configs ===
 DB_PATH = os.getenv("CHROMA_DB_PATH", "./chromadb")
 CHAT_DB_PATH = os.getenv("CHROMA_CHAT_DB_PATH", "./chromadb_chat")
 CHAT_COLLECTION = os.getenv("CHROMA_CHAT_COLLECTION", "chat-embeddings")
 
-# === Embedders ===
 local_emb = LocalEmbedder()
 ollama_emb = OllamaEmbedder()
 chat_emb = LocalEmbedder(model_name=os.getenv("CHAT_EMBED_MODEL", "BAAI/bge-large-en-v1.5"))
 
-# === Vector stores ===
 categ_store = ChromaStore(
     db_path=None,
     collection_name="categorization-embeddings",
@@ -46,15 +42,11 @@ chat_store = ChromaStore(
     persist=True,
 )
 
-# === Utility ===
 def safe_result_wrapper(message: str, ids: List[str]):
     return {"message": message, "ids": ids, "success": True}
 
 
 def chunk_text(text: str, max_chars: int = 1200, overlap: int = 150) -> List[str]:
-    """
-    Splits a long string into overlapping chunks to keep context continuity.
-    """
     if not text or len(text) <= max_chars:
         return [text]
 
@@ -69,7 +61,6 @@ def chunk_text(text: str, max_chars: int = 1200, overlap: int = 150) -> List[str
     return chunks
 
 
-# === Root ===
 @app.get("/")
 async def index():
     return {
@@ -82,7 +73,6 @@ async def index():
     }
 
 
-# === CATEGORIZATION ENDPOINTS ===
 @app.post("/embed/categorization")
 async def embed_categorization(req: EmbedRequest):
     try:
@@ -136,7 +126,6 @@ async def delete_items_categorization(req: DeleteRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# === INTENT ENDPOINTS ===
 @app.post("/embed/intent")
 async def embed_intent(req: EmbedRequest):
     try:
@@ -225,7 +214,6 @@ async def delete_items_intent(req: DeleteRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# === CHAT ENDPOINTS ===
 @app.post("/embed/chat")
 async def embed_chat(req: EmbedRequest):
     try:

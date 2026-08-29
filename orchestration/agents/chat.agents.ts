@@ -1,4 +1,5 @@
-import lmsGenerate from "../adapters/lms.adapters";
+// import groqGenerate from "../adapters/groq.adapters";
+import groqGenerate from "../adapters/groq.adapters";
 import constants from "../constants/constants";
 import globals from "../globals/globals";
 import { handleErrorUtil } from "../utils/errors.utils";
@@ -12,7 +13,7 @@ import fetchDb from "./fetchDb.agents";
 
 const filePath = '/agents/chat.agents.ts';
 
-const defaultModel = constants.lmsModels.llm.BEST;
+const defaultModel = constants.groqModels.BEST;
 const temperature = 0;
 
 let generalSystemPrompt = `You must respond without emojis. Keep responses concise, direct, and limited to essential information only.`;
@@ -119,7 +120,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 Your output must be a human-like continuation that describes what you accomplished, without exposing or hinting at any of the actual text inside the email.
 
                 `;
-                await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
+                await groqGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
 
                 socket.send(JSON.stringify({
                     type: 'RESPONSE',
@@ -206,7 +207,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 Your answer should directly address the user’s original intent and rely ONLY on the data you were given.
                 `;
 
-                await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
+                await groqGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
             } catch (err) {
                 socket.send(JSON.stringify({
                     type: 'SYSTEM',
@@ -217,7 +218,7 @@ const chat = async (socket: WebSocket, prompt: string, user: UserObjType, model:
                 }));
             }
         } else {
-            await lmsGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
+            await groqGenerate({ socket, model, prompt, system: generalSystemPrompt, temperature, stream: true });
         }
 
         const contextMessages = [

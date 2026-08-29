@@ -27,7 +27,9 @@ function Chats() {
         <div className="w-screen h-[83vh] flex flex-col relative">
 
             {isNewChat && (
-                <ChatBanner getToTop={isNewChat} />
+                <div className="fixed top-[15vh] w-[100vw] items-center justify-center duration-300">
+                    <ChatBanner getToTop={isNewChat} />
+                </div>
             )}
 
             <div className="h-full w-[100vw] overflow-y-auto px-[22vw] pt-[8vh] pb-[12vh]">

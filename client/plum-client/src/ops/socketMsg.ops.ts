@@ -23,6 +23,8 @@ function thought(data: any) {
 }
 
 function info(data: any) {
+    console.log(data); // delit
+
     if (data.loading) { 
         SystemMsgState.setSystemMsg({
             message: data.showMessage,
@@ -35,6 +37,8 @@ function info(data: any) {
 }
 
 async function system(data: any) {
+    console.log(data); // delit
+
     if (data.subtype === 'INTENT') {
         chatOps.updatePromptIntent(data.intent);
     } else if (data.subtype === 'TITLE') {

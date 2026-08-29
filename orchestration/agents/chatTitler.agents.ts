@@ -1,11 +1,11 @@
-import lmsGenerate from "../adapters/lms.adapters";
+import groqGenerate from "../adapters/groq.adapters";
 import constants from "../constants/constants";
 import { handleErrorUtil } from "../utils/errors.utils";
 import logger from "../utils/logger.utils";
 
 const filePath = '/agents/chatTitler.agents.ts';
 
-const titlerModel = constants.lmsModels.llm.BEST;
+const titlerModel = constants.groqModels.BEST;
 const temperature = 0;
 
 const systemPrompt = `
@@ -53,7 +53,7 @@ const chatTitler = async (socket: WebSocket, userPrompt: string, assistantRespon
         attempt++;
         try {
             logger.info(`Attempt ${attempt}: Generating title`);
-            const response = await lmsGenerate({
+            const response = await groqGenerate({
                 socket,
                 model: titlerModel,
                 system: systemPrompt,

@@ -83,6 +83,7 @@ async function getByTitleDate(title: string, createdAt: string, email: string) {
 }
 
 async function update(chat: ChatType) {
+    console.log(chat); // delit
     try {
         if (!chat._id) throw new Error("Chat ID is required for update");
         const result = await Chats.findByIdAndUpdate(chat._id, chat, {

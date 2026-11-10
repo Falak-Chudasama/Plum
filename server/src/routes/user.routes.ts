@@ -15,6 +15,7 @@ userRouter.get('/auth/callback', userOps.googleCallback);
 
 // Mailbox Management Routes
 userRouter.get('/mailboxes', authenticateUser, mailboxControllers.getMailboxes);
+userRouter.get('/mailboxes/connect', optionalAuthenticateUser, mailboxControllers.redirectToConnect);
 userRouter.get('/mailboxes/connect-url', optionalAuthenticateUser, mailboxControllers.getConnectUrl);
 userRouter.get('/mailboxes/:id/status', authenticateUser, mailboxControllers.getMailboxStatus);
 userRouter.post('/mailboxes/:id/refresh', authenticateUser, mailboxControllers.refreshMailboxToken);

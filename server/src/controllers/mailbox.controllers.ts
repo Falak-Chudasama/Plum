@@ -185,6 +185,49 @@ export const getConnectUrl = async (req: Request, res: Response) => {
 };
 
 /**
+ * GET /user/mailboxes/connect
+ * Direct HTTP 302 redirect to Google OAuth to bypass any client-side CORS/preflight issues
+ */
+export const redirectToConnect = async (req: Request, res: Response) => {
+    try {
+        const userEmail = (req as AuthenticatedRequest).user?.email || (req.query.userEmail as string) || '';
+        const targetMailbox = (req.query.mailboxEmail as string) || '';
+        const action = targetMailbox ? 'reauthorize_mailbox' : (userEmail ? 'connect_mailbox' : 'login');
+
+        const oauth2Client = new google.auth.OAuth2(clientID, clientSecret, redirectUri);
+        const statePayload = JSON.stringify({
+            userEmail,
+            targetMailbox,
+            action,
+            timestamp: Date.now(),
+        });
+
+        const authUrlOptions: any = {
+            access_type: 'offline',
+            prompt: 'consent',
+            scope: [
+                'https://www.googleapis.com/auth/gmail.readonly',
+                'https://www.googleapis.com/auth/gmail.send',
+                'https://www.googleapis.com/auth/gmail.modify',
+                'email',
+                'profile',
+                'openid',
+            ],
+            state: Buffer.from(statePayload).toString('base64'),
+        };
+
+        if (targetMailbox) {
+            authUrlOptions.login_hint = targetMailbox;
+        }
+
+        const authUrl = oauth2Client.generateAuthUrl(authUrlOptions);
+        return res.redirect(authUrl);
+    } catch (err) {
+        return res.redirect('https://plum.com/accounts?error=oauth_init_failed');
+    }
+};
+
+/**
  * POST /user/mailboxes/:id/refresh
  * Explicitly attempt to refresh the Google access token for a mailbox
  */
@@ -358,6 +401,7 @@ const mailboxControllers = {
     getMailboxes,
     getMailboxStatus,
     getConnectUrl,
+    redirectToConnect,
     refreshMailboxToken,
     disconnectMailbox,
     setPrimaryMailbox,

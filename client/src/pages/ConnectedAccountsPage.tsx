@@ -58,14 +58,13 @@ export function ConnectedAccountsPage() {
       const authUrl = await api.getConnectUrl();
       if (authUrl) {
         window.location.href = authUrl;
-      } else {
-        toast.error('Failed to generate Google connection URL.');
+        return;
       }
     } catch (err: any) {
-      toast.error('Failed to start Google connection process.');
-    } finally {
-      setIsConnecting(false);
+      console.warn('API connect URL fetch failed, falling back to direct redirect:', err);
     }
+    // Fallback: direct browser redirect to backend connect endpoint
+    window.location.href = 'https://api.plum.com/user/mailboxes/connect';
   };
 
   const handleReauthorize = async (mailbox: MailboxItem) => {
@@ -74,12 +73,12 @@ export function ConnectedAccountsPage() {
       const authUrl = await api.getConnectUrl(mailbox.email);
       if (authUrl) {
         window.location.href = authUrl;
-      } else {
-        toast.error('Failed to generate reauthorization URL.');
+        return;
       }
     } catch (err: any) {
-      toast.error('Failed to initiate Google reauthorization.');
+      console.warn('API reauth URL fetch failed, falling back to direct redirect:', err);
     }
+    window.location.href = `https://api.plum.com/user/mailboxes/connect?mailboxEmail=${encodeURIComponent(mailbox.email)}`;
   };
 
   const handleRefreshToken = async (mailbox: MailboxItem) => {

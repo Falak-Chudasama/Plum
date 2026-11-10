@@ -114,7 +114,7 @@ export function Header() {
                     )}
                   </div>
                   <span
-                    className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#181915] z-10 ${
+                    className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-[#181915] z-10 ${
                       activeAccountObj?.status === 'connected' ? 'bg-emerald-500' : 'bg-amber-500'
                     }`}
                   />
@@ -173,7 +173,7 @@ export function Header() {
                                 )}
                               </div>
                               <span
-                                className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#181915] z-10 ${
+                                className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-[#181915] z-10 ${
                                   mb.status === 'connected' ? 'bg-emerald-500' : 'bg-amber-500'
                                 }`}
                               />

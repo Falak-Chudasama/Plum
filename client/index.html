@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/plum-logo.svg" />
+    <link rel="alternate icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#F8F9F5" />
+    <title>Plum</title>
+    <link rel="stylesheet" href="/src/index.css" />
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('plum_theme');
+          var isDark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) {
+            document.documentElement.classList.add('dark');
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', '#121310');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-[#F8F9F5] dark:bg-[#121310] text-stone-900 dark:text-[#F3F4F1] antialiased selection:bg-[#B266E6]/25 selection:text-[#5C207E] dark:selection:bg-[#B266E6]/30 dark:selection:text-[#DBBFFF]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

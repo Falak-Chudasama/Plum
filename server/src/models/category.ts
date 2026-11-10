@@ -4,7 +4,6 @@ export const categorySchema = new mongoose.Schema({
     category: {
         type: String,
         required: true,
-        unique: true
     },
     description: {
         type: String,
@@ -20,9 +19,11 @@ export const categorySchema = new mongoose.Schema({
     },
     color: {
         type: String,
-        default: 'gray'
+        default: '#B266E6'
     }
 });
+
+categorySchema.index({ email: 1, category: 1 }, { unique: true });
 
 const CategoryModel = mongoose.model('Category', categorySchema);
 

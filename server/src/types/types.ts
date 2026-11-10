@@ -8,19 +8,25 @@ import { categorySchema } from "../models/category";
 import { summarySchema } from "../models/summary";
 import { ChatSchema } from "../models/chat";
 
-export type UserType = InferSchemaType<typeof userSchema>; 
-export type InboundEmailType = InferSchemaType<typeof inboundEmailSchema>;
-export type OutboundEmailType = InferSchemaType<typeof outboundEmailSchema>;
-export type CategoryType = InferSchemaType<typeof categorySchema>;
-export type SummaryType = InferSchemaType<typeof summarySchema>;
-export type ChatType = InferSchemaType<typeof ChatSchema>;
+export type UserType = InferSchemaType<typeof userSchema> & { _id?: any }; 
+export type InboundEmailType = InferSchemaType<typeof inboundEmailSchema> & { _id?: any };
+export type OutboundEmailType = InferSchemaType<typeof outboundEmailSchema> & { _id?: any; category?: string };
+export type CategoryType = InferSchemaType<typeof categorySchema> & { _id?: any };
+export type SummaryType = InferSchemaType<typeof summarySchema> & { _id?: any };
+export type ChatType = InferSchemaType<typeof ChatSchema> & { _id?: any };
 
 export interface AuthenticatedRequest extends Request {
-    user: { email: string }
-};
+    user: { email: string };
+}
+
 export interface GoogleAuthenticatedRequest extends AuthenticatedRequest {
-    auth: OAuth2Client
-};
+    auth: OAuth2Client;
+    mailbox?: {
+        email: string;
+        userEmail: string;
+        name?: string;
+    };
+}
 
 export interface HandleErrorOptionsType {
     res: Response;
@@ -28,4 +34,4 @@ export interface HandleErrorOptionsType {
     context?: string;
     statusCode?: number;
     logStack?: boolean;
-};
+}

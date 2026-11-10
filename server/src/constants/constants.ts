@@ -1,6 +1,5 @@
 const constants = {
-    orchOrigin: 'https://orch.plum.com',
-    msOrigin: 'https://microservices.plum.com'
+    basketUrl: process.env.BASKET_URL || 'http://api.basket.com/llm/chat',
 };
 
 export default constants;

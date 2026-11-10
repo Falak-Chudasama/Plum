@@ -14,50 +14,50 @@ async function create(chat: ChatType) {
     }
 }
 
-async function getById(id: string) {
+async function getById(id: string, email: string) {
     try {
-        const result = await Chats.findById(id);
-        if (!result) throw new Error(`Chat with ID ${id} not found`);
+        const result = await Chats.findOne({ _id: id, email });
         return result;
     } catch (err) {
-        handleErrorUtil(filePath, "getById", err, "Fetching Chat by Id");
+        handleErrorUtil(filePath, "getById", err, `Fetching Chat id=${id} for user=${email}`);
         throw err;
     }
 }
 
-async function getList(email: string, limit: number, cursor: string | null) {
+async function getList(email: string, limit: number = 20, cursor: string | null = null) {
     try {
-        if (email.trim() === '') {
+        if (!email || email.trim() === "") {
             return {
                 chats: [],
                 nextCursor: cursor,
-                hasMore: false
-            }
+                hasMore: false,
+            };
         }
 
         const query: any = { email };
         if (cursor) {
-            query.createdAt = { $lt: new Date(cursor) }
+            query.createdAt = { $lt: new Date(cursor) };
         }
 
-        const chats = await Chats.find(query).select("_id email title archived isViewed createdAt").sort({ createdAt: -1 }).limit(limit + 1);
+        const chats = await Chats.find(query)
+            .select("_id email title archived isViewed createdAt updatedAt messageCount")
+            .sort({ createdAt: -1 })
+            .limit(limit + 1);
 
         const hasMore = chats.length > limit;
-
         if (hasMore) {
             chats.pop();
         }
 
         const nextCursor = chats.length > 0 ? chats[chats.length - 1].createdAt.toISOString() : null;
 
-        const response = {
+        return {
             chats,
             nextCursor,
-            hasMore
+            hasMore,
         };
-        return response
     } catch (err) {
-        handleErrorUtil(filePath, "getList", err, "fetching chat list");
+        handleErrorUtil(filePath, "getList", err, "Fetching chat list");
         throw err;
     }
 }
@@ -69,12 +69,12 @@ async function getByTitleDate(title: string, createdAt: string, email: string) {
         start.setHours(0, 0, 0, 0);
         const end = new Date(date);
         end.setHours(23, 59, 59, 999);
+
         const result = await Chats.findOne({
             title,
             email,
-            createdAt: { $gte: start, $lte: end }
+            createdAt: { $gte: start, $lte: end },
         });
-        if (!result) throw new Error(`Chat not found for ${title} on ${createdAt}`);
         return result;
     } catch (err) {
         handleErrorUtil(filePath, "getByTitleDate", err, "Fetching Chat by title and date");
@@ -82,15 +82,21 @@ async function getByTitleDate(title: string, createdAt: string, email: string) {
     }
 }
 
-async function update(chat: ChatType) {
-    console.log(chat); // delit
+async function update(chat: ChatType, email: string) {
     try {
         if (!chat._id) throw new Error("Chat ID is required for update");
-        const result = await Chats.findByIdAndUpdate(chat._id, chat, {
-            new: true,
-            runValidators: true
-        });
-        if (!result) throw new Error(`Chat with ID ${chat._id} not found for update`);
+
+        const result = await Chats.findOneAndUpdate(
+            { _id: chat._id, email },
+            {
+                ...chat,
+                email, // Prevent altering email ownership
+            },
+            {
+                new: true,
+                runValidators: true,
+            }
+        );
         return result;
     } catch (err) {
         handleErrorUtil(filePath, "update", err, "Updating the chat in the DB");
@@ -98,10 +104,9 @@ async function update(chat: ChatType) {
     }
 }
 
-async function del(id: string) {
+async function del(id: string, email: string) {
     try {
-        const result = await Chats.findByIdAndDelete(id);
-        if (!result) throw new Error(`Chat with ID ${id} not found for deletion`);
+        const result = await Chats.findOneAndDelete({ _id: id, email });
         return result;
     } catch (err) {
         handleErrorUtil(filePath, "del", err, "Deleting the chat from the DB");
@@ -115,7 +120,7 @@ const chatOps = {
     getList,
     getByTitleDate,
     update,
-    del
+    del,
 };
 
 export default chatOps;

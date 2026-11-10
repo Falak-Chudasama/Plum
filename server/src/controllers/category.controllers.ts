@@ -1,106 +1,109 @@
 import { Request, Response } from "express";
 import CategoryModel from "../models/category";
-import { CategoryType } from "../types/types";
+import { CategoryType, AuthenticatedRequest } from "../types/types";
 import { handleErrorUtil } from "../utils/errors.utils";
 
-const filePath = '/src/controllers/category.controllers.ts';
+const filePath = "/src/controllers/category.controllers.ts";
 
-const find = async (): Promise<CategoryType[]> => {
+const findUserCategories = async (email: string): Promise<CategoryType[]> => {
     try {
-        const categories = await CategoryModel.find({});
+        const categories = await CategoryModel.find({ email });
         return categories;
     } catch (err) {
-        handleErrorUtil(filePath, 'find', err, 'Finding/Fetching Categories from DB');
-        return [];
+        handleErrorUtil(filePath, "findUserCategories", err, `Fetching Categories for user=${email}`);
+        throw err;
+    }
+};
+
+const findByEmail = async (req: Request, res: Response) => {
+    try {
+        const authEmail = (req as AuthenticatedRequest).user?.email || req.params.email;
+        const categories = await findUserCategories(authEmail);
+        return res.status(200).json({ categories, success: true });
+    } catch (err) {
+        handleErrorUtil(filePath, "findByEmail", err, "Fetching categories by email");
+        return res.status(500).json({ success: false, message: "Error fetching categories" });
     }
 };
 
 const findByEmailCategory = async (email: string, category: string): Promise<CategoryType | null> => {
     try {
-        const categoryObject = await CategoryModel.findOne({
-            email,
-            category
-        });
+        const categoryObject = await CategoryModel.findOne({ email, category });
         return categoryObject;
     } catch (err) {
-        handleErrorUtil(filePath, 'find', err, 'Finding/Fetching Categories from DB');
+        handleErrorUtil(filePath, "findByEmailCategory", err, "Finding Category in DB");
         return null;
     }
-}
+};
 
-const create = async (category: CategoryType): Promise<CategoryType | null> => {
+const create = async (category: CategoryType, email: string): Promise<CategoryType | null> => {
     try {
-        const result = await CategoryModel.create(category);
+        category.email = email; // Enforce account ownership
 
-        if (!result || !result._id) {
-            throw Error('Failed to persist category');
+        const existing = await CategoryModel.findOne({ email, category: category.category });
+        if (existing) {
+            throw new Error(`Category '${category.category}' already exists for this account`);
         }
+
+        const result = await CategoryModel.create(category);
+        if (!result) throw new Error("Failed to persist category");
 
         return result;
     } catch (err) {
-        handleErrorUtil(filePath, 'add', err, 'Adding a category into DB');
-        return null;
+        handleErrorUtil(filePath, "create", err, "Adding a category into DB");
+        throw err;
     }
 };
 
-const edit = async (category: CategoryType): Promise<CategoryType | null> => {
+const edit = async (category: CategoryType, email: string): Promise<CategoryType | null> => {
     try {
-        const result = await CategoryModel.updateOne({
-            category: category.category,
-            email: category.email,
-        }, {
-            description: category.description,
-            color: category.color,
-            alert: category.alert
-        },
-            { upsert: true });
+        const filter = category._id 
+            ? { _id: category._id, email }
+            : { category: category.category, email };
 
-        if (result.acknowledged && (result.matchedCount > 0 || result.upsertedCount > 0)) {
-            return category;
-        }
+        const result = await CategoryModel.findOneAndUpdate(
+            filter,
+            {
+                category: category.category,
+                description: category.description,
+                alert: category.alert,
+                color: category.color,
+                email, // Ensure email ownership cannot be changed
+            },
+            { new: true, upsert: false }
+        );
 
-        return null;
+        return result;
     } catch (err) {
-        handleErrorUtil(filePath, 'edit', err, 'Edit a category into DB');
-        return null;
+        handleErrorUtil(filePath, "edit", err, "Editing category in DB");
+        throw err;
     }
 };
 
-const findByEmail = async (req: Request, res: Response) => {
-    const { email } = req.params;
+const deleteCategory = async (category: string, email: string): Promise<any> => {
     try {
-        const categories = await CategoryModel.find({ email }) || [];
-        return res.status(200).json({ categories, success: true });
-    } catch (err) {
-        handleErrorUtil(filePath, "find", err, "Finding/Fetching Categories from DB");
-        return res.status(500).json({ error: "Failed to fetch categories", success: false });
-    }
-};
-
-const deleteCategory = async (category: string, email: string): Promise<boolean> => {
-    try {
-        const result = await CategoryModel.deleteOne({
-            category,
+        const query: any = {
             email,
-        });
-
-        if (result.acknowledged) {
-            return true;
-        }
-        return false;
+            $or: [
+                { category: category },
+                { category: new RegExp(`^${category}$`, "i") }
+            ]
+        };
+        const result = await CategoryModel.findOneAndDelete(query);
+        return result;
     } catch (err) {
-        handleErrorUtil(filePath, 'deleteCategory', err, 'Deleting a category');
-        return false;
+        handleErrorUtil(filePath, "deleteCategory", err, "Deleting category from DB");
+        throw err;
     }
 };
 
 const categoryOps = {
-    find,
+    findUserCategories,
     findByEmail,
     findByEmailCategory,
     create,
     edit,
-    deleteCategory
+    deleteCategory,
 };
 
 export default categoryOps;

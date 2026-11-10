@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import axios from "axios";
 import handleError, { handleErrorUtil } from "../utils/errors.utils";
 import User from "../models/user.models";
+import Mailbox from "../models/mailbox.models";
 import { UserType } from "../types/types";
 import logger from "../utils/logger.utils";
 import settingsOps from "./settings.controllers";
@@ -34,11 +35,49 @@ const findUser = async (req: Request, res: Response) => {
     }
 };
 
+// GET api.plum.com/user/me
+const getMe = async (req: Request, res: Response) => {
+    try {
+        const email = (req as any).user?.email;
+        if (!email) {
+            return res.status(401).json({ error: 'Unauthorized', success: false });
+        }
+        const user = await findUserUtil(email);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found', success: false });
+        }
+        return res.status(200).json({
+            user: {
+                email: user.email,
+                name: user.name,
+                lastName: user.lastName,
+                profilePicture: user.profilePicture,
+            },
+            success: true
+        });
+    } catch (err) {
+        handleError(filePath, 'getMe', res, err, 'Fetching Current User');
+    }
+};
+
+// POST api.plum.com/user/logout
+const logoutUser = async (req: Request, res: Response) => {
+    try {
+        res.clearCookie('accessToken', { domain: '.plum.com' });
+        res.clearCookie('refreshToken', { domain: '.plum.com' });
+        res.clearCookie('gmail', { domain: '.plum.com' });
+        res.clearCookie('picture', { domain: '.plum.com' });
+        return res.status(200).json({ success: true, message: 'Logged out successfully' });
+    } catch (err) {
+        handleError(filePath, 'logoutUser', res, err, 'Logging out User');
+    }
+};
+
 /*
  * Google Auth Ops
 */
 
-const createUser = async (res: Response, data: any, tokens: { access_token: string, refresh_token: string, id_token: string }) => {
+const createUser = async (res: Response, data: any, tokens: { access_token: string, refresh_token: string, id_token: string, expiry_date?: number }) => {
     try {
         const userCheck = await findUserUtil(data.email);
         if (userCheck) {
@@ -58,7 +97,29 @@ const createUser = async (res: Response, data: any, tokens: { access_token: stri
             if (!user) throw Error('Failed to create the user named: ' + data.name);
             logger.info('User created with name: ' + data.name);
         }
-        settingsOps.add('email', data.email);
+
+        // Keep Mailbox collection synchronized for primary account
+        const fullName = [data.given_name, data.family_name].filter(Boolean).join(' ') || data.name || data.email;
+        await Mailbox.findOneAndUpdate(
+            { userEmail: data.email, email: data.email },
+            {
+                $set: {
+                    userEmail: data.email,
+                    email: data.email,
+                    name: fullName,
+                    picture: data.picture || '',
+                    tokens: {
+                        access_token: tokens.access_token,
+                        refresh_token: tokens.refresh_token || undefined,
+                        id_token: tokens.id_token,
+                        expiry_date: tokens.expiry_date,
+                    },
+                    status: 'connected',
+                    isPrimary: true,
+                }
+            },
+            { upsert: true }
+        );
     } catch (err) {
         handleError(filePath, 'createUserUtil', res, err, 'Creating a User');
     }
@@ -84,8 +145,6 @@ const loginUser = async (req: Request, res: Response) => {
         }
 
         await createAuthTokens(email, res);
-        settingsOps.add('email', email);
-        OAuthObjectCheck(email);
 
         return res.status(200).json({ message: 'Successfully logged in', success: true });
     } catch (err) {
@@ -170,10 +229,10 @@ export const refreshGoogleAccessToken = async (email: string, refreshToken: stri
 
 // GET api.plum.com/user/auth/callback
 const googleCallback = async (req: Request, res: Response) => {
-    const { code } = req.query;
+    const { code, state } = req.query;
 
     if (!code) {
-        return res.redirect(`http://${frontendOrigin}/signup/?warning=google_auth_cancelled`);
+        return res.redirect(`https://${frontendOrigin}/signin/?warning=google_auth_cancelled`);
     }
 
     try {
@@ -185,7 +244,8 @@ const googleCallback = async (req: Request, res: Response) => {
             grant_type: 'authorization_code',
         });
 
-        const { access_token, refresh_token, id_token } = tokenResponse.data;
+        const { access_token, refresh_token, id_token, expires_in } = tokenResponse.data;
+        const expiry_date = expires_in ? Date.now() + expires_in * 1000 : undefined;
 
         const userInfo = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
             headers: {
@@ -193,7 +253,95 @@ const googleCallback = async (req: Request, res: Response) => {
             },
         });
 
-        await createUser(res, userInfo.data, { access_token, refresh_token, id_token });
+        // Check if this OAuth flow was triggered to connect an additional mailbox
+        let stateData: any = null;
+        if (state) {
+            try {
+                const decoded = Buffer.from(String(state), 'base64').toString('utf-8');
+                stateData = JSON.parse(decoded);
+            } catch {
+                try {
+                    stateData = JSON.parse(String(state));
+                } catch {}
+            }
+        }
+
+        if ((stateData?.action === 'connect_mailbox' || stateData?.action === 'reauthorize_mailbox') && stateData?.userEmail) {
+            // Link or reauthorize mailbox for the existing Plum user
+            const ownerEmail = stateData.userEmail;
+            const newMailboxEmail = userInfo.data.email;
+            const fullName = [userInfo.data.given_name, userInfo.data.family_name].filter(Boolean).join(' ') || userInfo.data.name || newMailboxEmail;
+
+            const updateFields: any = {
+                userEmail: ownerEmail,
+                email: newMailboxEmail,
+                name: fullName,
+                picture: userInfo.data.picture || '',
+                'tokens.access_token': access_token,
+                'tokens.id_token': id_token,
+                status: 'connected',
+                lastSyncAt: new Date(),
+            };
+            if (refresh_token) {
+                updateFields['tokens.refresh_token'] = refresh_token;
+            }
+            if (expiry_date) {
+                updateFields['tokens.expiry_date'] = expiry_date;
+            }
+
+            await Mailbox.findOneAndUpdate(
+                { userEmail: ownerEmail, email: newMailboxEmail },
+                { $set: updateFields },
+                { upsert: true, new: true }
+            );
+
+            // Also synchronize across any other workspaces linking this Gmail account
+            const syncFields: any = {
+                'tokens.access_token': access_token,
+                'tokens.id_token': id_token,
+                status: 'connected',
+                lastSyncAt: new Date(),
+            };
+            if (refresh_token) {
+                syncFields['tokens.refresh_token'] = refresh_token;
+            }
+            if (expiry_date) {
+                syncFields['tokens.expiry_date'] = expiry_date;
+            }
+            await Mailbox.updateMany({ email: newMailboxEmail }, { $set: syncFields });
+
+            // Synchronize User table if user exists
+            await User.updateOne(
+                { email: newMailboxEmail },
+                {
+                    $set: {
+                        'google.accessToken': access_token,
+                        ...(refresh_token ? { 'google.refreshToken': refresh_token } : {}),
+                        'google.IdToken': id_token,
+                    }
+                }
+            );
+
+            return res.redirect(`https://${frontendOrigin}/accounts?reauthorized=${encodeURIComponent(newMailboxEmail)}`);
+        }
+
+        // Standard user login / registration
+        await createUser(res, userInfo.data, { access_token, refresh_token, id_token, expiry_date });
+
+        // Update all Mailbox documents referencing this email with the fresh tokens
+        const syncMailboxFields: any = {
+            'tokens.access_token': access_token,
+            'tokens.id_token': id_token,
+            status: 'connected',
+            lastSyncAt: new Date(),
+        };
+        if (refresh_token) {
+            syncMailboxFields['tokens.refresh_token'] = refresh_token;
+        }
+        if (expiry_date) {
+            syncMailboxFields['tokens.expiry_date'] = expiry_date;
+        }
+        await Mailbox.updateMany({ email: userInfo.data.email }, { $set: syncMailboxFields });
 
         await createAuthTokens(userInfo.data.email, res);
 
@@ -202,10 +350,10 @@ const googleCallback = async (req: Request, res: Response) => {
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             domain: '.plum.com',
-            maxAge: Number(process.env.GMAIL_EXPIRY!) * 24 * 60 * 60 * 1000
-        })
+            maxAge: Number(process.env.GMAIL_EXPIRY || 15) * 24 * 60 * 60 * 1000
+        });
 
-        res.redirect(`http://${frontendOrigin}/home/${userInfo.data.email}`);
+        res.redirect(`https://${frontendOrigin}/inbox`);
     } catch (err) {
         handleError('/src/controllers/user.controllers.ts', 'googleCallback', res, err, 'Google Callback');
     }
@@ -214,6 +362,8 @@ const googleCallback = async (req: Request, res: Response) => {
 const userOps = {
     findUser,
     findUserUtil,
+    getMe,
+    logoutUser,
     createUser,
     loginUser,
     updateUserGoogleTokens,

@@ -3,11 +3,28 @@ import MailComposer from "nodemailer/lib/mail-composer";
 import { google } from "googleapis";
 
 import handleError, { handleErrorUtil } from "../utils/errors.utils";
-import { InboundEmailType, OutboundEmailType, GoogleAuthenticatedRequest } from "../types/types";
+import { InboundEmailType, OutboundEmailType, GoogleAuthenticatedRequest, AuthenticatedRequest } from "../types/types";
 import models from "../models/models";
+import Mailbox from "../models/mailbox.models";
 import emailCleanser from "../utils/emailCleanser.utils";
+import { categorizeEmails } from "../ai/services/categorizer.service";
 
 const filePath: string = '/src/controllers/email.controllers.ts'
+
+/**
+ * Resolves and verifies that a target mailbox belongs to the user,
+ * falling back to the primary mailbox or user's login email.
+ */
+const resolveTargetMailbox = async (userEmail: string, requestedMailbox?: string): Promise<string> => {
+    if (requestedMailbox) {
+        if (requestedMailbox === userEmail) return requestedMailbox;
+        const mailbox = await Mailbox.findOne({ userEmail, email: requestedMailbox });
+        if (mailbox) return mailbox.email;
+    }
+    const primary = await Mailbox.findOne({ userEmail, isPrimary: true });
+    if (primary) return primary.email;
+    return userEmail;
+};
 
 const saveOutboundEmail = async (payload: OutboundEmailType) => {
     try {
@@ -284,9 +301,61 @@ const fetchUniqueEmails = async (emails: InboundEmailType[]): Promise<InboundEma
     return [];
 };
 
+const MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+];
+
+const getMonthCandidates = (rawMonth: string | number): string[] => {
+    const str = String(rawMonth).trim();
+    const candidates = new Set<string>([str]);
+
+    // Check if numeric (1-12)
+    const num = parseInt(str, 10);
+    if (!isNaN(num) && num >= 1 && num <= 12) {
+        const full = MONTH_NAMES[num - 1];
+        candidates.add(full);
+        candidates.add(full.substring(0, 3));
+        candidates.add(String(num));
+        candidates.add(String(num).padStart(2, '0'));
+        return Array.from(candidates);
+    }
+
+    // Check against month names (case-insensitive)
+    for (let i = 0; i < MONTH_NAMES.length; i++) {
+        const full = MONTH_NAMES[i];
+        const short = full.substring(0, 3);
+        if (full.toLowerCase() === str.toLowerCase() || short.toLowerCase() === str.toLowerCase()) {
+            candidates.add(full);
+            candidates.add(short);
+            candidates.add(String(i + 1));
+            candidates.add(String(i + 1).padStart(2, '0'));
+            break;
+        }
+    }
+
+    return Array.from(candidates);
+};
+
+const getDayCandidates = (rawDay: string | number): string[] => {
+    const num = parseInt(String(rawDay), 10);
+    if (isNaN(num)) return [String(rawDay).trim()];
+    return [String(num), String(num).padStart(2, '0')];
+};
+
 const fetchEmailsDateUtil = async (email: string, day: string, month: string, year: string): Promise<InboundEmailType[]> => {
     try {
-        const emails = await models.InboundEmail.find({ email, "parsedDate.day": day, "parsedDate.month": month, "parsedDate.year": year });
+        const monthCandidates = getMonthCandidates(month);
+        const dayCandidates = getDayCandidates(day);
+        const yearCandidates = [String(year).trim()];
+
+        const emails = await models.InboundEmail.find({
+            email,
+            "parsedDate.day": { $in: dayCandidates },
+            "parsedDate.month": { $in: monthCandidates },
+            "parsedDate.year": { $in: yearCandidates },
+        }).sort({ "parsedDate.time": -1, _id: -1 });
+
         return emails ?? [];
     } catch (err) {
         handleErrorUtil(filePath, 'fetchEmailsDateUtil', err, 'Fetching Emails by Date');
@@ -297,20 +366,41 @@ const fetchEmailsDateUtil = async (email: string, day: string, month: string, ye
 // GET api.plum.com/email/fetch
 const fetchEmails = async (req: Request, res: Response) => {
     const googleReq = req as GoogleAuthenticatedRequest;
+    const authReq = req as AuthenticatedRequest;
+    const userEmail = authReq.user.email;
+    const targetMailbox = googleReq.mailbox?.email || (await resolveTargetMailbox(userEmail, req.query.mailboxEmail as string || req.headers['x-mailbox-email'] as string));
     const OAuth = googleReq.auth!;
 
     const numberOfEmails = Number(req.query.numberOfEmails || 10);
 
     try {
-        const emails = await fetchEmailsUtil(OAuth, numberOfEmails);
+        const rawEmails = await fetchEmailsUtil(OAuth, numberOfEmails);
 
-        if (!emails) {
+        if (!rawEmails) {
             throw Error('Could not fetch emails');
         }
 
+        const uniqueEmails = await fetchUniqueEmails(rawEmails as any);
+        for (const email of uniqueEmails) {
+            email.email = targetMailbox;
+        }
+
+        let categorizedEmails: InboundEmailType[] = [];
+        if (uniqueEmails.length > 0) {
+            categorizedEmails = await categorizeEmails(uniqueEmails as any, targetMailbox);
+            await saveInboundEmails(categorizedEmails);
+        }
+
+        // Update lastSyncAt for this mailbox
+        await Mailbox.updateOne(
+            { userEmail, email: targetMailbox },
+            { $set: { lastSyncAt: new Date() } }
+        );
+
         return res.status(200).json({
-            emails,
-            emailsCount: emails.length,
+            emails: categorizedEmails,
+            emailsCount: categorizedEmails.length,
+            mailboxEmail: targetMailbox,
             success: true,
         });
     } catch (err) {
@@ -320,10 +410,16 @@ const fetchEmails = async (req: Request, res: Response) => {
 
 // GET api.plum.com/email/fetch-by-date
 const fetchEmailsDate = async (req: Request, res: Response) => {
-    const { email, date, month, year } = req.body;
+    const userEmail = (req as AuthenticatedRequest).user.email;
+    const { date, month, year, mailboxEmail } = req.body;
 
     try {
-        const emails = await fetchEmailsDateUtil(email, date, month, year);
+        const targetMailbox = await resolveTargetMailbox(
+            userEmail,
+            mailboxEmail || (req.headers['x-mailbox-email'] as string) || (req.query.mailboxEmail as string)
+        );
+
+        const emails = await fetchEmailsDateUtil(targetMailbox, String(date), String(month), String(year));
 
         if (!emails) {
             throw Error('Could not fetch emails');
@@ -332,6 +428,7 @@ const fetchEmailsDate = async (req: Request, res: Response) => {
         return res.status(200).json({
             emails,
             emailsCount: emails.length,
+            mailboxEmail: targetMailbox,
             success: true,
         });
     } catch (err) {
@@ -341,10 +438,16 @@ const fetchEmailsDate = async (req: Request, res: Response) => {
 
 // GET api.plum.com/email/fetch-outbound-by-date
 const fetchOutboundEmailsDate = async (req: Request, res: Response) => {
-    const { email, date, month, year } = req.body;
+    const userEmail = (req as AuthenticatedRequest).user.email;
+    const { date, month, year, mailboxEmail } = req.body;
 
     try {
-        const emails = await fetchOutboundEmailsDateUtil(email, date, month, year);
+        const targetMailbox = await resolveTargetMailbox(
+            userEmail,
+            mailboxEmail || (req.headers['x-mailbox-email'] as string) || (req.query.mailboxEmail as string)
+        );
+
+        const emails = await fetchOutboundEmailsDateUtil(targetMailbox, String(date), String(month), String(year));
 
         if (!emails) {
             throw Error("Could not fetch outbound emails");
@@ -353,6 +456,7 @@ const fetchOutboundEmailsDate = async (req: Request, res: Response) => {
         return res.status(200).json({
             emails,
             emailsCount: emails.length,
+            mailboxEmail: targetMailbox,
             success: true,
         });
 
@@ -367,20 +471,43 @@ const fetchOutboundEmailsDate = async (req: Request, res: Response) => {
     }
 };
 
+// GET api.plum.com/email/drafts
+const fetchDrafts = async (req: Request, res: Response) => {
+    try {
+        const userEmail = (req as AuthenticatedRequest).user.email;
+        const targetMailbox = await resolveTargetMailbox(
+            userEmail,
+            (req.headers['x-mailbox-email'] as string) || (req.query.mailboxEmail as string)
+        );
+
+        const drafts = await models.OutboundEmail.find({
+            from: targetMailbox,
+            status: "draft"
+        }).sort({ updatedAt: -1, createdAt: -1 });
+
+        return res.status(200).json({
+            drafts: drafts ?? [],
+            draftsCount: drafts?.length ?? 0,
+            mailboxEmail: targetMailbox,
+            success: true
+        });
+    } catch (err) {
+        handleError(filePath, "fetchDrafts", res, err, "Fetching Draft Emails");
+    }
+};
+
 
 // PUT api.plum.com/email/set-is-viewed
 const updateIsViewed = async (req: Request, res: Response) => {
     try {
-        const { id, email } = req.body;
+        const userEmail = (req as AuthenticatedRequest).user.email;
+        const { id } = req.body;
         if (!id) {
             throw Error("Email's ID was not given");
         }
-        if (!email) {
-            throw Error('Gmail ID was not given');
-        }
 
         const response = await models.InboundEmail.updateOne(
-            { id },
+            { id, email: userEmail },
             {
                 $set: {
                     isViewed: true
@@ -393,9 +520,9 @@ const updateIsViewed = async (req: Request, res: Response) => {
         }
 
         return res.status(200).json({ result: response, success: true });
-    } catch (err) {
-        if (err.message.endsWith('not found')){
-            handleError(filePath, 'setIsViewed', res, err, 'Setting the email as viewed (User gmail was not found)', 404);
+    } catch (err: any) {
+        if (err.message && err.message.endsWith('not found')){
+            handleError(filePath, 'setIsViewed', res, err, 'Setting the email as viewed (User email was not found)', 404);
         } else {
             handleError(filePath, 'setIsViewed', res, err, 'Setting the email as viewed');
         }
@@ -405,18 +532,15 @@ const updateIsViewed = async (req: Request, res: Response) => {
 // PUT api.plum.com/email/outbound/set-is-viewed
 const updateOutboundIsViewed = async (req: Request, res: Response) => {
     try {
-        const { id, email } = req.body;
+        const userEmail = (req as AuthenticatedRequest).user.email;
+        const { id } = req.body;
 
         if (!id) {
             throw Error("Email's ID was not given");
         }
 
-        if (!email) {
-            throw Error("Gmail ID was not given");
-        }
-
         const response = await models.OutboundEmail.updateOne(
-            { id },
+            { id, from: userEmail },
             {
                 $set: {
                     isViewed: true
@@ -433,14 +557,14 @@ const updateOutboundIsViewed = async (req: Request, res: Response) => {
             success: true
         });
 
-    } catch (err) {
-        if (err.message.endsWith("not found")) {
+    } catch (err: any) {
+        if (err.message && err.message.endsWith("not found")) {
             handleError(
                 filePath,
                 "setOutboundIsViewed",
                 res,
                 err,
-                "Setting the outbound email as viewed (User gmail was not found)",
+                "Setting the outbound email as viewed (User email was not found)",
                 404
             );
         } else {
@@ -459,18 +583,26 @@ const updateOutboundIsViewed = async (req: Request, res: Response) => {
 // POST api.plum.com/email/draft
 const draftEmail = async (req: Request, res: Response) => {
     try {
+        const userEmail = (req as AuthenticatedRequest).user.email;
         const payload = req.body.email as OutboundEmailType;
 
-        if (!payload.from) {
+        if (!payload) {
             return handleError(
                 filePath,
                 "draftEmail",
                 res,
-                "Missing required field: `from`",
+                "Missing required payload: `email`",
                 "InvalidRequest",
                 400
             );
         }
+
+        // Enforce account ownership and resolve target mailbox
+        const targetMailbox = await resolveTargetMailbox(
+            userEmail,
+            payload.from || (req.headers["x-mailbox-email"] as string)
+        );
+        payload.from = targetMailbox;
 
         const record = await saveDraftMail(payload);
 
@@ -488,20 +620,25 @@ const draftEmail = async (req: Request, res: Response) => {
 // POST api.plum.com/email/send
 const sendEmail = async (req: Request, res: Response) => {
     const googleReq = req as GoogleAuthenticatedRequest;
+    const userEmail = (req as AuthenticatedRequest).user.email;
     const OAuth = googleReq.auth;
+    const targetMailbox = googleReq.mailbox?.email || (await resolveTargetMailbox(userEmail, req.body?.mailboxEmail || (req.headers["x-mailbox-email"] as string)));
 
-    const payload = req.body.email as OutboundEmailType
+    const payload = req.body.email as OutboundEmailType;
 
-    if (!payload.from || !payload.to?.length) {
+    if (!payload || !payload.to?.length) {
         return handleError(
             filePath,
             "sendEmail",
             res,
-            "Missing required fields: `from` and at least one `to`",
+            "Missing required field: at least one `to` recipient",
             "InvalidRequest",
             400
         );
     }
+
+    // Strictly enforce sending from the authenticated mailbox
+    payload.from = targetMailbox;
 
     const gmail = google.gmail({ version: "v1", auth: OAuth });
 
@@ -514,11 +651,11 @@ const sendEmail = async (req: Request, res: Response) => {
             replyTo: payload?.replyTo || "",
             subject: payload?.subject || "No Subject",
             text: payload?.body || "",
-            attachments: payload?.attachments?.map((file) => ({
-                filename: file.filename,
-                content: file.content,
-                contentType: file.mimeType,
-            })),
+            attachments: payload?.attachments?.map((file: any) => ({
+                filename: file.filename || undefined,
+                content: file.content || "",
+                contentType: file.mimeType || undefined,
+            })) || [],
         });
 
         const compiled = await mail.compile().build();
@@ -556,6 +693,7 @@ const emailOps = {
     updateIsViewed,
     fetchOutboundEmailsDate,
     updateOutboundIsViewed,
+    fetchDrafts,
     draftEmail,
     saveDraftMail,
     saveOutboundEmail,

@@ -3,7 +3,9 @@ import basketClient from "../basket.client";
 import { INTENT_GRAMMAR, parseIntentOutput, ChatIntent } from "../grammars/intent.grammar";
 import { CHAT_TITLE_GRAMMAR, parseChatTitle } from "../grammars/chatTitle.grammar";
 import { craftEmail } from "./emailCrafter.service";
-import { fetchDbEmails } from "./dbFetcher.service";
+import { fetchDbEmails, UnifiedEmail } from "./dbFetcher.service";
+import { retrieveRelevantContextNotes, RetrievedNote } from "./contextNoteRag.service";
+import { resolveUserIdentity } from "../../utils/userResolver.utils";
 import Chats from "../../models/chat";
 import logger from "../../utils/logger.utils";
 

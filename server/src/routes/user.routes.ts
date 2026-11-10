@@ -2,6 +2,7 @@ import { Router } from "express";
 import userOps from "../controllers/user.controllers";
 import mailboxControllers from "../controllers/mailbox.controllers";
 import categoryOps from "../controllers/category.controllers";
+import contextNoteControllers from "../controllers/contextNote.controllers";
 import authenticateUser, { optionalAuthenticateUser } from "../middlewares/auth.middlewares";
 
 const userRouter = Router();
@@ -23,5 +24,12 @@ userRouter.post('/mailboxes/:id/primary', authenticateUser, mailboxControllers.s
 userRouter.delete('/mailboxes/:id', authenticateUser, mailboxControllers.disconnectMailbox);
 
 userRouter.get('/categories/:email', authenticateUser, categoryOps.findByEmail);
+
+// Context Notes & RAG Routes
+userRouter.get('/notes', optionalAuthenticateUser, contextNoteControllers.getNotes);
+userRouter.post('/notes', optionalAuthenticateUser, contextNoteControllers.createNote);
+userRouter.put('/notes/:id', optionalAuthenticateUser, contextNoteControllers.updateNote);
+userRouter.delete('/notes/:id', optionalAuthenticateUser, contextNoteControllers.deleteNote);
+userRouter.get('/notes/search', optionalAuthenticateUser, contextNoteControllers.searchNotes);
 
 export default userRouter;

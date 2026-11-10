@@ -1,7 +1,8 @@
 /**
  * GBNF Grammar and Safe Query Builder for MongoDB Natural Language Extraction
  *
- * Enforces strict, allowlisted read-only queries with mandatory account isolation.
+ * Enforces strict, allowlisted read-only queries with mandatory account isolation
+ * across BOTH Inbound and Outbound (sent/draft) emails.
  */
 
 export const MONGO_QUERY_GRAMMAR = `
@@ -9,14 +10,18 @@ root ::= "{" ws query-fields ws "}"
 
 query-fields ::= field (ws "," ws field)*
 
-field ::= category-field | categories-field | sender-field | sender-name-field | subject-field | body-field | viewed-field | limit-field
+field ::= scope-field | status-field | recipient-field | to-field | sender-field | sender-name-field | subject-field | body-field | category-field | categories-field | viewed-field | limit-field
 
-category-field ::= "\\"category\\"" ws ":" ws json-string
-categories-field ::= "\\"categories\\"" ws ":" ws string-list
+scope-field ::= "\\"scope\\"" ws ":" ws ("\\"all\\"" | "\\"inbound\\"" | "\\"outbound\\"" | "\\"sent\\"" | "\\"draft\\"")
+status-field ::= "\\"status\\"" ws ":" ws ("\\"sent\\"" | "\\"draft\\"")
+recipient-field ::= "\\"recipientEmail\\"" ws ":" ws json-string
+to-field ::= "\\"to\\"" ws ":" ws json-string
 sender-field ::= "\\"senderEmail\\"" ws ":" ws json-string
 sender-name-field ::= "\\"senderName\\"" ws ":" ws json-string
 subject-field ::= "\\"subject\\"" ws ":" ws json-string
 body-field ::= "\\"body\\"" ws ":" ws json-string
+category-field ::= "\\"category\\"" ws ":" ws json-string
+categories-field ::= "\\"categories\\"" ws ":" ws string-list
 viewed-field ::= "\\"isViewed\\"" ws ":" ws ("true" | "false")
 limit-field ::= "\\"limit\\"" ws ":" ws [1-9] [0-9]?
 
@@ -26,7 +31,9 @@ ws ::= [ \\t\\n\\r]*
 `.trim();
 
 export interface SafeQuerySpec {
-    filter: Record<string, any>;
+    scope: "all" | "inbound" | "outbound" | "sent" | "draft";
+    inboundFilter: Record<string, any>;
+    outboundFilter: Record<string, any>;
     limit: number;
     sort: Record<string, 1 | -1>;
 }
@@ -36,12 +43,16 @@ function escapeRegex(text: string): string {
 }
 
 const ALLOWED_KEYS = new Set([
-    "category",
-    "categories",
+    "scope",
+    "status",
+    "recipientEmail",
+    "to",
     "senderEmail",
     "senderName",
     "subject",
     "body",
+    "category",
+    "categories",
     "isViewed",
     "limit",
 ]);
@@ -54,6 +65,8 @@ export function buildSafeMongoQuery(rawOutput: string, authenticatedEmail: strin
     if (!authenticatedEmail) {
         throw new Error("Cannot construct query: missing authenticated account context");
     }
+
+    const authEmail = authenticatedEmail.toLowerCase().trim();
 
     let parsed: any;
     try {
@@ -74,13 +87,46 @@ export function buildSafeMongoQuery(rawOutput: string, authenticatedEmail: strin
         }
     }
 
-    // MANDATORY TENANT ISOLATION: always scoped to the authenticated user's email
-    const filter: Record<string, any> = {
-        email: authenticatedEmail,
+    // Determine Scope
+    let scope: SafeQuerySpec["scope"] = "all";
+    if (parsed.scope && ["all", "inbound", "outbound", "sent", "draft"].includes(parsed.scope)) {
+        scope = parsed.scope;
+    } else if (parsed.recipientEmail || parsed.to || parsed.status) {
+        scope = "outbound";
+    }
+
+    // Build Inbound Filter (MANDATORY TENANT ISOLATION on email)
+    const inboundFilter: Record<string, any> = {
+        email: authEmail,
     };
 
+    // Build Outbound Filter (MANDATORY TENANT ISOLATION on from)
+    const outboundFilter: Record<string, any> = {
+        from: authEmail,
+    };
+
+    // Subject Filter
+    if (typeof parsed.subject === "string" && parsed.subject.trim()) {
+        const subRegex = { $regex: escapeRegex(parsed.subject.trim()), $options: "i" };
+        inboundFilter.subject = subRegex;
+        outboundFilter.subject = subRegex;
+    }
+
+    // Body Filter
+    if (typeof parsed.body === "string" && parsed.body.trim()) {
+        const safeBody = escapeRegex(parsed.body.trim());
+        inboundFilter.$or = [
+            { snippet: { $regex: safeBody, $options: "i" } },
+            { bodyText: { $regex: safeBody, $options: "i" } },
+        ];
+        outboundFilter.body = { $regex: safeBody, $options: "i" };
+    }
+
+    // Category / Categories
     if (typeof parsed.category === "string" && parsed.category.trim()) {
-        filter.categories = { $in: [new RegExp(`^${escapeRegex(parsed.category.trim())}$`, "i")] };
+        const catRegex = new RegExp(`^${escapeRegex(parsed.category.trim())}$`, "i");
+        inboundFilter.categories = { $in: [catRegex] };
+        outboundFilter.category = { $regex: escapeRegex(parsed.category.trim()), $options: "i" };
     }
 
     if (Array.isArray(parsed.categories) && parsed.categories.length > 0) {
@@ -88,44 +134,50 @@ export function buildSafeMongoQuery(rawOutput: string, authenticatedEmail: strin
             .filter((c: any) => typeof c === "string" && c.trim())
             .map((c: string) => new RegExp(`^${escapeRegex(c.trim())}$`, "i"));
         if (regexes.length > 0) {
-            filter.categories = { $in: regexes };
+            inboundFilter.categories = { $in: regexes };
+            outboundFilter.category = { $in: regexes };
         }
     }
 
+    // Sender for Inbound
     if (typeof parsed.senderEmail === "string" && parsed.senderEmail.trim()) {
-        filter.senderEmail = { $regex: escapeRegex(parsed.senderEmail.trim()), $options: "i" };
+        inboundFilter.senderEmail = { $regex: escapeRegex(parsed.senderEmail.trim()), $options: "i" };
     }
-
     if (typeof parsed.senderName === "string" && parsed.senderName.trim()) {
-        filter.senderName = { $regex: escapeRegex(parsed.senderName.trim()), $options: "i" };
+        inboundFilter.senderName = { $regex: escapeRegex(parsed.senderName.trim()), $options: "i" };
     }
 
-    if (typeof parsed.subject === "string" && parsed.subject.trim()) {
-        filter.subject = { $regex: escapeRegex(parsed.subject.trim()), $options: "i" };
+    // Recipient for Outbound
+    const recipientStr = (parsed.recipientEmail || parsed.to || "").trim();
+    if (recipientStr) {
+        outboundFilter.to = { $regex: escapeRegex(recipientStr), $options: "i" };
+        // If user searched for someone's name/email, they might also be in 'to' for inbound
+        inboundFilter.to = { $regex: escapeRegex(recipientStr), $options: "i" };
     }
 
-    if (typeof parsed.body === "string" && parsed.body.trim()) {
-        const safeBody = escapeRegex(parsed.body.trim());
-        filter.$or = [
-            { snippet: { $regex: safeBody, $options: "i" } },
-            { bodyText: { $regex: safeBody, $options: "i" } },
-        ];
+    // Outbound Status
+    if (scope === "sent" || parsed.status === "sent") {
+        outboundFilter.status = "sent";
+    } else if (scope === "draft" || parsed.status === "draft") {
+        outboundFilter.status = "draft";
     }
 
+    // Viewed state (inbound only)
     if (typeof parsed.isViewed === "boolean") {
-        filter.isViewed = parsed.isViewed;
+        inboundFilter.isViewed = parsed.isViewed;
     }
 
-    // Clamp limit safely between 1 and 20
+    // Clamp limit safely between 1 and 25
     let limit = 10;
     if (typeof parsed.limit === "number" && Number.isFinite(parsed.limit)) {
-        limit = Math.min(Math.max(1, Math.floor(parsed.limit)), 20);
+        limit = Math.min(Math.max(1, Math.floor(parsed.limit)), 25);
     }
 
     return {
-        filter,
+        scope,
+        inboundFilter,
+        outboundFilter,
         limit,
         sort: { createdAt: -1 },
     };
 }
-

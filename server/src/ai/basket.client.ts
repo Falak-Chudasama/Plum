@@ -95,6 +95,39 @@ class BasketClient {
     }
 
     /**
+     * Generate 768-dim embeddings from Basket via Jina Embeddings model
+     */
+    async createEmbedding(input: string): Promise<number[]>;
+    async createEmbedding(input: string[]): Promise<number[][]>;
+    async createEmbedding(input: string | string[]): Promise<number[] | number[][]> {
+        const requestId = crypto.randomUUID();
+        const embeddingUrl = process.env.BASKET_EMBEDDING_URL || "http://api.basket.com/llm/embeddings";
+        const headers = this.buildHeaders(requestId, false);
+
+        try {
+            const response = await this.client.post(
+                embeddingUrl,
+                { input },
+                {
+                    headers,
+                    timeout: 15000,
+                }
+            );
+
+            const data = response.data;
+            if (Array.isArray(input)) {
+                return data?.data?.map((item: any) => item.embedding) || [];
+            }
+            return data?.data?.[0]?.embedding || [];
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const detail = err?.response?.data?.detail || err?.message || "Embedding request failed";
+            logger.error(`[BasketClient] Embedding error requestId=${requestId} status=${status} detail=${detail}`);
+            throw new BasketError(`Basket embedding failed: ${detail}`, status, requestId);
+        }
+    }
+
+    /**
      * Non-streaming completion from Basket.
      */
     async complete(options: BasketChatOptions): Promise<string> {

@@ -5,6 +5,7 @@ import CategoryModel from "./category";
 import SettingsModel from "./settings.models";
 import SummaryModel from "./summary";
 import Mailbox from "./mailbox.models";
+import ContextNote from "./contextNote.models";
 
 const models = {
     User,
@@ -13,7 +14,8 @@ const models = {
     OutboundEmail,
     CategoryModel,
     SettingsModel,
-    SummaryModel
+    SummaryModel,
+    ContextNote
 };
 
 export default models;

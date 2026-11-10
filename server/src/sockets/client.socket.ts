@@ -142,7 +142,16 @@ clientWss.on("connection", async (socket: AuthenticatedWebSocket, req: http.Inco
                 }
 
                 const chatCount = typeof message.chatCount === "number" ? message.chatCount : 0;
-                const chatId = message.chatId || socket.activeChatId;
+                
+                // If client explicitly sent chatId (including null to indicate a new conversation), respect it!
+                let resolvedChatId: string | null = null;
+                if (message.chatId !== undefined) {
+                    resolvedChatId = message.chatId && String(message.chatId).trim() ? String(message.chatId).trim() : null;
+                } else if (socket.activeChatId) {
+                    resolvedChatId = socket.activeChatId;
+                }
+
+                socket.activeChatId = resolvedChatId;
 
                 await handleChatPrompt({
                     prompt,
@@ -152,7 +161,7 @@ clientWss.on("connection", async (socket: AuthenticatedWebSocket, req: http.Inco
                         name: socket.userName,
                         lastName: socket.userLastName,
                     },
-                    chatId,
+                    chatId: resolvedChatId,
                     socket,
                 });
             }

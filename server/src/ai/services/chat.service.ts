@@ -1,4 +1,5 @@
 import WebSocket from "ws";
+import mongoose from "mongoose";
 import basketClient from "../basket.client";
 import { INTENT_GRAMMAR, parseIntentOutput, ChatIntent } from "../grammars/intent.grammar";
 import { CHAT_TITLE_GRAMMAR, parseChatTitle } from "../grammars/chatTitle.grammar";
@@ -7,7 +8,54 @@ import { fetchDbEmails, UnifiedEmail } from "./dbFetcher.service";
 import { retrieveRelevantContextNotes, RetrievedNote } from "./contextNoteRag.service";
 import { resolveUserIdentity } from "../../utils/userResolver.utils";
 import Chats from "../../models/chat";
+import Mailbox from "../../models/mailbox.models";
 import logger from "../../utils/logger.utils";
+
+/**
+ * Safely resolves an authorized Chat document, supporting:
+ * - ObjectId validation
+ * - Case-insensitive email comparison
+ * - Cross-authorization for all connected mailboxes of the user
+ */
+async function resolveAuthorizedChat(chatId: string, userEmail: string): Promise<any | null> {
+    if (!chatId || !mongoose.Types.ObjectId.isValid(chatId)) {
+        return null;
+    }
+
+    try {
+        const chat = await Chats.findById(chatId);
+        if (!chat) return null;
+
+        const normUserEmail = userEmail.toLowerCase().trim();
+        const normChatEmail = (chat.email || "").toLowerCase().trim();
+
+        if (normChatEmail === normUserEmail) {
+            return chat;
+        }
+
+        // Check if chat belongs to any linked mailbox of this user
+        const mailboxes = await Mailbox.find({
+            $or: [
+                { userEmail: new RegExp(`^${normUserEmail}$`, "i") },
+                { email: new RegExp(`^${normUserEmail}$`, "i") },
+            ],
+        }).select("email userEmail").lean();
+
+        const authorizedEmails = new Set<string>([normUserEmail]);
+        for (const m of mailboxes) {
+            if (m.email) authorizedEmails.add(m.email.toLowerCase().trim());
+            if (m.userEmail) authorizedEmails.add(m.userEmail.toLowerCase().trim());
+        }
+
+        if (authorizedEmails.has(normChatEmail)) {
+            return chat;
+        }
+    } catch (err: any) {
+        logger.warn(`[ChatService] Error resolving chat authorization id=${chatId}: ${err.message}`);
+    }
+
+    return null;
+}
 
 export interface ChatUserContext {
     email: string;
@@ -129,13 +177,17 @@ Output ONLY the intent identifier.`
 
         // Conversation history context from Database (strictly account-isolated)
         let conversationContext = "";
+        let existingChat: any = null;
         if (chatId) {
             try {
-                const existingChat = await Chats.findOne({ _id: chatId, email: userEmail });
+                existingChat = await resolveAuthorizedChat(chatId, userEmail);
                 if (existingChat) {
-                    const recentPrompts = existingChat.userPrompts.slice(-3).map(p => `User: ${p.prompt}`).join("\n");
-                    const recentResponses = existingChat.responses.slice(-3).map(r => `Plum: ${r.response}`).join("\n");
+                    const recentPrompts = (existingChat.userPrompts || []).slice(-3).map((p: any) => `User: ${p.prompt}`).join("\n");
+                    const recentResponses = (existingChat.responses || []).slice(-3).map((r: any) => `Plum: ${r.response}`).join("\n");
                     conversationContext = `${recentPrompts}\n${recentResponses}`.trim();
+                    logger.info(`[ChatService] Loaded context for chat id=${chatId} (turns: ${existingChat.responses?.length || 0})`);
+                } else {
+                    logger.warn(`[ChatService] Chat id=${chatId} not found or not authorized for ${userEmail}`);
                 }
             } catch (err: any) {
                 logger.warn(`[ChatService] Could not fetch chat context for id=${chatId}: ${err.message}`);
@@ -326,11 +378,13 @@ Do NOT talk about technical MongoDB syntax or collection names.`;
             );
         }
 
-        // Step 4: Title Generation for First Message in New Chat
+        // Step 4: Title Generation for First Message or Untitled Chat
         let generatedTitle = "";
-        if (chatCount === 0) {
+        const needsTitle = !existingChat || !existingChat.title || existingChat.title === "New Conversation" || existingChat.title === "Untitled Conversation";
+
+        if (needsTitle) {
             try {
-                logger.info(`[ChatService] Generating title for new chat`);
+                logger.info(`[ChatService] Generating title for chat`);
                 const rawTitle = await basketClient.complete({
                     messages: [
                         {
@@ -358,7 +412,7 @@ Do NOT talk about technical MongoDB syntax or collection names.`;
                 });
             } catch (err: any) {
                 logger.warn(`[ChatService] Title generation failed: ${err.message}`);
-                generatedTitle = "New Conversation";
+                generatedTitle = existingChat?.title || "New Conversation";
                 safeSend({
                     type: "SYSTEM",
                     subtype: "TITLE",
@@ -370,9 +424,9 @@ Do NOT talk about technical MongoDB syntax or collection names.`;
             }
         }
 
-        // Step 5: Save conversation turn to MongoDB
-        let savedChatId = chatId;
-        let finalTitle = generatedTitle;
+        // Step 5: Save conversation turn to MongoDB (ATOMIC)
+        let savedChatId = existingChat ? existingChat._id.toString() : chatId;
+        let finalTitle = generatedTitle || existingChat?.title || "New Conversation";
 
         try {
             const userPromptEntry = {
@@ -412,18 +466,31 @@ Do NOT talk about technical MongoDB syntax or collection names.`;
                 };
             }
 
-            if (chatId) {
-                const existing = await Chats.findOne({ _id: chatId, email: userEmail });
-                if (existing) {
-                    existing.userPrompts.push(userPromptEntry as any);
-                    existing.responses.push(responseEntry as any);
-                    existing.messageCount = (existing.messageCount || 0) + 1;
-                    existing.lastMessageAt = new Date();
-                    await existing.save();
-                    savedChatId = existing._id.toString();
-                    finalTitle = existing.title;
+            if (existingChat) {
+                // ATOMIC UPDATE: Append turn atomically to existing document
+                const updateDoc: any = {
+                    $push: {
+                        userPrompts: userPromptEntry,
+                        responses: responseEntry,
+                    },
+                    $inc: { messageCount: 1 },
+                    $set: {
+                        lastMessageAt: new Date(),
+                        updatedAt: new Date(),
+                    },
+                };
+
+                if (generatedTitle && (!existingChat.title || existingChat.title === "New Conversation" || existingChat.title === "Untitled Conversation")) {
+                    updateDoc.$set.title = generatedTitle;
+                    finalTitle = generatedTitle;
                 }
+
+                const updated = await Chats.findByIdAndUpdate(existingChat._id, updateDoc, { new: true });
+                savedChatId = existingChat._id.toString();
+                if (updated?.title) finalTitle = updated.title;
+                logger.info(`[ChatService] Atomically appended turn to existing chat id=${savedChatId} (total turns: ${updated?.responses?.length || 1})`);
             } else {
+                // ATOMIC CREATION of new chat document
                 const newChat = await Chats.create({
                     title: generatedTitle || "New Conversation",
                     email: userEmail,
@@ -434,13 +501,14 @@ Do NOT talk about technical MongoDB syntax or collection names.`;
                 });
                 savedChatId = newChat._id.toString();
                 finalTitle = newChat.title;
+                logger.info(`[ChatService] Created new chat id=${savedChatId} title="${finalTitle}"`);
             }
 
-            if ((socket as any).activeChatId !== undefined) {
+            if (socket) {
                 (socket as any).activeChatId = savedChatId;
             }
         } catch (dbErr: any) {
-            logger.warn(`[ChatService] Failed to persist chat turn to DB: ${dbErr.message}`);
+            logger.error(`[ChatService] Failed to persist chat turn to DB: ${dbErr.message}`);
         }
 
         // Step 6: Complete Response

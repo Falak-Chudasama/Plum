@@ -72,6 +72,12 @@ export function ChatPage() {
 
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const activeChatIdRef = useRef<string | null>(null);
+
+  const setChatId = (id: string | null) => {
+    activeChatIdRef.current = id;
+    setActiveChatId(id);
+  };
   const [messages, setMessages] = useState<Message[]>([]);
   const [promptInput, setPromptInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -213,7 +219,7 @@ export function ChatPage() {
       setStatusMessage(null);
       setActiveRagNotes([]);
       if (data.chatId) {
-        setActiveChatId(data.chatId);
+        setChatId(data.chatId);
         reloadChats();
       }
     } else if (data.type === 'SYSTEM') {
@@ -257,7 +263,7 @@ export function ChatPage() {
   };
 
   const loadChat = async (id: string) => {
-    setActiveChatId(id);
+    setChatId(id);
     setStatusMessage(null);
     setIsMenuOpen(false); // Close mobile/drawer menu on selection
     try {
@@ -322,7 +328,7 @@ export function ChatPage() {
   };
 
   const startNewChat = () => {
-    setActiveChatId(null);
+    setChatId(null);
     setMessages([]);
     setStatusMessage(null);
     setIsMenuOpen(false);
@@ -354,6 +360,7 @@ export function ChatPage() {
 
     const chatCount = messages.filter((m) => m.role === 'user').length;
     const effectiveEmail = activeMailbox || user?.email;
+    const currentChatId = activeChatIdRef.current ?? activeChatId;
 
     // Strategy 1: WebSocket if open
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -362,7 +369,7 @@ export function ChatPage() {
           type: 'PROMPT',
           prompt: text,
           email: effectiveEmail,
-          chatId: activeChatId,
+          chatId: currentChatId,
           chatCount,
         })
       );
@@ -374,7 +381,7 @@ export function ChatPage() {
       abortControllerRef.current = new AbortController();
       await api.streamChatPrompt({
         prompt: text,
-        chatId: activeChatId,
+        chatId: currentChatId,
         chatCount,
         email: effectiveEmail,
         onMessage: handleStreamPayload,
@@ -413,7 +420,7 @@ export function ChatPage() {
     try {
       await api.deleteChat(deleteChatModal._id);
       toast.success('Conversation deleted');
-      if (activeChatId === deleteChatModal._id) {
+      if (activeChatIdRef.current === deleteChatModal._id || activeChatId === deleteChatModal._id) {
         startNewChat();
       }
       setDeleteChatModal(null);

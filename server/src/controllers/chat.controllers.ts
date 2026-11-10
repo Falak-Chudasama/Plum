@@ -1,11 +1,31 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Chats from "../models/chat";
 import User from "../models/user.models";
+import Mailbox from "../models/mailbox.models";
 import { ChatType, AuthenticatedRequest } from "../types/types";
 import { handleErrorUtil } from "../utils/errors.utils";
 import { handleChatPrompt, ChatMessageSender } from "../ai/services/chat.service";
 
 const filePath = "./src/controllers/chat.controllers.ts";
+
+async function getAuthorizedEmailsForUser(email: string): Promise<string[]> {
+    const norm = email.toLowerCase().trim();
+    const set = new Set<string>([norm]);
+    try {
+        const mailboxes = await Mailbox.find({
+            $or: [
+                { userEmail: new RegExp(`^${norm}$`, "i") },
+                { email: new RegExp(`^${norm}$`, "i") },
+            ],
+        }).select("email userEmail").lean();
+        for (const m of mailboxes) {
+            if (m.email) set.add(m.email.toLowerCase().trim());
+            if (m.userEmail) set.add(m.userEmail.toLowerCase().trim());
+        }
+    } catch (_) {}
+    return Array.from(set);
+}
 
 async function create(chat: ChatType) {
     try {
@@ -19,8 +39,14 @@ async function create(chat: ChatType) {
 
 async function getById(id: string, email: string) {
     try {
-        const result = await Chats.findOne({ _id: id, email });
-        return result;
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) return null;
+        const authorized = await getAuthorizedEmailsForUser(email);
+        const result = await Chats.findById(id);
+        if (!result) return null;
+        if (authorized.includes((result.email || "").toLowerCase().trim())) {
+            return result;
+        }
+        return null;
     } catch (err) {
         handleErrorUtil(filePath, "getById", err, `Fetching Chat id=${id} for user=${email}`);
         throw err;
@@ -37,7 +63,10 @@ async function getList(email: string, limit: number = 20, cursor: string | null 
             };
         }
 
-        const query: any = { email };
+        const authorized = await getAuthorizedEmailsForUser(email);
+        const query: any = {
+            email: { $in: authorized.map(e => new RegExp(`^${e}$`, "i")) }
+        };
         if (cursor) {
             query.createdAt = { $lt: new Date(cursor) };
         }
@@ -109,8 +138,14 @@ async function update(chat: ChatType, email: string) {
 
 async function del(id: string, email: string) {
     try {
-        const result = await Chats.findOneAndDelete({ _id: id, email });
-        return result;
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) return null;
+        const authorized = await getAuthorizedEmailsForUser(email);
+        const chat = await Chats.findById(id);
+        if (!chat) return null;
+        if (authorized.includes((chat.email || "").toLowerCase().trim())) {
+            return await Chats.findByIdAndDelete(id);
+        }
+        return null;
     } catch (err) {
         handleErrorUtil(filePath, "del", err, "Deleting the chat from the DB");
         throw err;

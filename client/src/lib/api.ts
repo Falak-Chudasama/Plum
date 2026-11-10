@@ -126,6 +126,16 @@ export interface ChatSession {
   responses?: any[];
 }
 
+export interface ContextNoteItem {
+  _id: string;
+  title: string;
+  content: string;
+  tags?: string[];
+  isIndexed?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export const api = {
   // --- Auth & User ---
   async getMe(): Promise<UserProfile> {
@@ -346,6 +356,35 @@ export const api = {
         }
       }
     }
+  },
+
+  // --- Context Notes & RAG ---
+  async getNotes(email?: string): Promise<ContextNoteItem[]> {
+    const res = await apiClient.get('/user/notes', {
+      params: email ? { email } : undefined,
+    });
+    return res.data.notes || [];
+  },
+
+  async createNote(data: { title: string; content: string; tags?: string[]; email?: string }): Promise<ContextNoteItem> {
+    const res = await apiClient.post('/user/notes', data);
+    return res.data.note;
+  },
+
+  async updateNote(id: string, data: { title?: string; content?: string; tags?: string[]; email?: string }): Promise<ContextNoteItem> {
+    const res = await apiClient.put(`/user/notes/${id}`, data);
+    return res.data.note;
+  },
+
+  async deleteNote(id: string): Promise<void> {
+    await apiClient.delete(`/user/notes/${id}`);
+  },
+
+  async searchNotesRAG(query: string, email?: string): Promise<any[]> {
+    const res = await apiClient.get('/user/notes/search', {
+      params: { q: query, email },
+    });
+    return res.data.results || [];
   },
 };
 

@@ -9,6 +9,8 @@ import Mailbox from "../models/mailbox.models";
 import emailCleanser from "../utils/emailCleanser.utils";
 import { categorizeEmails } from "../ai/services/categorizer.service";
 import { craftEmail } from "../ai/services/emailCrafter.service";
+import { retrieveRelevantContextNotes } from "../ai/services/contextNoteRag.service";
+import { resolveUserIdentity } from "../utils/userResolver.utils";
 
 const filePath: string = '/src/controllers/email.controllers.ts'
 
@@ -686,7 +688,7 @@ const sendEmail = async (req: Request, res: Response) => {
 
 const generateAiDraft = async (req: Request, res: Response) => {
     try {
-        const userEmail = (req as AuthenticatedRequest).user?.email;
+        const userEmail = (req as AuthenticatedRequest).user?.email || req.body?.from;
         if (!userEmail) {
             return res.status(401).json({ success: false, error: "Unauthorized" });
         }
@@ -697,8 +699,11 @@ const generateAiDraft = async (req: Request, res: Response) => {
         }
 
         const senderMailbox = from || userEmail;
-        const user = await models.User.findOne({ email: userEmail }).lean();
-        const userName = user ? [user.name, user.lastName].filter(Boolean).join(" ") : undefined;
+        const resolvedUser = await resolveUserIdentity(senderMailbox);
+        const userName = resolvedUser.fullName;
+
+        // Retrieve relevant context notes via Hybrid RAG
+        const relevantNotes = await retrieveRelevantContextNotes(prompt, senderMailbox, 3);
 
         const result = await craftEmail(
             prompt.trim(),
@@ -707,7 +712,8 @@ const generateAiDraft = async (req: Request, res: Response) => {
             userName,
             currentSubject,
             currentBody,
-            to
+            to,
+            relevantNotes
         );
 
         return res.status(200).json({

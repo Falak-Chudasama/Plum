@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import {
   Sparkles,
   Send,
@@ -19,13 +20,17 @@ import {
   Search,
   X,
   PanelLeft,
+  Brain,
+  Zap,
+  BookOpen,
 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { usePlumStore } from '../store/usePlumStore';
 import { api } from '../lib/api';
-import type { ChatSession } from '../lib/api';
+import type { ChatSession, ContextNoteItem } from '../lib/api';
 import { useToast } from '../components/ui/ToastProvider';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
+import { ContextNotesModal } from '../components/features/ContextNotesModal';
 
 interface Message {
   id: string;
@@ -34,6 +39,7 @@ interface Message {
   thought?: string;
   craftedMail?: any;
   query?: any;
+  ragNotes?: Array<{ id: string; title: string; content?: string; denseScore?: number; bm25Score?: number }>;
   timestamp?: string;
 }
 
@@ -78,6 +84,11 @@ export function ChatPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [chatSearchQuery, setChatSearchQuery] = useState('');
 
+  // Context Notes (Hybrid RAG) state
+  const [notes, setNotes] = useState<ContextNoteItem[]>([]);
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+  const [activeRagNotes, setActiveRagNotes] = useState<any[]>([]);
+
   const socketRef = useRef<WebSocket | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -110,8 +121,22 @@ export function ChatPage() {
     }
   };
 
+  const loadNotes = async () => {
+    const emailToQuery = activeMailbox || user?.email;
+    if (!emailToQuery) return;
+    try {
+      const list = await api.getNotes(emailToQuery);
+      if (Array.isArray(list)) {
+        setNotes(list);
+      }
+    } catch (err) {
+      console.warn('Could not load context notes:', err);
+    }
+  };
+
   useEffect(() => {
     reloadChats();
+    loadNotes();
   }, [user?.email, activeMailbox]);
 
   // Connect WebSocket gracefully in background
@@ -178,6 +203,7 @@ export function ChatPage() {
               id: `stream-${Date.now()}`,
               role: 'assistant',
               content: data.response || '',
+              ragNotes: activeRagNotes.length > 0 ? [...activeRagNotes] : undefined,
             },
           ];
         }
@@ -185,12 +211,15 @@ export function ChatPage() {
     } else if (data.type === 'RESPONSE_COMPLETE') {
       setIsGenerating(false);
       setStatusMessage(null);
+      setActiveRagNotes([]);
       if (data.chatId) {
         setActiveChatId(data.chatId);
         reloadChats();
       }
     } else if (data.type === 'SYSTEM') {
-      if (data.subtype === 'EMAIL' || data.subtype === 'CRAFTED_MAIL') {
+      if (data.subtype === 'RAG_CONTEXT' && Array.isArray(data.notes)) {
+        setActiveRagNotes(data.notes);
+      } else if (data.subtype === 'EMAIL' || data.subtype === 'CRAFTED_MAIL') {
         setMessages((prev) => [
           ...prev,
           {
@@ -477,6 +506,21 @@ export function ChatPage() {
           <Plus className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">New Chat</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setIsNotesModalOpen(true)}
+          className="focus-ring inline-flex items-center gap-1.5 rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white/90 dark:bg-[#181915]/90 hover:border-[#B266E6]/40 text-stone-800 dark:text-stone-200 px-3.5 py-2 text-xs font-bold shadow-lift backdrop-blur-2xl transition active:scale-95"
+          title="Context Notes (Hybrid Vector + BM25 RAG Memory)"
+        >
+          <Brain className="h-3.5 w-3.5 text-[#B266E6]" />
+          <span>Notes</span>
+          {notes.length > 0 && (
+            <span className="rounded-full bg-[#B266E6]/15 text-[#5C207E] dark:text-[#DBBFFF] px-1.5 py-0.5 text-[10px] font-bold">
+              {notes.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* ============================================================== */}
@@ -735,22 +779,44 @@ export function ChatPage() {
                       </div>
 
                       {Array.isArray(q.result) && q.result.length > 0 && (
-                        <div className="space-y-1.5 pt-1">
-                          {q.result.slice(0, 4).map((item: any, idx: number) => (
-                            <div
-                              key={idx}
-                              className="flex items-center justify-between gap-2 rounded-xl border border-black/[0.05] dark:border-white/[0.06] bg-stone-50/70 dark:bg-stone-900/50 p-2.5 text-xs"
-                            >
-                              <div className="min-w-0">
-                                <div className="font-semibold text-stone-900 dark:text-white truncate">
-                                  {item.subject || 'No Subject'}
-                                </div>
-                                <div className="text-[11px] text-stone-500 truncate">
-                                  From: {item.senderName || item.senderEmail || 'Unknown'}
+                        <div className="space-y-2 pt-1">
+                          {q.result.slice(0, 5).map((item: any, idx: number) => {
+                            const isOutbound = item.direction === 'outbound';
+                            const toDisplay = Array.isArray(item.to) ? item.to.join(', ') : item.to;
+                            return (
+                              <div
+                                key={idx}
+                                className="flex items-start justify-between gap-3 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] bg-stone-50/70 dark:bg-stone-900/50 p-3 text-xs"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
+                                        isOutbound
+                                          ? 'bg-[#B266E6]/15 text-[#5C207E] dark:text-[#DBBFFF]'
+                                          : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                                      }`}
+                                    >
+                                      {isOutbound ? (item.status === 'draft' ? 'Draft' : 'Sent') : 'Received'}
+                                    </span>
+                                    <div className="font-bold text-stone-900 dark:text-white truncate">
+                                      {item.subject || 'No Subject'}
+                                    </div>
+                                  </div>
+                                  <div className="text-[11px] text-stone-500 truncate mt-1">
+                                    {isOutbound
+                                      ? `To: ${toDisplay || 'Unknown'}`
+                                      : `From: ${item.senderName || item.senderEmail || 'Unknown'}`}
+                                  </div>
+                                  {item.snippet && (
+                                    <div className="text-[11px] text-stone-600 dark:text-stone-400 line-clamp-2 mt-1">
+                                      {item.snippet}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -766,6 +832,19 @@ export function ChatPage() {
                   </div>
 
                   <div className="w-full max-w-[90%] sm:max-w-[85%] rounded-3xl rounded-tl-xs border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] p-5 text-xs sm:text-sm text-stone-900 dark:text-stone-100 shadow-soft space-y-3">
+                    {/* RAG Context Notes Reference Capsule */}
+                    {msg.ragNotes && msg.ragNotes.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 pb-1">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#B266E6]/10 border border-[#B266E6]/25 px-2.5 py-1 text-[10px] font-bold text-[#5C207E] dark:text-[#DBBFFF]">
+                          <Brain className="h-3 w-3 text-[#B266E6]" />
+                          <span>RAG Memory:</span>
+                          <span className="font-normal opacity-90">
+                            {msg.ragNotes.map((n) => n.title).join(', ')}
+                          </span>
+                        </span>
+                      </div>
+                    )}
+
                     {/* Expandable Thinking Process Accordion */}
                     {msg.thought && (
                       <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] overflow-hidden text-xs">
@@ -798,8 +877,100 @@ export function ChatPage() {
                     )}
 
                     {/* Markdown Message Body */}
-                    <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed font-sans font-normal">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <div className="markdown-body max-w-none text-xs sm:text-sm leading-relaxed font-sans font-normal text-stone-800 dark:text-stone-200">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={{
+                          h1: ({ node, ...props }) => (
+                            <h1 className="text-base sm:text-lg font-bold text-stone-900 dark:text-white mt-4 mb-2 first:mt-0 font-sans tracking-tight" {...props} />
+                          ),
+                          h2: ({ node, ...props }) => (
+                            <h2 className="text-sm sm:text-base font-bold text-stone-900 dark:text-white mt-3.5 mb-1.5 first:mt-0 font-sans tracking-tight" {...props} />
+                          ),
+                          h3: ({ node, ...props }) => (
+                            <h3 className="text-xs sm:text-sm font-bold text-[#5C207E] dark:text-[#DBBFFF] mt-3 mb-1 first:mt-0 font-sans tracking-tight" {...props} />
+                          ),
+                          h4: ({ node, ...props }) => (
+                            <h4 className="text-xs sm:text-sm font-semibold text-stone-800 dark:text-stone-200 mt-2 mb-1 first:mt-0" {...props} />
+                          ),
+                          p: ({ node, ...props }) => (
+                            <p className="my-2 leading-relaxed text-stone-800 dark:text-stone-200" {...props} />
+                          ),
+                          ul: ({ node, ...props }) => (
+                            <ul className="list-disc pl-5 my-2.5 space-y-1.5 text-stone-800 dark:text-stone-200 marker:text-[#B266E6]" {...props} />
+                          ),
+                          ol: ({ node, ...props }) => (
+                            <ol className="list-decimal pl-5 my-2.5 space-y-1.5 text-stone-800 dark:text-stone-200 marker:text-[#B266E6] marker:font-semibold" {...props} />
+                          ),
+                          li: ({ node, ...props }) => (
+                            <li className="leading-relaxed pl-1" {...props} />
+                          ),
+                          strong: ({ node, ...props }) => (
+                            <strong className="font-semibold text-stone-950 dark:text-white" {...props} />
+                          ),
+                          em: ({ node, ...props }) => (
+                            <em className="italic text-stone-700 dark:text-stone-300" {...props} />
+                          ),
+                          blockquote: ({ node, ...props }) => (
+                            <blockquote className="border-l-3 border-[#B266E6] pl-3 py-1 my-2.5 text-stone-600 dark:text-stone-400 italic bg-[#B266E6]/5 rounded-r-xl" {...props} />
+                          ),
+                          code: ({ node, inline, className, children, ...props }: any) => {
+                            const match = /language-(\w+)/.exec(className || '');
+                            const codeString = String(children).replace(/\n$/, '');
+                            if (!inline && (match || codeString.includes('\n'))) {
+                              return (
+                                <div className="my-3 rounded-2xl overflow-hidden border border-black/[0.08] dark:border-white/[0.08] bg-stone-900 text-stone-100 text-xs font-mono shadow-xs">
+                                  <div className="flex items-center justify-between px-3.5 py-1.5 bg-stone-950/70 border-b border-white/[0.06] text-[11px] text-stone-400">
+                                    <span className="font-semibold uppercase tracking-wider">{match?.[1] || 'code'}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => navigator.clipboard.writeText(codeString)}
+                                      className="hover:text-white transition flex items-center gap-1 text-[10px]"
+                                    >
+                                      <Copy className="h-3 w-3" />
+                                      <span>Copy</span>
+                                    </button>
+                                  </div>
+                                  <pre className="p-3.5 overflow-x-auto scrollbar-clean">
+                                    <code>{children}</code>
+                                  </pre>
+                                </div>
+                              );
+                            }
+                            return (
+                              <code className="rounded-md bg-stone-200/70 dark:bg-stone-800 px-1.5 py-0.5 text-xs font-mono text-[#5C207E] dark:text-[#DBBFFF] font-medium" {...props}>
+                                {children}
+                              </code>
+                            );
+                          },
+                          table: ({ node, ...props }) => (
+                            <div className="my-3 overflow-x-auto rounded-2xl border border-black/[0.08] dark:border-white/[0.08] shadow-2xs">
+                              <table className="w-full text-left text-xs border-collapse" {...props} />
+                            </div>
+                          ),
+                          thead: ({ node, ...props }) => (
+                            <thead className="bg-stone-100/80 dark:bg-stone-900/80 border-b border-black/[0.06] dark:border-white/[0.08] font-semibold text-stone-900 dark:text-white" {...props} />
+                          ),
+                          tbody: ({ node, ...props }) => (
+                            <tbody className="divide-y divide-black/[0.04] dark:divide-white/[0.06]" {...props} />
+                          ),
+                          tr: ({ node, ...props }) => (
+                            <tr className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition" {...props} />
+                          ),
+                          th: ({ node, ...props }) => (
+                            <th className="px-3.5 py-2 text-stone-900 dark:text-white font-semibold text-[11px] uppercase tracking-wider" {...props} />
+                          ),
+                          td: ({ node, ...props }) => (
+                            <td className="px-3.5 py-2 text-stone-700 dark:text-stone-300" {...props} />
+                          ),
+                          hr: ({ node, ...props }) => (
+                            <hr className="my-3 border-black/[0.08] dark:border-white/[0.08]" {...props} />
+                          ),
+                          a: ({ node, ...props }) => (
+                            <a className="text-[#B266E6] hover:underline font-medium break-all" target="_blank" rel="noopener noreferrer" {...props} />
+                          ),
+                        }}
+                      >
                         {msg.content}
                       </ReactMarkdown>
                     </div>
@@ -909,6 +1080,15 @@ export function ChatPage() {
           </p>
         </div>
       </div>
+
+      {/* Context Notes Modal (Hybrid RAG) */}
+      <ContextNotesModal
+        isOpen={isNotesModalOpen}
+        onClose={() => setIsNotesModalOpen(false)}
+        notes={notes}
+        userEmail={activeMailbox || user?.email}
+        onNotesChanged={loadNotes}
+      />
 
       {/* Delete Confirmation Modal */}
       {deleteChatModal && (

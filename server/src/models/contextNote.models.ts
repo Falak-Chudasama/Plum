@@ -44,3 +44,4 @@ contextNoteSchema.index({ userEmail: 1, createdAt: -1 });
 const ContextNote = mongoose.model<IContextNote>('ContextNote', contextNoteSchema);
 
 export default ContextNote;
+

@@ -102,7 +102,32 @@ Output ONLY the intent identifier.`
             success: true,
         });
 
-        // Step 2: Context Retrieval from Database (strictly account-isolated)
+        // Step 2: Resolve User Identity & Personal RAG Context Notes
+        const resolvedUser = await resolveUserIdentity(userEmail);
+        const fullName = resolvedUser.fullName || [user.name, user.lastName].filter(Boolean).join(" ");
+
+        logger.info(`[ChatService] Resolved user identity for ${userEmail}: fullName="${fullName}"`);
+
+        // Hybrid RAG Retrieval across user's context notes
+        const relevantNotes = await retrieveRelevantContextNotes(prompt, userEmail, 3);
+        if (relevantNotes.length > 0) {
+            safeSend({
+                type: "SYSTEM",
+                subtype: "RAG_CONTEXT",
+                message: "Retrieved relevant context notes via Hybrid RAG",
+                notes: relevantNotes.map((n) => ({
+                    id: n.id,
+                    title: n.title,
+                    content: n.content,
+                    denseScore: n.denseScore,
+                    bm25Score: n.bm25Score,
+                    rrfScore: n.rrfScore,
+                })),
+                success: true,
+            });
+        }
+
+        // Conversation history context from Database (strictly account-isolated)
         let conversationContext = "";
         if (chatId) {
             try {
@@ -117,8 +142,22 @@ Output ONLY the intent identifier.`
             }
         }
 
-        // Step 3: Intent Branching
-        let systemPrompt = GENERAL_SYSTEM_PROMPT;
+        // Step 3: Construct Personalized System Prompt
+        let systemPrompt = `You are Plum, a fast, concise, intelligent personal email and productivity assistant powered by Basket AI.
+You are assisting ${fullName || "the user"} (${userEmail}).
+User's Full Name: ${fullName || userEmail}.
+Always recognize the user by their full name (${fullName || userEmail}).
+When drafting outbound emails on the user's behalf, ALWAYS sign off with the user's real name: ${fullName || userEmail} (never use placeholder text like '[Your Name]').
+Respond without emojis unless requested. Keep responses direct, helpful, and focused on essential information.
+Format responses cleanly using Markdown: use headers (###), bullet points (- or *), bold text for emphasis, and proper line breaks between paragraphs. Never smash items or sentences together.`;
+
+        if (relevantNotes.length > 0) {
+            systemPrompt += `\n\n=== RELEVANT CONTEXT NOTES (Retrieved from user's memory via Hybrid RAG) ===\n` +
+                relevantNotes.map((n, i) => `[Note ${i + 1}] "${n.title}":\n${n.content}`).join("\n\n") +
+                `\n===================================================================================\n` +
+                `Use the facts in these context notes (e.g. contact relationships, project deadlines, preferences) to accurately inform your responses.`;
+        }
+
         if (conversationContext) {
             systemPrompt += `\n\nRecent Conversation:\n${conversationContext}`;
         }
@@ -134,8 +173,16 @@ Output ONLY the intent identifier.`
                 loading: true,
             });
 
-            const fullName = [user.name, user.lastName].filter(Boolean).join(" ");
-            const crafted = await craftEmail(prompt, conversationContext, userEmail, fullName);
+            const crafted = await craftEmail(
+                prompt,
+                conversationContext,
+                userEmail,
+                fullName,
+                undefined,
+                undefined,
+                undefined,
+                relevantNotes
+            );
             craftedResult = crafted;
 
             safeSend({
@@ -211,13 +258,27 @@ Do NOT restate the whole email body. Keep it concise, professional, and direct.`
                 success: true,
             });
 
+            const emailSummaries = dbResult.result.slice(0, 6).map((e, idx) => {
+                if (e.direction === "outbound") {
+                    const toStr = Array.isArray(e.to) ? e.to.join(", ") : e.to;
+                    return `[${idx + 1}] (Outbound - ${e.status || "sent"}) To: ${toStr} | Subject: "${e.subject}" | Date: ${e.createdAt || "recent"} | Preview: ${e.snippet?.slice(0, 100) || "none"}`;
+                } else {
+                    return `[${idx + 1}] (Inbound) From: ${e.senderName || e.senderEmail} | Subject: "${e.subject}" | Date: ${e.createdAt || "recent"} | Preview: ${e.snippet?.slice(0, 100) || "none"}`;
+                }
+            }).join("\n");
+
             const queryContinuationPrompt = `${systemPrompt}
 You have retrieved ${dbResult.resultCount} email(s) from the database matching the user's request.
 Results summary:
-${dbResult.result.slice(0, 5).map((e, idx) => `[${idx + 1}] From: ${e.senderName || e.senderEmail} | Subject: ${e.subject}`).join("\n")}
+${emailSummaries || "No matching emails found."}
 
-Interpret these results naturally and accurately for the user.
-If no results were found, let them know clearly and suggest adjusting keywords or filters.
+Format the response cleanly in Markdown:
+- Group or list emails using numbered items (1. 2. 3.) or bullet points (*).
+- For each email, put key fields like Subject, Sender/Recipient, and Date/Content on clear, readable lines with bold markers.
+- Always include an empty line between distinct emails.
+- If results are found, mention whether they are sent/outbound or inbound received emails and summarize the key information.
+- Provide a concise 'Key Takeaways' section at the end.
+- If no results were found, let them know clearly and suggest adjusting keywords or filters.
 Do NOT talk about technical MongoDB syntax or collection names.`;
 
             await basketClient.stream(

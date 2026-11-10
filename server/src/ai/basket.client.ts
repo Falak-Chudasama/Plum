@@ -186,39 +186,68 @@ class BasketClient {
 
             return await new Promise<string>((resolve, reject) => {
                 const stream = response.data;
+                const contentType = String(response.headers?.["content-type"] || "");
+                let sseBuffer = "";
 
                 stream.on("data", (chunk: Buffer) => {
                     const text = chunk.toString("utf-8");
                     if (!text) return;
 
-                    // Basket streaming text may be plain chunks or SSE "data: ..." lines
-                    const lines = text.split("\n");
-                    for (const line of lines) {
-                        const trimmed = line.trim();
-                        if (!trimmed || trimmed.startsWith(":")) continue;
-                        if (trimmed === "data: [DONE]" || trimmed === "[DONE]") {
-                            continue;
-                        }
+                    const isSSE = contentType.includes("event-stream") || text.startsWith("data:");
 
-                        let token = line;
-                        if (trimmed.startsWith("data:")) {
-                            const raw = trimmed.slice(5).trim();
-                            try {
-                                const parsed = JSON.parse(raw);
-                                token = parsed.choices?.[0]?.delta?.content ?? parsed.text ?? parsed.content ?? raw;
-                            } catch {
-                                token = raw;
+                    if (isSSE) {
+                        sseBuffer += text;
+                        const lines = sseBuffer.split("\n");
+                        // Keep the last element (which may be an incomplete line) in the buffer
+                        sseBuffer = lines.pop() ?? "";
+
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (!trimmed || trimmed.startsWith(":")) continue;
+                            if (trimmed === "data: [DONE]" || trimmed === "[DONE]") {
+                                continue;
+                            }
+
+                            if (trimmed.startsWith("data:")) {
+                                const raw = trimmed.slice(5).trim();
+                                let token = "";
+                                try {
+                                    const parsed = JSON.parse(raw);
+                                    token = parsed.choices?.[0]?.delta?.content ?? parsed.text ?? parsed.content ?? raw;
+                                } catch {
+                                    token = raw;
+                                }
+                                if (token) {
+                                    fullText += token;
+                                    callbacks.onToken(token);
+                                }
                             }
                         }
-
-                        if (token) {
-                            fullText += token;
-                            callbacks.onToken(token);
-                        }
+                    } else {
+                        // Raw text stream (Basket text/plain): preserve every character, space, and newline!
+                        fullText += text;
+                        callbacks.onToken(text);
                     }
                 });
 
                 stream.on("end", () => {
+                    // Flush any remaining SSE buffer if applicable
+                    if (sseBuffer.trim().startsWith("data:")) {
+                        const raw = sseBuffer.trim().slice(5).trim();
+                        if (raw && raw !== "[DONE]") {
+                            try {
+                                const parsed = JSON.parse(raw);
+                                const token = parsed.choices?.[0]?.delta?.content ?? parsed.text ?? parsed.content ?? raw;
+                                if (token) {
+                                    fullText += token;
+                                    callbacks.onToken(token);
+                                }
+                            } catch {
+                                fullText += raw;
+                                callbacks.onToken(raw);
+                            }
+                        }
+                    }
                     callbacks.onComplete?.(fullText);
                     resolve(fullText);
                 });

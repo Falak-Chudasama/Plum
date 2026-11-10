@@ -104,7 +104,7 @@ export async function fetchDbEmails(
                     direction: "inbound",
                     status: "received",
                     senderEmail: item.senderEmail,
-                    senderName: item.senderName,
+                    senderName: item.senderName || undefined,
                     to: item.to || authEmail,
                     subject: item.subject || "No Subject",
                     snippet: item.snippet || item.bodyText?.slice(0, 160) || "",

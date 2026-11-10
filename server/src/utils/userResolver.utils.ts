@@ -58,3 +58,4 @@ export async function resolveUserIdentity(email: string): Promise<ResolvedUserId
         email: email.toLowerCase(),
     };
 }
+

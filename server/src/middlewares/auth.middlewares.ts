@@ -165,4 +165,31 @@ function parseExpiryToDays(expiry: string): number {
     }
 }
 
+export const optionalAuthenticateUser = (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const token = req.cookies?.accessToken || req.headers['authorization']?.split(' ')[1];
+        if (token) {
+            try {
+                const verifiedPayload = jwt.verify(token, accessTokenSecret) as { email: string };
+                if (verifiedPayload?.email) {
+                    (req as AuthenticatedRequest).user = { email: verifiedPayload.email };
+                    return next();
+                }
+            } catch (err: any) {
+                if (err.name === 'TokenExpiredError') {
+                    const refreshedEmail = refreshAccessToken(req, res);
+                    if (refreshedEmail) {
+                        (req as AuthenticatedRequest).user = { email: refreshedEmail };
+                        return next();
+                    }
+                }
+            }
+        }
+        if (req.cookies?.gmail) {
+            (req as AuthenticatedRequest).user = { email: req.cookies.gmail };
+        }
+    } catch (_) {}
+    next();
+};
+
 export default authenticateUser;

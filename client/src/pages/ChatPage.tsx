@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -12,11 +12,15 @@ import {
   Mail,
   PenSquare,
   StopCircle,
-  Clock,
-  ArrowRight,
-  CheckCircle2,
+  Copy,
+  Check,
+  Bot,
+  MessageSquare,
+  Search,
+  X,
+  PanelLeft,
 } from 'lucide-react';
-import { PageShell } from '../components/layout/PageShell';
+import { Header } from '../components/layout/Header';
 import { usePlumStore } from '../store/usePlumStore';
 import { api } from '../lib/api';
 import type { ChatSession } from '../lib/api';
@@ -33,6 +37,29 @@ interface Message {
   timestamp?: string;
 }
 
+const PROMPT_SUGGESTIONS = [
+  {
+    title: 'Show emails from professors',
+    prompt: 'Show emails from my professors or academic advisors received recently',
+    icon: Mail,
+  },
+  {
+    title: 'Draft deadline extension',
+    prompt: 'Draft a polite and formal email requesting a 3-day deadline extension for my coursework',
+    icon: PenSquare,
+  },
+  {
+    title: 'Find unread notices',
+    prompt: 'Find all unread emails and announcements from this week',
+    icon: Search,
+  },
+  {
+    title: 'Summarize today’s mail',
+    prompt: 'Summarize the most important emails and key notices I received today',
+    icon: Sparkles,
+  },
+];
+
 export function ChatPage() {
   const { user, activeMailbox, openComposer } = usePlumStore();
   const toast = useToast();
@@ -45,27 +72,49 @@ export function ChatPage() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [deleteChatModal, setDeleteChatModal] = useState<ChatSession | null>(null);
   const [openThoughts, setOpenThoughts] = useState<Record<string, boolean>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Collapsible Menu state (defaults to closed on root canvas so chat is completely unboxed)
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [chatSearchQuery, setChatSearchQuery] = useState('');
 
   const socketRef = useRef<WebSocket | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Scroll to bottom when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isGenerating]);
 
-  // Load chat sessions for active user
+  // Auto-resize textarea
   useEffect(() => {
-    if (!user?.email) return;
-    api.getChatList(user.email).then((list) => {
-      setChats(list);
-      if (list.length > 0 && !activeChatId) {
-        loadChat(list[0]._id);
-      }
-    }).catch(console.error);
-  }, [user?.email]);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+    }
+  }, [promptInput]);
 
-  // Connect WebSocket with SSL awareness & graceful fallback
+  // Load chat sessions for active user
+  const reloadChats = async () => {
+    const emailToQuery = activeMailbox || user?.email;
+    if (!emailToQuery) return;
+    try {
+      const list = await api.getChatList(emailToQuery);
+      if (Array.isArray(list)) {
+        setChats(list);
+      }
+    } catch (err) {
+      console.warn('Could not load chat sessions list:', err);
+    }
+  };
+
+  useEffect(() => {
+    reloadChats();
+  }, [user?.email, activeMailbox]);
+
+  // Connect WebSocket gracefully in background
   useEffect(() => {
     let ws: WebSocket | null = null;
     let isCleanedUp = false;
@@ -79,90 +128,21 @@ export function ChatPage() {
       ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
-      ws.onopen = () => {
-        if (!isCleanedUp) console.log('[PlumChat] Connected to WebSocket at', wsUrl);
-      };
-
       ws.onmessage = (event) => {
         if (isCleanedUp) return;
         try {
           const data = JSON.parse(event.data);
-
-          if (data.type === 'RESPONSE') {
-            setIsGenerating(true);
-            setMessages((prev) => {
-              const last = prev[prev.length - 1];
-              if (last && last.role === 'assistant' && !last.id.includes('complete')) {
-                return [
-                  ...prev.slice(0, -1),
-                  { ...last, content: (last.content || '') + (data.response || '') },
-                ];
-              } else {
-                return [
-                  ...prev,
-                  {
-                    id: `stream-${Date.now()}`,
-                    role: 'assistant',
-                    content: data.response || '',
-                  },
-                ];
-              }
-            });
-          } else if (data.type === 'RESPONSE_COMPLETE') {
-            setIsGenerating(false);
-            setStatusMessage(null);
-            if (data.chatId) {
-              setActiveChatId(data.chatId);
-              if (user?.email) {
-                api.getChatList(user.email).then((list) => {
-                  if (Array.isArray(list)) setChats(list);
-                }).catch(console.error);
-              }
-            }
-          } else if (data.type === 'SYSTEM') {
-            if (data.subtype === 'CRAFTED_MAIL') {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: `crafted-${Date.now()}`,
-                  role: 'system',
-                  content: '',
-                  craftedMail: data.mail,
-                },
-              ]);
-            } else if (data.subtype === 'QUERY') {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: `query-${Date.now()}`,
-                  role: 'system',
-                  content: '',
-                  query: {
-                    query: data.query,
-                    result: data.result,
-                    resultCount: data.resultCount,
-                    isSuccess: data.isSuccess,
-                  },
-                },
-              ]);
-            }
-          } else if (data.type === 'INFO') {
-            setStatusMessage(data.message || data.showMessage || null);
-          } else if (data.type === 'ERROR') {
-            setIsGenerating(false);
-            setStatusMessage(null);
-            toast.error(data.error || 'Chat generation error');
-          }
+          handleStreamPayload(data);
         } catch (err) {
-          console.error('Error parsing chat socket payload:', err);
+          console.warn('Failed to parse incoming socket payload:', err);
         }
       };
 
-      ws.onerror = (err) => {
-        console.warn('Primary Chat WebSocket error, will retry if prompt submitted:', err);
+      ws.onerror = () => {
+        // Silently allow fallback to HTTP SSE streaming
       };
-    } catch (e) {
-      console.error('Failed to instantiate chat WebSocket:', e);
+    } catch (_) {
+      // Silently allow fallback
     }
 
     return () => {
@@ -173,11 +153,84 @@ export function ChatPage() {
         } catch (_) {}
       }
     };
-  }, [user?.email, toast]);
+  }, [user?.email]);
+
+  // Common dispatcher for payload chunks (WebSocket OR HTTP SSE Stream)
+  const handleStreamPayload = (data: any) => {
+    if (data.type === 'RESPONSE') {
+      if (data.message === '\n<RESPONSE_ENDED>') {
+        setIsGenerating(false);
+        setStatusMessage(null);
+        return;
+      }
+      setIsGenerating(true);
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && last.role === 'assistant' && !last.id.includes('complete')) {
+          return [
+            ...prev.slice(0, -1),
+            { ...last, content: (last.content || '') + (data.response || '') },
+          ];
+        } else {
+          return [
+            ...prev,
+            {
+              id: `stream-${Date.now()}`,
+              role: 'assistant',
+              content: data.response || '',
+            },
+          ];
+        }
+      });
+    } else if (data.type === 'RESPONSE_COMPLETE') {
+      setIsGenerating(false);
+      setStatusMessage(null);
+      if (data.chatId) {
+        setActiveChatId(data.chatId);
+        reloadChats();
+      }
+    } else if (data.type === 'SYSTEM') {
+      if (data.subtype === 'EMAIL' || data.subtype === 'CRAFTED_MAIL') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `crafted-${Date.now()}`,
+            role: 'system',
+            content: '',
+            craftedMail: data.email || data.mail,
+          },
+        ]);
+      } else if (data.subtype === 'QUERY') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `query-${Date.now()}`,
+            role: 'system',
+            content: '',
+            query: {
+              query: data.query,
+              result: data.result,
+              resultCount: data.resultCount,
+              isSuccess: data.isSuccess,
+            },
+          },
+        ]);
+      } else if (data.subtype === 'TITLE' && data.title?.title) {
+        reloadChats();
+      }
+    } else if (data.type === 'INFO') {
+      setStatusMessage(data.showMessage || data.message || null);
+    } else if (data.type === 'ERROR') {
+      setIsGenerating(false);
+      setStatusMessage(null);
+      toast.error(data.error || 'Chat generation error');
+    }
+  };
 
   const loadChat = async (id: string) => {
     setActiveChatId(id);
     setStatusMessage(null);
+    setIsMenuOpen(false); // Close mobile/drawer menu on selection
     try {
       const chat = await api.getChatById(id);
       if (!chat) return;
@@ -226,7 +279,6 @@ export function ChatPage() {
 
       setMessages(loadedMessages);
 
-      // Notify socket of active chat switch
       if (socketRef.current?.readyState === WebSocket.OPEN) {
         socketRef.current.send(
           JSON.stringify({
@@ -236,7 +288,7 @@ export function ChatPage() {
         );
       }
     } catch (err) {
-      console.error('Error loading chat session:', err);
+      console.warn('Error loading chat session:', err);
     }
   };
 
@@ -244,6 +296,7 @@ export function ChatPage() {
     setActiveChatId(null);
     setMessages([]);
     setStatusMessage(null);
+    setIsMenuOpen(false);
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(
         JSON.stringify({
@@ -254,8 +307,8 @@ export function ChatPage() {
     }
   };
 
-  const handleSendMessage = () => {
-    const text = promptInput.trim();
+  const handleSendMessage = async (textToSend?: string) => {
+    const text = (textToSend !== undefined ? textToSend : promptInput).trim();
     if (!text || isGenerating) return;
 
     const userMessage: Message = {
@@ -270,24 +323,50 @@ export function ChatPage() {
     setIsGenerating(true);
     setStatusMessage('Thinking with Basket AI...');
 
+    const chatCount = messages.filter((m) => m.role === 'user').length;
+    const effectiveEmail = activeMailbox || user?.email;
+
+    // Strategy 1: WebSocket if open
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(
         JSON.stringify({
           type: 'PROMPT',
           prompt: text,
-          email: activeMailbox || user?.email,
+          email: effectiveEmail,
           chatId: activeChatId,
-          chatCount: messages.filter((m) => m.role === 'user').length,
+          chatCount,
         })
       );
-    } else {
-      toast.error('Chat WebSocket not connected. Reconnecting...');
+      return;
+    }
+
+    // Strategy 2: HTTP SSE Streaming via api.streamChatPrompt
+    try {
+      abortControllerRef.current = new AbortController();
+      await api.streamChatPrompt({
+        prompt: text,
+        chatId: activeChatId,
+        chatCount,
+        email: effectiveEmail,
+        onMessage: handleStreamPayload,
+        signal: abortControllerRef.current.signal,
+      });
+      setIsGenerating(false);
+      setStatusMessage(null);
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        toast.error(err.message || 'Failed to generate response with Basket AI');
+      }
       setIsGenerating(false);
       setStatusMessage(null);
     }
   };
 
   const stopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(
         JSON.stringify({
@@ -304,300 +383,545 @@ export function ChatPage() {
     if (!deleteChatModal) return;
     try {
       await api.deleteChat(deleteChatModal._id);
-      setChats((prev) => prev.filter((c) => c._id !== deleteChatModal._id));
+      toast.success('Conversation deleted');
       if (activeChatId === deleteChatModal._id) {
         startNewChat();
       }
-      toast.success('Conversation removed');
       setDeleteChatModal(null);
-    } catch (err) {
-      toast.error('Failed to delete conversation');
+      reloadChats();
+    } catch {
+      toast.error('Failed to delete chat');
     }
   };
 
-  const activeChat = chats.find((c) => c._id === activeChatId);
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // Group chat sessions chronologically
+  const groupedChats = useMemo(() => {
+    const filtered = chats.filter((c) =>
+      c.title.toLowerCase().includes(chatSearchQuery.toLowerCase())
+    );
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const yesterdayStart = todayStart - 86400000;
+    const weekStart = todayStart - 7 * 86400000;
+
+    const groups: { [key: string]: ChatSession[] } = {
+      Today: [],
+      Yesterday: [],
+      'Previous 7 Days': [],
+      Older: [],
+    };
+
+    filtered.forEach((chat) => {
+      const chatTime = new Date(chat.createdAt || chat.updatedAt).getTime();
+      if (chatTime >= todayStart) {
+        groups.Today.push(chat);
+      } else if (chatTime >= yesterdayStart) {
+        groups.Yesterday.push(chat);
+      } else if (chatTime >= weekStart) {
+        groups['Previous 7 Days'].push(chat);
+      } else {
+        groups.Older.push(chat);
+      }
+    });
+
+    return groups;
+  }, [chats, chatSearchQuery]);
 
   return (
-    <PageShell
-      title="Email Intelligence Chat"
-      subtitle={`Powered by Basket AI • Active Mailbox Context: ${activeMailbox || 'Global'}`}
-      action={
+    <div className="min-h-screen flex flex-col bg-[#F8F9F5] dark:bg-[#121310] relative text-stone-900 dark:text-[#F3F4F1] font-sans antialiased">
+      {/* Top Floating App Header */}
+      <Header />
+
+      {/* ============================================================== */}
+      {/* FLOATING STATIONARY CONTROLS (Always fixed in place on screen) */}
+      {/* ============================================================== */}
+      <div className="fixed top-20 left-4 sm:left-6 z-40 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setIsMenuOpen((prev) => !prev)}
+          className={`focus-ring inline-flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-xs font-bold shadow-lift backdrop-blur-2xl transition-all active:scale-95 ${
+            isMenuOpen
+              ? 'bg-[#B266E6] text-white border-[#B266E6]'
+              : 'border-black/[0.08] dark:border-white/[0.1] bg-white/90 dark:bg-[#181915]/90 text-stone-800 dark:text-stone-200 hover:border-[#B266E6]/40 hover:bg-white dark:hover:bg-[#181915]'
+          }`}
+          title="Toggle Conversations History"
+        >
+          <PanelLeft className={`h-4 w-4 ${isMenuOpen ? 'text-white' : 'text-[#B266E6]'}`} />
+          <span>Conversations</span>
+          {chats.length > 0 && (
+            <span
+              className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                isMenuOpen
+                  ? 'bg-white/20 text-white'
+                  : 'bg-[#B266E6]/15 text-[#5C207E] dark:text-[#DBBFFF]'
+              }`}
+            >
+              {chats.length}
+            </span>
+          )}
+        </button>
+
         <button
           type="button"
           onClick={startNewChat}
-          className="focus-ring inline-flex items-center gap-1.5 rounded-2xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-3.5 py-2 text-xs font-semibold shadow-soft transition"
+          className="focus-ring inline-flex items-center gap-1.5 rounded-2xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-3.5 py-2 text-xs font-bold shadow-lift transition active:scale-95"
+          title="Start New Conversation"
         >
           <Plus className="h-3.5 w-3.5" />
-          <span>New Conversation</span>
+          <span className="hidden sm:inline">New Chat</span>
         </button>
-      }
-    >
-      <div className="flex h-[74vh] rounded-3xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#181915] shadow-lift overflow-hidden">
-        {/* Left Sidebar: Conversations Drawer */}
-        <aside className="hidden md:flex flex-col w-64 border-r border-black/[0.06] dark:border-white/[0.08] bg-black/[0.01] dark:bg-white/[0.01]">
-          <div className="p-3 border-b border-black/[0.05] dark:border-white/[0.06]">
-            <button
-              type="button"
-              onClick={startNewChat}
-              className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-black/[0.15] dark:border-white/[0.15] py-2 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:border-[#B266E6] hover:text-[#B266E6] transition"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Start New Chat</span>
-            </button>
-          </div>
+      </div>
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-clean">
-            {(Array.isArray(chats) ? chats : []).map((chat) => {
-              const isSelected = chat._id === activeChatId;
-              return (
-                <div
-                  key={chat._id}
-                  className={`group flex items-center justify-between rounded-xl px-3 py-2 text-xs cursor-pointer transition ${
-                    isSelected
-                      ? 'bg-[#B266E6]/10 text-stone-900 dark:text-white font-bold'
-                      : 'text-stone-600 dark:text-stone-400 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
-                  }`}
-                  onClick={() => loadChat(chat._id)}
-                >
-                  <span className="truncate flex-1">{chat.title || 'Untitled Chat'}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteChatModal(chat);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-stone-400 hover:text-rose-500 rounded transition"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </aside>
+      {/* ============================================================== */}
+      {/* FLOATING CONVERSATIONS WINDOW (Anchored, scroll-independent)   */}
+      {/* ============================================================== */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop Click-Away */}
+          <div
+            className="fixed inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-xs transition-opacity"
+            onClick={() => setIsMenuOpen(false)}
+          />
 
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col min-w-0 bg-transparent">
-          {/* Header Bar */}
-          <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] px-5 py-3 bg-black/[0.01] dark:bg-white/[0.01]">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="font-display text-xs font-bold text-stone-900 dark:text-white truncate">
-                {activeChat?.title || 'New Conversation'}
-              </span>
-              <span className="rounded-full bg-[#B266E6]/10 px-2 py-0.5 text-[10px] font-semibold text-[#5C207E] dark:text-[#DBBFFF]">
-                {activeMailbox ? `Context: ${activeMailbox.split('@')[0]}` : 'General'}
-              </span>
-            </div>
-
-            {isGenerating && (
+          {/* Floating Window Container */}
+          <div className="fixed top-32 left-4 sm:left-6 z-50 w-80 sm:w-88 max-w-[calc(100vw-2rem)] h-[calc(100vh-10rem)] max-h-[640px] rounded-3xl border border-black/[0.08] dark:border-white/[0.1] bg-white/95 dark:bg-[#181915]/95 backdrop-blur-2xl shadow-lift flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Window Header */}
+            <div className="p-4 border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between bg-stone-50/60 dark:bg-stone-900/40">
+              <div className="flex items-center gap-2 font-bold text-sm text-stone-900 dark:text-white">
+                <MessageSquare className="h-4 w-4 text-[#B266E6]" />
+                <span>Conversations</span>
+                <span className="rounded-full bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF] text-[10px] px-2 py-0.5 font-bold">
+                  {chats.length}
+                </span>
+              </div>
               <button
                 type="button"
-                onClick={stopGeneration}
-                className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 px-2.5 py-1 text-[11px] font-semibold hover:bg-rose-500/20 transition"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition"
               >
-                <StopCircle className="h-3.5 w-3.5" />
-                <span>Stop</span>
+                <X className="h-4 w-4" />
               </button>
-            )}
-          </div>
+            </div>
 
-          {/* Messages Stream */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 scrollbar-clean">
-            {messages.length === 0 && (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-stone-400">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#B266E6] mb-3">
-                  <Sparkles className="h-6 w-6" />
-                </div>
-                <h4 className="font-display text-sm font-bold text-stone-900 dark:text-white">
-                  How can Plum AI assist you?
-                </h4>
-                <p className="mt-1 max-w-sm text-xs text-stone-500 dark:text-stone-400">
-                  Ask to summarize emails, search past correspondence, draft replies, or look up academic deadlines.
-                </p>
-                <div className="mt-4 flex flex-wrap justify-center gap-2 max-w-md">
-                  {[
-                    'Show emails from my professors',
-                    'Draft a reply asking for a deadline extension',
-                    'Find unread emails from Somaiya',
-                  ].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => {
-                        setPromptInput(preset);
-                      }}
-                      className="rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.02] dark:bg-white/[0.03] px-3 py-1.5 text-xs text-stone-700 dark:text-stone-300 hover:border-[#B266E6] transition"
-                    >
-                      "{preset}"
-                    </button>
-                  ))}
-                </div>
+            {/* Actions: New Chat & Search Filter */}
+            <div className="p-3.5 space-y-2.5 border-b border-black/[0.05] dark:border-white/[0.06]">
+              <button
+                type="button"
+                onClick={startNewChat}
+                className="focus-ring w-full flex items-center justify-center gap-2 rounded-2xl bg-[#B266E6] hover:bg-[#8F40C7] text-white py-2 px-4 text-xs font-bold shadow-soft transition active:scale-98"
+              >
+                <Plus className="h-4 w-4" />
+                <span>New Conversation</span>
+              </button>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
+                <input
+                  type="text"
+                  value={chatSearchQuery}
+                  onChange={(e) => setChatSearchQuery(e.target.value)}
+                  placeholder="Search chats..."
+                  className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-900/80 pl-8 pr-3 py-1.5 text-xs text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-[#B266E6]"
+                />
               </div>
-            )}
+            </div>
 
-            {messages.map((msg) => (
-              <div key={msg.id} className="space-y-2">
-                {msg.role === 'user' ? (
-                  <div className="flex justify-end">
-                    <div className="max-w-[80%] rounded-2xl bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 px-4 py-2.5 text-xs leading-relaxed font-medium shadow-xs">
+            {/* Scrollable Conversation List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-clean">
+              {Object.entries(groupedChats).map(([groupTitle, chatItems]) => {
+                if (chatItems.length === 0) return null;
+                return (
+                  <div key={groupTitle} className="space-y-1">
+                    <span className="px-2.5 text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+                      {groupTitle}
+                    </span>
+                    <div className="space-y-0.5">
+                      {chatItems.map((c) => {
+                        const isActive = c._id === activeChatId;
+                        return (
+                          <div
+                            key={c._id}
+                            className={`group relative flex items-center justify-between rounded-xl px-2.5 py-2 text-xs transition cursor-pointer ${
+                              isActive
+                                ? 'bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF] font-bold border-l-2 border-[#B266E6]'
+                                : 'text-stone-700 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.05]'
+                            }`}
+                            onClick={() => loadChat(c._id)}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 pr-6">
+                              <MessageSquare
+                                className={`h-3.5 w-3.5 shrink-0 ${
+                                  isActive ? 'text-[#B266E6]' : 'text-stone-400'
+                                }`}
+                              />
+                              <span className="truncate">{c.title || 'Conversation'}</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteChatModal(c);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition p-1 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+                              title="Delete Conversation"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {chats.length === 0 && (
+                <div className="p-6 text-center text-xs text-stone-400 space-y-1">
+                  <MessageSquare className="h-5 w-5 mx-auto text-stone-300 dark:text-stone-600 mb-2" />
+                  <p>No past conversations yet.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-3 border-t border-black/[0.05] dark:border-white/[0.06] text-[11px] text-stone-500 flex items-center gap-2 bg-stone-50/40 dark:bg-stone-900/30">
+              <Mail className="h-3.5 w-3.5 text-[#B266E6] shrink-0" />
+              <span className="truncate">
+                Mailbox:{' '}
+                <strong className="font-semibold text-stone-700 dark:text-stone-300">
+                  {activeMailbox || user?.email}
+                </strong>
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* ROOT MAIN CHAT CANVAS (NO CONTAINERS, FLOATS DIRECTLY ON PAGE) */}
+      {/* ============================================================== */}
+      <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-32 pb-44 space-y-6">
+        {messages.length === 0 ? (
+          /* Empty State Hero floating directly on the page background */
+          <div className="h-full flex flex-col items-center justify-center max-w-xl mx-auto text-center space-y-6 pt-8 pb-16 animate-in fade-in duration-300">
+            <div className="relative">
+              <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-tr from-[#B266E6]/25 via-[#DBBFFF]/20 to-[#89D66D]/20 text-[#5C207E] dark:text-[#DBBFFF] shadow-lift">
+                <Sparkles className="h-8 w-8 text-[#B266E6]" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-white">
+                How can Plum assist you today?
+              </h1>
+              <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400 max-w-md">
+                Search your correspondence, draft professional emails, or check academic notices with Basket AI.
+              </p>
+            </div>
+
+            {/* Prompt Suggestion Cards floating directly on canvas */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full text-left pt-2">
+              {PROMPT_SUGGESTIONS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.title}
+                    type="button"
+                    onClick={() => handleSendMessage(item.prompt)}
+                    className="group flex flex-col justify-between p-4 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white/70 dark:bg-[#181915]/70 hover:bg-white dark:hover:bg-[#181915] hover:border-[#B266E6]/40 transition-all shadow-soft text-left"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-xs text-stone-900 dark:text-white group-hover:text-[#5C207E] dark:group-hover:text-[#DBBFFF] transition">
+                        {item.title}
+                      </span>
+                      <Icon className="h-4 w-4 text-stone-400 group-hover:text-[#B266E6] transition" />
+                    </div>
+                    <p className="text-[11px] text-stone-500 dark:text-stone-400 line-clamp-2">
+                      "{item.prompt}"
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* Message Thread floating directly on canvas */
+          <div className="space-y-6">
+            {messages.map((msg, index) => {
+              if (msg.role === 'user') {
+                return (
+                  <div key={msg.id || index} className="flex justify-end animate-in fade-in duration-150">
+                    <div className="bg-[#B266E6] text-white rounded-3xl rounded-tr-xs px-5 py-3 text-xs sm:text-sm shadow-soft max-w-[85%] sm:max-w-[75%] leading-relaxed font-medium">
                       {msg.content}
                     </div>
                   </div>
-                ) : msg.role === 'assistant' ? (
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#B266E6]/15 text-[#B266E6] mt-0.5">
-                      <Sparkles className="h-3.5 w-3.5" />
+                );
+              }
+
+              if (msg.role === 'system' && msg.craftedMail) {
+                const mail = msg.craftedMail;
+                return (
+                  <div key={msg.id || index} className="flex items-start gap-3 animate-in fade-in duration-200">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-[#B266E6]/15 text-[#5C207E] dark:text-[#DBBFFF] shrink-0 mt-1 shadow-2xs">
+                      <PenSquare className="h-4 w-4 text-[#B266E6]" />
                     </div>
-                    <div className="flex-1 space-y-2 min-w-0">
-                      {/* Thought Collapsible */}
-                      {msg.thought && (
-                        <div className="rounded-xl border border-black/[0.05] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02] p-2 text-[11px]">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setOpenThoughts((prev) => ({ ...prev, [msg.id]: !prev[msg.id] }))
-                            }
-                            className="flex items-center gap-1.5 font-bold text-stone-500 dark:text-stone-400 hover:text-stone-800"
-                          >
-                            {openThoughts[msg.id] ? (
-                              <ChevronDown className="h-3 w-3" />
-                            ) : (
-                              <ChevronRight className="h-3 w-3" />
-                            )}
-                            <span>AI Thought Process</span>
-                          </button>
-                          {openThoughts[msg.id] && (
-                            <div className="mt-2 pl-4 border-l border-stone-300 dark:border-stone-700 font-mono text-[10px] text-stone-600 dark:text-stone-400 whitespace-pre-wrap">
-                              {msg.thought}
+                    <div className="w-full max-w-[85%] rounded-3xl rounded-tl-xs border border-[#B266E6]/30 bg-white dark:bg-[#181915] p-5 shadow-soft space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#5C207E] dark:text-[#DBBFFF]">
+                          Email Draft Prepared
+                        </span>
+                        <span className="text-[10px] text-stone-400 font-semibold">Ready to review</span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="text-sm font-bold text-stone-900 dark:text-white">
+                          {mail.subject || 'No Subject'}
+                        </div>
+                        {mail.to && (
+                          <div className="text-[11px] text-stone-500">
+                            To: <strong className="font-semibold text-stone-700 dark:text-stone-300">{Array.isArray(mail.to) ? mail.to.join(', ') : mail.to}</strong>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="rounded-2xl border border-black/[0.05] dark:border-white/[0.06] bg-stone-50/70 dark:bg-stone-900/50 p-3.5 text-xs text-stone-700 dark:text-stone-300 whitespace-pre-wrap font-sans leading-relaxed">
+                        {mail.body}
+                      </div>
+
+                      <div className="flex items-center justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openComposer({
+                              to: Array.isArray(mail.to) ? mail.to : [mail.to].filter(Boolean),
+                              subject: mail.subject,
+                              body: mail.body,
+                            });
+                          }}
+                          className="focus-ring inline-flex items-center gap-1.5 rounded-xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-4 py-1.5 text-xs font-semibold shadow-xs transition"
+                        >
+                          <PenSquare className="h-3.5 w-3.5" />
+                          <span>Open in Composer</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (msg.role === 'system' && msg.query) {
+                const q = msg.query;
+                return (
+                  <div key={msg.id || index} className="flex items-start gap-3 animate-in fade-in duration-200">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0 mt-1 shadow-2xs">
+                      <Database className="h-4 w-4" />
+                    </div>
+                    <div className="w-full max-w-[85%] rounded-3xl rounded-tl-xs border border-emerald-500/25 bg-white dark:bg-[#181915] p-5 shadow-soft space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                          Database Query Results
+                        </span>
+                        <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+                          {q.resultCount || (Array.isArray(q.result) ? q.result.length : 0)} Emails Found
+                        </span>
+                      </div>
+
+                      {Array.isArray(q.result) && q.result.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          {q.result.slice(0, 4).map((item: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between gap-2 rounded-xl border border-black/[0.05] dark:border-white/[0.06] bg-stone-50/70 dark:bg-stone-900/50 p-2.5 text-xs"
+                            >
+                              <div className="min-w-0">
+                                <div className="font-semibold text-stone-900 dark:text-white truncate">
+                                  {item.subject || 'No Subject'}
+                                </div>
+                                <div className="text-[11px] text-stone-500 truncate">
+                                  From: {item.senderName || item.senderEmail || 'Unknown'}
+                                </div>
+                              </div>
                             </div>
-                          )}
+                          ))}
                         </div>
                       )}
-
-                      {/* Assistant Text */}
-                      <div className="prose dark:prose-invert max-w-none text-xs leading-relaxed font-normal text-stone-800 dark:text-stone-200">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {msg.content}
-                        </ReactMarkdown>
-                      </div>
                     </div>
                   </div>
-                ) : (
-                  /* System Cards (Crafted Email or DB Query) */
-                  <div className="ml-10 space-y-2">
-                    {msg.craftedMail && (
-                      <div className="rounded-2xl border border-[#B266E6]/30 bg-[#B266E6]/5 dark:bg-[#B266E6]/10 p-4 space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs font-bold text-[#5C207E] dark:text-[#DBBFFF]">
-                            <Mail className="h-4 w-4" />
-                            <span>AI Drafted Email</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              openComposer({
-                                to: msg.craftedMail.to,
-                                cc: msg.craftedMail.cc,
-                                subject: msg.craftedMail.subject,
-                                body: msg.craftedMail.body,
-                                category: msg.craftedMail.category?.[0] || 'General',
-                              })
-                            }
-                            className="focus-ring inline-flex items-center gap-1 rounded-xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-2.5 py-1 text-[11px] font-semibold transition"
-                          >
-                            <PenSquare className="h-3 w-3" />
-                            <span>Open in Composer</span>
-                          </button>
-                        </div>
+                );
+              }
 
-                        <div className="rounded-xl bg-white dark:bg-stone-900 p-3 border border-black/[0.05] dark:border-white/[0.06] text-xs space-y-1">
-                          <div>
-                            <strong className="text-stone-400">To:</strong>{' '}
-                            <span className="font-semibold text-stone-800 dark:text-stone-200">
-                              {Array.isArray(msg.craftedMail.to) ? msg.craftedMail.to.join(', ') : msg.craftedMail.to}
-                            </span>
-                          </div>
-                          <div>
-                            <strong className="text-stone-400">Subject:</strong>{' '}
-                            <span className="font-semibold text-stone-800 dark:text-stone-200">
-                              {msg.craftedMail.subject}
-                            </span>
-                          </div>
-                          <div className="mt-2 pt-2 border-t border-black/[0.05] dark:border-white/[0.06] whitespace-pre-wrap text-stone-700 dark:text-stone-300">
-                            {msg.craftedMail.body}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {msg.query && (
-                      <div className="rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.02] dark:bg-white/[0.03] p-4 space-y-2">
-                        <div className="flex items-center gap-2 text-xs font-bold text-stone-700 dark:text-stone-300">
-                          <Database className="h-3.5 w-3.5 text-[#89D66D]" />
-                          <span>Database Search Query</span>
-                          <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[10px]">
-                            {msg.query.resultCount || 0} match{(msg.query.resultCount || 0) === 1 ? '' : 'es'}
-                          </span>
-                        </div>
-                        <div className="font-mono text-[10px] bg-black/5 dark:bg-white/5 p-2 rounded-xl text-stone-600 dark:text-stone-400 truncate">
-                          {typeof msg.query.query === 'string' ? msg.query.query : JSON.stringify(msg.query.query)}
-                        </div>
-                      </div>
-                    )}
+              // Standard Assistant Message floating directly on canvas
+              return (
+                <div key={msg.id || index} className="flex items-start gap-3 animate-in fade-in duration-150">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF] shrink-0 mt-1 shadow-2xs">
+                    <Sparkles className="h-4 w-4 text-[#B266E6]" />
                   </div>
-                )}
-              </div>
-            ))}
 
-            {statusMessage && (
-              <div className="flex items-center gap-2 text-xs text-stone-400 ml-10 animate-pulse">
-                <span className="h-2 w-2 rounded-full bg-[#B266E6]" />
-                <span>{statusMessage}</span>
+                  <div className="w-full max-w-[90%] sm:max-w-[85%] rounded-3xl rounded-tl-xs border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] p-5 text-xs sm:text-sm text-stone-900 dark:text-stone-100 shadow-soft space-y-3">
+                    {/* Expandable Thinking Process Accordion */}
+                    {msg.thought && (
+                      <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] overflow-hidden text-xs">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenThoughts((prev) => ({
+                              ...prev,
+                              [msg.id]: !prev[msg.id],
+                            }))
+                          }
+                          className="w-full flex items-center justify-between px-3.5 py-2 font-medium text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 transition"
+                        >
+                          <span className="flex items-center gap-1.5 text-[11px]">
+                            <Sparkles className="h-3 w-3 text-[#B266E6]" />
+                            Basket Reasoning Process
+                          </span>
+                          {openThoughts[msg.id] ? (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          ) : (
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                        {openThoughts[msg.id] && (
+                          <div className="px-3.5 py-2.5 border-t border-black/[0.04] dark:border-white/[0.05] text-[11px] text-stone-600 dark:text-stone-300 font-mono whitespace-pre-wrap leading-relaxed">
+                            {msg.thought}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Markdown Message Body */}
+                    <div className="prose dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed font-sans font-normal">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+
+                    {/* Footer Action Bar */}
+                    <div className="flex items-center justify-between pt-2 border-t border-black/[0.04] dark:border-white/[0.05] text-[11px] text-stone-400">
+                      <span className="flex items-center gap-1">
+                        <Bot className="h-3 w-3 text-[#B266E6]" />
+                        Plum Intelligence
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(msg.content, msg.id)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
+                        title="Copy Response"
+                      >
+                        {copiedId === msg.id ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-500" />
+                            <span className="text-emerald-500">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Live Generation Indicator */}
+            {isGenerating && statusMessage && (
+              <div className="flex items-center gap-2.5 text-xs text-[#5C207E] dark:text-[#DBBFFF] pl-11 animate-pulse">
+                <span className="h-2 w-2 rounded-full bg-[#B266E6] animate-ping" />
+                <span className="font-semibold">{statusMessage}</span>
               </div>
             )}
 
             <div ref={messagesEndRef} />
           </div>
+        )}
+      </main>
 
-          {/* Input Bar */}
-          <div className="border-t border-black/[0.06] dark:border-white/[0.08] p-3 bg-black/[0.01] dark:bg-white/[0.01]">
-            <div className="flex items-end gap-2 rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-900 p-2 shadow-xs focus-within:ring-2 focus-within:ring-[#B266E6]/50 transition">
-              <textarea
-                value={promptInput}
-                onChange={(e) => setPromptInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                rows={1}
-                placeholder={`Ask Plum AI about ${activeMailbox || 'your emails'}... (Enter to send, Shift+Enter for new line)`}
-                className="flex-1 max-h-32 resize-none bg-transparent px-2 py-1 text-xs text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={handleSendMessage}
-                disabled={isGenerating || !promptInput.trim()}
-                className="focus-ring flex h-8 w-8 items-center justify-center rounded-xl bg-[#B266E6] hover:bg-[#8F40C7] text-white shadow-soft transition disabled:opacity-40 shrink-0"
-              >
-                <Send className="h-4 w-4" />
-              </button>
+      {/* ============================================================== */}
+      {/* FLOATING ISLAND CHAT BAR ANCHORED AT BOTTOM OF SCREEN          */}
+      {/* ============================================================== */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none p-4 sm:pb-6 bg-gradient-to-t from-[#F8F9F5] via-[#F8F9F5]/90 to-transparent dark:from-[#121310] dark:via-[#121310]/90">
+        <div className="pointer-events-auto max-w-3xl w-full mx-auto">
+          <div className="glass-capsule rounded-3xl border border-black/[0.08] dark:border-white/[0.1] bg-white/95 dark:bg-[#181915]/95 backdrop-blur-2xl p-3 shadow-lift flex flex-col gap-2">
+            {/* Textarea */}
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={promptInput}
+              onChange={(e) => setPromptInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
+              placeholder="Ask Plum AI about your correspondence... (Enter to send, Shift + Enter for new line)"
+              className="w-full resize-none border-0 bg-transparent px-2.5 pt-1 text-xs sm:text-sm text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-0 leading-relaxed font-sans max-h-40 overflow-y-auto"
+            />
+
+            {/* Bottom Controls Strip */}
+            <div className="flex items-center justify-between pt-1 border-t border-black/[0.04] dark:border-white/[0.05]">
+              <div className="flex items-center gap-2 text-[11px] text-stone-400 pl-1">
+                <Mail className="h-3 w-3 text-[#B266E6]" />
+                <span className="truncate max-w-[200px] sm:max-w-xs">
+                  {activeMailbox || user?.email}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {isGenerating ? (
+                  <button
+                    type="button"
+                    onClick={stopGeneration}
+                    className="focus-ring inline-flex items-center gap-1.5 rounded-2xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 px-3.5 py-1.5 text-xs font-bold shadow-soft transition active:scale-95"
+                  >
+                    <StopCircle className="h-3.5 w-3.5" />
+                    <span>Stop</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSendMessage()}
+                    disabled={!promptInput.trim()}
+                    className="focus-ring flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-2xl bg-[#B266E6] hover:bg-[#8F40C7] text-white shadow-soft transition disabled:opacity-30 disabled:cursor-not-allowed active:scale-95"
+                    title="Send Message"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
+
+          <p className="mt-2 text-center text-[10px] sm:text-[11px] text-stone-400 dark:text-stone-500">
+            Powered by Basket AI • Account-isolated correspondence • Press Enter to send, Shift + Enter for new line
+          </p>
         </div>
       </div>
 
-      {/* Delete Chat Confirmation */}
-      <ConfirmationModal
-        isOpen={Boolean(deleteChatModal)}
-        onClose={() => setDeleteChatModal(null)}
-        onConfirm={confirmDeleteChat}
-        title="Delete Conversation"
-        description={`Are you sure you want to delete "${deleteChatModal?.title || 'this conversation'}"? This action cannot be undone.`}
-        confirmLabel="Delete"
-        isDestructive={true}
-      />
-    </PageShell>
+      {/* Delete Confirmation Modal */}
+      {deleteChatModal && (
+        <ConfirmationModal
+          isOpen={Boolean(deleteChatModal)}
+          title="Delete Conversation"
+          message={`Are you sure you want to delete "${deleteChatModal.title}"? This conversation history will be permanently deleted.`}
+          confirmLabel="Delete"
+          isDanger
+          onConfirm={confirmDeleteChat}
+          onCancel={() => setDeleteChatModal(null)}
+        />
+      )}
+    </div>
   );
 }

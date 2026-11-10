@@ -129,26 +129,41 @@ export function ComposerModal() {
     }
   };
 
-  const handleApplyAiPreset = (preset: string) => {
-    if (!body.trim()) {
-      toast.info('Write some thoughts first, and Plum AI will polish or format it.');
+  const handleGenerateAiEmail = async () => {
+    if (!aiPrompt.trim()) {
+      toast.warning('Please enter an instruction for Basket AI');
       return;
     }
 
-    if (preset === 'formal') {
-      setBody((prev) =>
-        `Dear Colleagues,\n\nI hope this correspondence finds you well.\n\n${prev.replace(/^(Dear|Hi|Hello)[^\n]*\n+/i, '').trim()}\n\nSincerely,\n${currentMailboxObj?.name || fromMailbox.split('@')[0]}`
+    setIsAiGenerating(true);
+    try {
+      const draft = await api.generateAiDraft({
+        prompt: aiPrompt.trim(),
+        from: fromMailbox,
+        to: toInput,
+        currentSubject: subject,
+        currentBody: body,
+      });
+
+      if (draft.body) {
+        setBody(draft.body);
+      }
+      if (draft.subject && (!subject.trim() || subject === 'No Subject' || subject === 'Untitled Draft')) {
+        setSubject(draft.subject);
+      }
+      if (draft.to && draft.to.length > 0 && !toInput.trim()) {
+        setToInput(draft.to.join(', '));
+      }
+
+      toast.success(
+        body.trim()
+          ? 'Email draft updated with Basket AI'
+          : 'Email draft generated with Basket AI'
       );
-      toast.success('Formatted to formal business tone');
-    } else if (preset === 'concise') {
-      const lines = body.split('\n').filter(Boolean);
-      setBody(lines.map((l) => `• ${l.replace(/^[-•*]\s*/, '')}`).join('\n'));
-      toast.success('Converted into concise bullet points');
-    } else if (preset === 'meeting') {
-      setBody((prev) =>
-        `${prev}\n\nPlease let me know your availability for a brief 15-minute sync later this week.\n\nBest regards,\n${currentMailboxObj?.name || fromMailbox.split('@')[0]}`
-      );
-      toast.success('Meeting request call-to-action appended');
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || err.message || 'Failed to generate email with AI');
+    } finally {
+      setIsAiGenerating(false);
     }
   };
 
@@ -302,36 +317,53 @@ export function ComposerModal() {
             </div>
           </div>
 
-          {/* AI Writing Assistant Toolbar */}
-          <div className="rounded-2xl border border-[#B266E6]/25 bg-white dark:bg-[#181915] p-3 shadow-soft space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#5C207E] dark:text-[#DBBFFF]">
-                <Sparkles className="h-4 w-4 text-[#B266E6]" />
-                <span>Basket AI Writing Assistant</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleApplyAiPreset('formal')}
-                  className="rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold text-stone-700 dark:text-stone-300 hover:border-[#B266E6] transition"
-                >
-                  ✨ Formal Tone
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyAiPreset('concise')}
-                  className="rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold text-stone-700 dark:text-stone-300 hover:border-[#B266E6] transition"
-                >
-                  ✨ Bullets
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyAiPreset('meeting')}
-                  className="rounded-lg border border-black/[0.06] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold text-stone-700 dark:text-stone-300 hover:border-[#B266E6] transition"
-                >
-                  ✨ Request Meeting
-                </button>
-              </div>
+          {/* AI Writing Assistant Input Bar */}
+          <div className="rounded-2xl border border-[#B266E6]/30 bg-gradient-to-r from-[#B266E6]/[0.06] via-transparent to-[#89D66D]/[0.04] p-3 shadow-soft space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#5C207E] dark:text-[#DBBFFF]">
+              <Sparkles className="h-4 w-4 text-[#B266E6]" />
+              <span>Basket AI Writing Assistant</span>
+              <span className="text-[10px] font-normal text-stone-500">
+                (Context-aware: includes recipient, subject & current draft)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleGenerateAiEmail();
+                  }
+                }}
+                disabled={isAiGenerating}
+                placeholder={
+                  body.trim()
+                    ? "Ask AI to refine, expand, shorten, or follow up on this draft..."
+                    : "Describe the email you want to write (e.g. 'Formal leave request for Monday', 'Follow up on invoice')..."
+                }
+                className="flex-1 rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-white dark:bg-stone-900/90 px-3.5 py-2 text-xs text-stone-900 dark:text-white placeholder-stone-400 shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#B266E6]"
+              />
+              <button
+                type="button"
+                onClick={handleGenerateAiEmail}
+                disabled={isAiGenerating || !aiPrompt.trim()}
+                className="focus-ring inline-flex items-center gap-1.5 rounded-xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-4 py-2 text-xs font-bold shadow-soft transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              >
+                {isAiGenerating ? (
+                  <>
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Writing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{body.trim() ? 'Refine Email' : 'Write Email'}</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
 

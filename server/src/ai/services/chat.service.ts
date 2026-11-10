@@ -13,12 +13,19 @@ export interface ChatUserContext {
     lastName?: string;
 }
 
+export interface ChatMessageSender {
+    send: (payload: any) => void;
+    readyState?: number;
+    isOpen?: () => boolean;
+    activeChatId?: string | null;
+}
+
 export interface ChatProcessOptions {
     prompt: string;
     chatCount: number;
     user: ChatUserContext;
     chatId?: string | null;
-    socket: WebSocket;
+    socket: ChatMessageSender;
     abortSignal?: AbortSignal;
 }
 
@@ -37,10 +44,25 @@ export async function handleChatPrompt(options: ChatProcessOptions): Promise<voi
     logger.info(`[ChatService] Received prompt for user=${userEmail} chatCount=${chatCount} chatId=${chatId || "new"}`);
 
     const safeSend = (payload: any) => {
-        if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify(payload));
+        try {
+            if (typeof (socket as any).isOpen === 'function') {
+                if ((socket as any).isOpen()) {
+                    socket.send(payload);
+                }
+            } else if (typeof (socket as any).readyState === 'number') {
+                if ((socket as any).readyState === WebSocket.OPEN) {
+                    socket.send(typeof payload === 'string' ? payload : JSON.stringify(payload));
+                }
+            } else {
+                socket.send(payload);
+            }
+        } catch (err: any) {
+            logger.warn(`[ChatService] Failed to send message: ${err.message}`);
         }
     };
+
+    let craftedResult: any = null;
+    let dbFetchResult: any = null;
 
     try {
         // Step 1: Intent Classification via Basket
@@ -112,6 +134,7 @@ Output ONLY the intent identifier.`
 
             const fullName = [user.name, user.lastName].filter(Boolean).join(" ");
             const crafted = await craftEmail(prompt, conversationContext, userEmail, fullName);
+            craftedResult = crafted;
 
             safeSend({
                 type: "INFO",
@@ -165,6 +188,7 @@ Do NOT restate the whole email body. Keep it concise, professional, and direct.`
             });
 
             const dbResult = await fetchDbEmails(prompt, userEmail);
+            dbFetchResult = dbResult;
 
             safeSend({
                 type: "INFO",
@@ -240,6 +264,7 @@ Do NOT talk about technical MongoDB syntax or collection names.`;
         }
 
         // Step 4: Title Generation for First Message in New Chat
+        let generatedTitle = "";
         if (chatCount === 0) {
             try {
                 logger.info(`[ChatService] Generating title for new chat`);
@@ -258,30 +283,112 @@ Do NOT talk about technical MongoDB syntax or collection names.`;
                     temperature: 0.0,
                     max_tokens: 30,
                 });
-                const titleText = parseChatTitle(rawTitle);
-                logger.info(`[ChatService] Generated title: "${titleText}"`);
+                generatedTitle = parseChatTitle(rawTitle);
+                logger.info(`[ChatService] Generated title: "${generatedTitle}"`);
                 safeSend({
                     type: "SYSTEM",
                     subtype: "TITLE",
                     message: "Chat Title Generated",
-                    title: { title: titleText },
+                    title: { title: generatedTitle },
                     done: true,
                     success: true,
                 });
             } catch (err: any) {
                 logger.warn(`[ChatService] Title generation failed: ${err.message}`);
+                generatedTitle = "New Conversation";
                 safeSend({
                     type: "SYSTEM",
                     subtype: "TITLE",
                     message: "Chat Title Generated",
-                    title: { title: "New Conversation" },
+                    title: { title: generatedTitle },
                     done: true,
                     success: true,
                 });
             }
         }
 
-        // Step 5: Complete Response
+        // Step 5: Save conversation turn to MongoDB
+        let savedChatId = chatId;
+        let finalTitle = generatedTitle;
+
+        try {
+            const userPromptEntry = {
+                prompt,
+                intention: {
+                    intent: parsedIntent.intent,
+                    confidence: parsedIntent.confidence,
+                },
+                chatCount,
+            };
+
+            const responseEntry: any = {
+                response: fullAssistantResponse,
+                thought: "<no_thoughts>",
+                chatCount,
+                modelResponded: "basket",
+            };
+
+            if (craftedResult) {
+                responseEntry.craftedMail = {
+                    from: userEmail,
+                    to: Array.isArray(craftedResult.to) ? craftedResult.to : [craftedResult.to].filter(Boolean),
+                    cc: craftedResult.cc || [],
+                    bcc: craftedResult.bcc || [],
+                    subject: craftedResult.subject || "No Subject",
+                    body: craftedResult.body || "",
+                    category: craftedResult.category || ["General"],
+                    status: "unsaved",
+                };
+            }
+
+            if (dbFetchResult) {
+                responseEntry.query = {
+                    query: typeof dbFetchResult.query === 'string' ? dbFetchResult.query : JSON.stringify(dbFetchResult.query),
+                    isSuccess: Boolean(dbFetchResult.isSuccess),
+                    result: dbFetchResult.result || [],
+                };
+            }
+
+            if (chatId) {
+                const existing = await Chats.findOne({ _id: chatId, email: userEmail });
+                if (existing) {
+                    existing.userPrompts.push(userPromptEntry as any);
+                    existing.responses.push(responseEntry as any);
+                    existing.messageCount = (existing.messageCount || 0) + 1;
+                    existing.lastMessageAt = new Date();
+                    await existing.save();
+                    savedChatId = existing._id.toString();
+                    finalTitle = existing.title;
+                }
+            } else {
+                const newChat = await Chats.create({
+                    title: generatedTitle || "New Conversation",
+                    email: userEmail,
+                    userPrompts: [userPromptEntry],
+                    responses: [responseEntry],
+                    messageCount: 1,
+                    lastMessageAt: new Date(),
+                });
+                savedChatId = newChat._id.toString();
+                finalTitle = newChat.title;
+            }
+
+            if ((socket as any).activeChatId !== undefined) {
+                (socket as any).activeChatId = savedChatId;
+            }
+        } catch (dbErr: any) {
+            logger.warn(`[ChatService] Failed to persist chat turn to DB: ${dbErr.message}`);
+        }
+
+        // Step 6: Complete Response
+        safeSend({
+            type: "RESPONSE_COMPLETE",
+            chatId: savedChatId,
+            title: finalTitle,
+            done: true,
+            success: true,
+        });
+
         safeSend({
             type: "RESPONSE",
             message: "\n<RESPONSE_ENDED>",

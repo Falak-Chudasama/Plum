@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import chatOps from "../controllers/chat.controllers";
 import handleError from "../utils/errors.utils";
 import { AuthenticatedRequest } from "../types/types";
+import { optionalAuthenticateUser } from "../middlewares/auth.middlewares";
 
 const chatRouter = Router();
 const filePath = "/src/routes/chat.routes.ts";
@@ -105,6 +106,7 @@ async function del(req: Request, res: Response) {
 }
 
 // api.plum.com/chat
+chatRouter.post("/prompt", optionalAuthenticateUser, chatOps.streamPrompt);
 chatRouter.post("/create", create);
 chatRouter.get("/get/:id", getById);
 chatRouter.get("/getByTitleDate", getByTitleDate);

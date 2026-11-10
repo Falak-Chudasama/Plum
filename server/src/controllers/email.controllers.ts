@@ -8,6 +8,7 @@ import models from "../models/models";
 import Mailbox from "../models/mailbox.models";
 import emailCleanser from "../utils/emailCleanser.utils";
 import { categorizeEmails } from "../ai/services/categorizer.service";
+import { craftEmail } from "../ai/services/emailCrafter.service";
 
 const filePath: string = '/src/controllers/email.controllers.ts'
 
@@ -683,6 +684,51 @@ const sendEmail = async (req: Request, res: Response) => {
     }
 };
 
+const generateAiDraft = async (req: Request, res: Response) => {
+    try {
+        const userEmail = (req as AuthenticatedRequest).user?.email;
+        if (!userEmail) {
+            return res.status(401).json({ success: false, error: "Unauthorized" });
+        }
+
+        const { prompt, currentSubject, currentBody, to, from } = req.body;
+        if (!prompt || !prompt.trim()) {
+            return res.status(400).json({ success: false, error: "Instruction prompt is required" });
+        }
+
+        const senderMailbox = from || userEmail;
+        const user = await models.User.findOne({ email: userEmail }).lean();
+        const userName = user ? [user.name, user.lastName].filter(Boolean).join(" ") : undefined;
+
+        const result = await craftEmail(
+            prompt.trim(),
+            "",
+            senderMailbox,
+            userName,
+            currentSubject,
+            currentBody,
+            to
+        );
+
+        return res.status(200).json({
+            success: true,
+            draft: {
+                subject: result.subject,
+                body: result.body,
+                to: result.to,
+                cc: result.cc,
+                bcc: result.bcc,
+            },
+        });
+    } catch (err: any) {
+        handleErrorUtil(filePath, "generateAiDraft", err, "Generating AI draft via Basket");
+        return res.status(500).json({
+            success: false,
+            error: err.message || "Failed to generate AI email draft",
+        });
+    }
+};
+
 const emailOps = {
     sendEmail,
     fetchEmails,
@@ -698,6 +744,7 @@ const emailOps = {
     saveDraftMail,
     saveOutboundEmail,
     saveInboundEmails,
+    generateAiDraft,
 };
 
 export default emailOps;

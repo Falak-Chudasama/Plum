@@ -156,9 +156,6 @@ export function ConnectedAccountsPage() {
     return date.toLocaleDateString();
   };
 
-  // Find if any mailbox has an expired status
-  const expiredMailbox = mailboxes.find((m) => m.status === 'expired');
-
   return (
     <PageShell
       title="Connected Gmail Accounts"
@@ -180,70 +177,6 @@ export function ConnectedAccountsPage() {
       }
     >
       <div className="space-y-6">
-        {/* Reauthorization Notice Banner if any account has expired grant */}
-        {expiredMailbox && (
-          <div className="rounded-2xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 p-4 shadow-soft animate-in fade-in duration-200">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                    Authentication Renewal Required
-                  </h4>
-                  <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
-                    Mailbox <strong className="font-semibold text-amber-900 dark:text-amber-200">{expiredMailbox.email}</strong> requires reauthorization with Google to refresh access tokens and resume correspondence sync.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleReauthorize(expiredMailbox)}
-                className="focus-ring inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 text-xs font-semibold shrink-0 shadow-xs transition"
-              >
-                <KeyRound className="h-3.5 w-3.5" />
-                <span>Reauthorize {expiredMailbox.email.split('@')[0]}</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Workspace Identity Summary Card */}
-        <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] p-5 shadow-soft">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF] font-bold text-base overflow-hidden">
-                {user?.profilePicture ? (
-                  <img src={user.profilePicture} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  user?.email ? user.email[0].toUpperCase() : 'P'
-                )}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#B266E6]">
-                    Plum Workspace Account
-                  </span>
-                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                    Logged In
-                  </span>
-                </div>
-                <h3 className="text-sm font-bold text-stone-900 dark:text-white">
-                  {user?.name ? `${user.name} ${user.lastName || ''}`.trim() : user?.email}
-                </h3>
-                <p className="text-xs text-stone-500 dark:text-stone-400">{user?.email}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 text-xs text-stone-500 dark:text-stone-400 bg-black/[0.02] dark:bg-white/[0.03] px-4 py-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
-              <Mail className="h-4 w-4 text-[#B266E6]" />
-              <span>
-                <strong className="text-stone-900 dark:text-white font-bold">{mailboxes.length}</strong>{' '}
-                Mailbox{mailboxes.length === 1 ? '' : 'es'} Linked
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* List of Connected Accounts */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -287,9 +220,9 @@ export function ConnectedAccountsPage() {
                       <button
                         type="button"
                         onClick={() => handleReauthorize(mb)}
-                        className="self-start sm:self-auto shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[#B266E6] hover:bg-[#8F40C7] text-white font-semibold px-3 py-1 text-xs transition shadow-2xs"
+                        className="self-start sm:self-auto shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3.5 py-1.5 text-xs transition shadow-2xs"
                       >
-                        <KeyRound className="h-3 w-3" />
+                        <KeyRound className="h-3.5 w-3.5" />
                         <span>Reauthorize Now</span>
                       </button>
                     </div>
@@ -382,12 +315,12 @@ export function ConnectedAccountsPage() {
                         onClick={() => handleReauthorize(mb)}
                         className={`focus-ring inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition shadow-xs ${
                           isExpired
-                            ? 'bg-[#B266E6] hover:bg-[#8F40C7] text-white font-bold'
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white font-bold'
                             : 'border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
                         }`}
                         title="Sign in with Google to grant fresh tokens for this mailbox"
                       >
-                        <KeyRound className={`h-3.5 w-3.5 ${isExpired ? 'text-white' : 'text-[#B266E6]'}`} />
+                        <KeyRound className={`h-3.5 w-3.5 ${isExpired ? 'text-white' : 'text-stone-500'}`} />
                         <span>Reauthorize</span>
                       </button>
 

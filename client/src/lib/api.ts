@@ -211,6 +211,17 @@ export const api = {
     return res.data.drafts || [];
   },
 
+  async generateAiDraft(params: {
+    prompt: string;
+    from?: string;
+    to?: string;
+    currentSubject?: string;
+    currentBody?: string;
+  }): Promise<{ subject: string; body: string; to?: string[]; cc?: string[]; bcc?: string[] }> {
+    const res = await apiClient.post('/email/ai-draft', params);
+    return res.data?.draft;
+  },
+
   async saveDraft(emailPayload: Partial<OutboundEmailItem>, mailboxEmail?: string): Promise<any> {
     const res = await apiClient.post('/email/draft', { email: emailPayload }, {
       headers: mailboxEmail ? { 'x-mailbox-email': mailboxEmail } : undefined,
@@ -272,6 +283,69 @@ export const api = {
       params: { id },
     });
     return res.data;
+  },
+
+  async streamChatPrompt(params: {
+    prompt: string;
+    chatId?: string | null;
+    chatCount?: number;
+    email?: string;
+    onMessage: (data: any) => void;
+    signal?: AbortSignal;
+  }): Promise<void> {
+    const response = await fetch('https://api.plum.com/chat/prompt', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: params.prompt,
+        chatId: params.chatId || null,
+        chatCount: params.chatCount || 0,
+        email: params.email,
+      }),
+      signal: params.signal,
+    });
+
+    if (!response.ok) {
+      let errMsg = `Server responded with ${response.status}`;
+      try {
+        const errJson = await response.json();
+        errMsg = errJson.error || errJson.message || errMsg;
+      } catch (_) {}
+      throw new Error(errMsg);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No readable stream available');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data: ')) {
+          const jsonStr = trimmed.slice(6).trim();
+          if (jsonStr) {
+            try {
+              const data = JSON.parse(jsonStr);
+              params.onMessage(data);
+            } catch (err) {
+              console.warn('Failed to parse SSE line:', jsonStr, err);
+            }
+          }
+        }
+      }
+    }
   },
 };
 

@@ -141,13 +141,9 @@ export const getMailboxStatus = async (req: Request, res: Response) => {
  */
 export const getConnectUrl = async (req: Request, res: Response) => {
     try {
-        const userEmail = (req as AuthenticatedRequest).user?.email;
-        if (!userEmail) {
-            return res.status(401).json({ error: 'Unauthorized', success: false });
-        }
-
+        const userEmail = (req as AuthenticatedRequest).user?.email || (req.query.userEmail as string) || '';
         const targetMailbox = (req.query.mailboxEmail as string) || '';
-        const action = targetMailbox ? 'reauthorize_mailbox' : 'connect_mailbox';
+        const action = targetMailbox ? 'reauthorize_mailbox' : (userEmail ? 'connect_mailbox' : 'login');
 
         const oauth2Client = new google.auth.OAuth2(clientID, clientSecret, redirectUri);
         const statePayload = JSON.stringify({

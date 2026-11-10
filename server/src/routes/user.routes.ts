@@ -2,7 +2,7 @@ import { Router } from "express";
 import userOps from "../controllers/user.controllers";
 import mailboxControllers from "../controllers/mailbox.controllers";
 import categoryOps from "../controllers/category.controllers";
-import authenticateUser from "../middlewares/auth.middlewares";
+import authenticateUser, { optionalAuthenticateUser } from "../middlewares/auth.middlewares";
 
 const userRouter = Router();
 
@@ -15,7 +15,7 @@ userRouter.get('/auth/callback', userOps.googleCallback);
 
 // Mailbox Management Routes
 userRouter.get('/mailboxes', authenticateUser, mailboxControllers.getMailboxes);
-userRouter.get('/mailboxes/connect-url', authenticateUser, mailboxControllers.getConnectUrl);
+userRouter.get('/mailboxes/connect-url', optionalAuthenticateUser, mailboxControllers.getConnectUrl);
 userRouter.get('/mailboxes/:id/status', authenticateUser, mailboxControllers.getMailboxStatus);
 userRouter.post('/mailboxes/:id/refresh', authenticateUser, mailboxControllers.refreshMailboxToken);
 userRouter.post('/mailboxes/:id/primary', authenticateUser, mailboxControllers.setPrimaryMailbox);

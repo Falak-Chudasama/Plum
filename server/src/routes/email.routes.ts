@@ -11,6 +11,7 @@ emailRouter.post('/send', authenticateUserGoogle, emailOps.sendEmail);
 emailRouter.post('/fetch', authenticateUserGoogle, emailOps.fetchEmails);
 
 // Local DB operations (authenticated with Plum JWT session)
+emailRouter.post('/ai-draft', authenticateUser, emailOps.generateAiDraft);
 emailRouter.get('/drafts', authenticateUser, emailOps.fetchDrafts);
 emailRouter.post('/draft', authenticateUser, emailOps.draftEmail);
 emailRouter.post('/fetch-by-date', authenticateUser, emailOps.fetchEmailsDate);

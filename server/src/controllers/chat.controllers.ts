@@ -1,6 +1,9 @@
+import { Request, Response } from "express";
 import Chats from "../models/chat";
-import { ChatType } from "../types/types";
+import User from "../models/user.models";
+import { ChatType, AuthenticatedRequest } from "../types/types";
 import { handleErrorUtil } from "../utils/errors.utils";
+import { handleChatPrompt, ChatMessageSender } from "../ai/services/chat.service";
 
 const filePath = "./src/controllers/chat.controllers.ts";
 
@@ -114,6 +117,75 @@ async function del(id: string, email: string) {
     }
 }
 
+async function streamPrompt(req: Request, res: Response) {
+    try {
+        const userEmail = (req as AuthenticatedRequest).user?.email || req.body?.email;
+        if (!userEmail) {
+            return res.status(401).json({ success: false, error: "Unauthorized: Missing user authentication" });
+        }
+
+        const { prompt, chatCount = 0, chatId } = req.body;
+        if (!prompt || !prompt.trim()) {
+            return res.status(400).json({ success: false, error: "Prompt is required" });
+        }
+
+        let userName: string | undefined;
+        let userLastName: string | undefined;
+        try {
+            const userRecord = await User.findOne({ email: userEmail }).lean();
+            if (userRecord) {
+                userName = userRecord.name || undefined;
+                userLastName = userRecord.lastName || undefined;
+            }
+        } catch (_) {}
+
+        // Enable SSE streaming
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream; charset=utf-8',
+            'Cache-Control': 'no-cache, no-transform',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+        });
+        if (typeof (res as any).flushHeaders === 'function') {
+            (res as any).flushHeaders();
+        }
+
+        const sender: ChatMessageSender = {
+            send: (payload: any) => {
+                if (!res.writableEnded) {
+                    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+                }
+            },
+            isOpen: () => !res.writableEnded,
+        };
+
+        await handleChatPrompt({
+            prompt: prompt.trim(),
+            chatCount: Number(chatCount) || 0,
+            user: {
+                email: userEmail,
+                name: userName,
+                lastName: userLastName,
+            },
+            chatId: chatId || null,
+            socket: sender,
+        });
+
+        if (!res.writableEnded) {
+            res.write(`data: ${JSON.stringify({ type: "DONE" })}\n\n`);
+            res.end();
+        }
+    } catch (err: any) {
+        if (!res.headersSent) {
+            return res.status(500).json({ success: false, error: err.message || "Failed to stream chat" });
+        }
+        if (!res.writableEnded) {
+            res.write(`data: ${JSON.stringify({ type: "ERROR", error: err.message })}\n\n`);
+            res.end();
+        }
+    }
+}
+
 const chatOps = {
     create,
     getById,
@@ -121,6 +193,7 @@ const chatOps = {
     getByTitleDate,
     update,
     del,
+    streamPrompt,
 };
 
 export default chatOps;

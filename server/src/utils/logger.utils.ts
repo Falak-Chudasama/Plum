@@ -19,7 +19,7 @@ const createUnifiedFormatter = (truncate: boolean, useColors: boolean = false) =
             const parts = msg.trim().split(' ');
             const method = parts[0];
             const requestPath = parts.slice(1).join(' ');
-            let domainAndPath = `api.plum.com${requestPath}`;
+            let domainAndPath = `api.plum.jam${requestPath}`;
 
             if (truncate && domainAndPath.length > 45) {
                 domainAndPath = `${domainAndPath.slice(0, 40)}...${domainAndPath.slice(-5)}`;

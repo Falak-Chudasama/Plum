@@ -15,6 +15,6 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ['plum.com', '127.0.0.2'],
+    allowedHosts: ['plum.jam', 'plum.com', '127.0.0.2', 'api.plum.jam'],
   },
 })

@@ -64,7 +64,7 @@ export function ConnectedAccountsPage() {
       console.warn('API connect URL fetch failed, falling back to direct redirect:', err);
     }
     // Fallback: direct browser redirect to backend connect endpoint
-    window.location.href = 'https://api.plum.com/user/mailboxes/connect';
+    window.location.href = 'https://api.plum.jam/user/mailboxes/connect';
   };
 
   const handleReauthorize = async (mailbox: MailboxItem) => {
@@ -78,7 +78,7 @@ export function ConnectedAccountsPage() {
     } catch (err: any) {
       console.warn('API reauth URL fetch failed, falling back to direct redirect:', err);
     }
-    window.location.href = `https://api.plum.com/user/mailboxes/connect?mailboxEmail=${encodeURIComponent(mailbox.email)}`;
+    window.location.href = `https://api.plum.jam/user/mailboxes/connect?mailboxEmail=${encodeURIComponent(mailbox.email)}`;
   };
 
   const handleRefreshToken = async (mailbox: MailboxItem) => {

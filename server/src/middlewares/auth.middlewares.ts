@@ -38,12 +38,13 @@ export const createAuthTokens = async (
 
         const accessTokenDays = parseExpiryToDays(accessTokenExpiry);
         const refreshTokenDays = parseExpiryToDays(refreshTokenExpiry);
+        const cookieDomain = process.env.COOKIE_DOMAIN || '.plum.jam';
 
         res.cookie('accessToken', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            domain: '.plum.com',
+            domain: cookieDomain,
             maxAge: accessTokenDays * 24 * 60 * 60 * 1000
         });
 
@@ -51,7 +52,7 @@ export const createAuthTokens = async (
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            domain: '.plum.com',
+            domain: cookieDomain,
             maxAge: refreshTokenDays * 24 * 60 * 60 * 1000
         });
 
@@ -59,7 +60,7 @@ export const createAuthTokens = async (
             httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            domain: '.plum.com',
+            domain: cookieDomain,
             maxAge: Number(process.env.GMAIL_EXPIRY)! * 24 * 60 * 60 * 1000
         });
 
@@ -67,7 +68,7 @@ export const createAuthTokens = async (
             httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            domain: '.plum.com',
+            domain: cookieDomain,
             maxAge: Number(process.env.GMAIL_EXPIRY)! * 24 * 60 * 60 * 1000
         });
 
@@ -98,7 +99,7 @@ export const refreshAccessToken = (req: Request, res: Response) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            domain: '.plum.com',
+            domain: process.env.COOKIE_DOMAIN || '.plum.jam',
             maxAge: accessTokenDays * 24 * 60 * 60 * 1000
         });
 

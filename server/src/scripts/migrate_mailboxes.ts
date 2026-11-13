@@ -5,7 +5,7 @@ dotenv.config();
 import User from '../models/user.models';
 import Mailbox from '../models/mailbox.models';
 
-const mongoUrl = process.env.MONGODB_URL || 'mongodb://127.0.0.1:4090/plum';
+const mongoUrl = process.env.MONGODB_URL || process.env.MONGO_URI || 'mongodb://127.0.0.1:10000/plum';
 
 async function migrate() {
     try {

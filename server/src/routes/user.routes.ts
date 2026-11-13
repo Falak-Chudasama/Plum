@@ -13,6 +13,7 @@ userRouter.post('/logout', authenticateUser, userOps.logoutUser);
 userRouter.post('/', authenticateUser, userOps.findUser);
 userRouter.post('/auth/login', userOps.loginUser);
 userRouter.get('/auth/callback', userOps.googleCallback);
+userRouter.get('/auth/handoff', userOps.googleHandoff);
 
 // Mailbox Management Routes
 userRouter.get('/mailboxes', authenticateUser, mailboxControllers.getMailboxes);

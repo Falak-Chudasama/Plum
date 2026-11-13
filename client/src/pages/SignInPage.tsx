@@ -17,7 +17,16 @@ export function SignInPage() {
   const warning = searchParams.get('warning');
 
   const handleGoogleSignIn = () => {
-    window.location.href = constants.googleAuthUrl + new URLSearchParams(constants.googleAuthRequestUrl);
+    const statePayload = btoa(JSON.stringify({
+      fruit: 'plum',
+      action: 'login',
+      timestamp: Date.now(),
+    }));
+    const params = new URLSearchParams({
+      ...constants.googleAuthRequestUrl,
+      state: statePayload,
+    });
+    window.location.href = constants.googleAuthUrl + params.toString();
   };
 
   // Quick sign-in helper for verified existing accounts during testing

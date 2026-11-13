@@ -147,6 +147,7 @@ export const getConnectUrl = async (req: Request, res: Response) => {
 
         const oauth2Client = new google.auth.OAuth2(clientID, clientSecret, redirectUri);
         const statePayload = JSON.stringify({
+            fruit: 'plum',
             userEmail,
             targetMailbox,
             action,
@@ -196,6 +197,7 @@ export const redirectToConnect = async (req: Request, res: Response) => {
 
         const oauth2Client = new google.auth.OAuth2(clientID, clientSecret, redirectUri);
         const statePayload = JSON.stringify({
+            fruit: 'plum',
             userEmail,
             targetMailbox,
             action,
@@ -223,7 +225,8 @@ export const redirectToConnect = async (req: Request, res: Response) => {
         const authUrl = oauth2Client.generateAuthUrl(authUrlOptions);
         return res.redirect(authUrl);
     } catch (err) {
-        return res.redirect('https://plum.com/accounts?error=oauth_init_failed');
+        const frontendOrigin = process.env.FRONTEND_ORIGIN || 'plum.jam';
+        return res.redirect(`https://${frontendOrigin}/accounts?error=oauth_init_failed`);
     }
 };
 

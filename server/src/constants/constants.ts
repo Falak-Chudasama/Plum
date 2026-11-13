@@ -1,5 +1,5 @@
 const constants = {
-    basketUrl: process.env.BASKET_URL || 'http://api.basket.com/llm/chat',
+    basketUrl: process.env.BASKET_URL || 'https://api.basket.jam/llm/chat',
 };
 
 export default constants;

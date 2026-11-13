@@ -7,8 +7,8 @@ import logger from "./utils/logger.utils";
 import runJobs from "./jobs/runJobs";
 
 const host: string = process.env.HOST || "127.0.0.2";
-const port: number = Number(process.env.PORT) || 4050;
-const origin: string = process.env.BACKEND_ORIGIN || "https://api.plum.com";
+const port: number = Number(process.env.PORT) || 10000;
+const origin: string = process.env.BACKEND_ORIGIN || "https://api.plum.jam";
 
 (() => {
     app.listen(port, host, async () => {

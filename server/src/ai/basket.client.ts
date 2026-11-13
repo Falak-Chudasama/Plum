@@ -47,7 +47,7 @@ class BasketClient {
     private baseUrl: string;
 
     constructor() {
-        this.baseUrl = process.env.BASKET_URL || "http://api.basket.com/llm/chat";
+        this.baseUrl = process.env.BASKET_URL || "https://api.basket.jam/llm/chat";
         const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 50 });
 
         this.client = axios.create({
@@ -101,7 +101,7 @@ class BasketClient {
     async createEmbedding(input: string[]): Promise<number[][]>;
     async createEmbedding(input: string | string[]): Promise<number[] | number[][]> {
         const requestId = crypto.randomUUID();
-        const embeddingUrl = process.env.BASKET_EMBEDDING_URL || "http://api.basket.com/llm/embeddings";
+        const embeddingUrl = process.env.BASKET_EMBEDDING_URL || "https://api.basket.jam/llm/embeddings";
         const headers = this.buildHeaders(requestId, false);
 
         try {

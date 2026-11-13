@@ -154,7 +154,7 @@ export function ChatPage() {
       const isSecure = window.location.protocol === 'https:';
       const wsUrl = isSecure
         ? `wss://${window.location.host}/ws`
-        : `ws://${window.location.hostname}:4065`;
+        : `ws://${window.location.hostname}:10010`;
 
       ws = new WebSocket(wsUrl);
       socketRef.current = ws;

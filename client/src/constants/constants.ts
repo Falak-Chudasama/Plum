@@ -1,13 +1,13 @@
 const constants = {
-    origin: "https://plum.com",
-    serverOrigin: "https://api.plum.com",
-    serverWssOrigin: "ws://localhost:4065",
-    clientId: "633855094180-f4sutrn7ov3abukq2s98gnmuqf6u34vh.apps.googleusercontent.com",
-    redirectURI: "https://api.plum.com/user/auth/callback",
+    origin: "https://plum.jam",
+    serverOrigin: "https://api.plum.jam",
+    serverWssOrigin: "wss://ws.plum.jam",
+    clientId: "897968001166-itakusc2tfqfvoikv651rgatq3vpkg84.apps.googleusercontent.com",
+    redirectURI: "http://localhost:10010/user/auth/callback",
     googleAuthUrl: 'https://accounts.google.com/o/oauth2/v2/auth?',
     googleAuthRequestUrl: {
-        client_id: '633855094180-f4sutrn7ov3abukq2s98gnmuqf6u34vh.apps.googleusercontent.com',
-        redirect_uri: 'https://api.plum.com/user/auth/callback',
+        client_id: '897968001166-itakusc2tfqfvoikv651rgatq3vpkg84.apps.googleusercontent.com',
+        redirect_uri: 'http://localhost:10010/user/auth/callback',
         response_type: 'code',
         scope: [
             'https://www.googleapis.com/auth/gmail.readonly',

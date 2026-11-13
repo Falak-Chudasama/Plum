@@ -5,7 +5,8 @@ import logger from "../utils/logger.utils";
 import { handleChatPrompt } from "../ai/services/chat.service";
 import User from "../models/user.models";
 
-const WEB_SOCKET_PORT1 = Number(process.env.WEB_SOCKET_PORT1) || 4065;
+const WEB_SOCKET_PORT1 = Number(process.env.WEB_SOCKET_PORT1) || 10010;
+const host = process.env.HOST || "127.0.0.2";
 const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET || "@Plums1Cause2Type3Two4Diabetes@";
 
 interface AuthenticatedWebSocket extends WebSocket {
@@ -56,10 +57,10 @@ function extractEmailFromUpgradeReq(req: http.IncomingMessage): string | null {
     return null;
 }
 
-const clientWss = new WebSocketServer({ port: WEB_SOCKET_PORT1 });
+const clientWss = new WebSocketServer({ host, port: WEB_SOCKET_PORT1 });
 
 clientWss.on("listening", () => {
-    logger.info(`[ClientWss] Plum Server WebSocket listening at -> port ${WEB_SOCKET_PORT1}`);
+    logger.info(`[ClientWss] Plum Server WebSocket listening at -> ${host}:${WEB_SOCKET_PORT1}`);
 });
 
 clientWss.on("connection", async (socket: AuthenticatedWebSocket, req: http.IncomingMessage) => {

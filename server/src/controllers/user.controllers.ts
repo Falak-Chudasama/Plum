@@ -60,13 +60,14 @@ const getMe = async (req: Request, res: Response) => {
     }
 };
 
-// POST api.plum.com/user/logout
+// POST api.plum.jam/user/logout
 const logoutUser = async (req: Request, res: Response) => {
     try {
-        res.clearCookie('accessToken', { domain: '.plum.com' });
-        res.clearCookie('refreshToken', { domain: '.plum.com' });
-        res.clearCookie('gmail', { domain: '.plum.com' });
-        res.clearCookie('picture', { domain: '.plum.com' });
+        const cookieDomain = process.env.COOKIE_DOMAIN || '.plum.jam';
+        res.clearCookie('accessToken', { domain: cookieDomain });
+        res.clearCookie('refreshToken', { domain: cookieDomain });
+        res.clearCookie('gmail', { domain: cookieDomain });
+        res.clearCookie('picture', { domain: cookieDomain });
         return res.status(200).json({ success: true, message: 'Logged out successfully' });
     } catch (err) {
         handleError(filePath, 'logoutUser', res, err, 'Logging out User');
@@ -349,13 +350,125 @@ const googleCallback = async (req: Request, res: Response) => {
             httpOnly: false,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            domain: '.plum.com',
+            domain: process.env.COOKIE_DOMAIN || '.plum.jam',
             maxAge: Number(process.env.GMAIL_EXPIRY || 15) * 24 * 60 * 60 * 1000
         });
 
         res.redirect(`https://${frontendOrigin}/inbox`);
     } catch (err) {
         handleError('/src/controllers/user.controllers.ts', 'googleCallback', res, err, 'Google Callback');
+    }
+};
+
+// GET api.plum.jam/user/auth/handoff?ticket=...
+const googleHandoff = async (req: Request, res: Response) => {
+    const { ticket } = req.query;
+
+    if (!ticket) {
+        return res.redirect(`https://${frontendOrigin}/signin?warning=missing_ticket`);
+    }
+
+    try {
+        const basketGateway = process.env.BASKET_GATEWAY_URL || 'http://127.0.0.1:10010';
+        const ticketRes = await axios.get(`${basketGateway}/auth/ticket/${ticket}`, { timeout: 10000 });
+
+        if (!ticketRes.data?.success || !ticketRes.data?.ticket) {
+            return res.redirect(`https://${frontendOrigin}/signin?warning=invalid_or_expired_ticket`);
+        }
+
+        const { tokens, userInfo, stateData } = ticketRes.data.ticket;
+        const { access_token, refresh_token, id_token, expiry_date } = tokens;
+
+        // Check if this OAuth flow was triggered to connect an additional mailbox
+        if ((stateData?.action === 'connect_mailbox' || stateData?.action === 'reauthorize_mailbox') && stateData?.userEmail) {
+            const ownerEmail = stateData.userEmail;
+            const newMailboxEmail = userInfo.email;
+            const fullName = [userInfo.given_name, userInfo.family_name].filter(Boolean).join(' ') || userInfo.name || newMailboxEmail;
+
+            const updateFields: any = {
+                userEmail: ownerEmail,
+                email: newMailboxEmail,
+                name: fullName,
+                picture: userInfo.picture || '',
+                'tokens.access_token': access_token,
+                'tokens.id_token': id_token,
+                status: 'connected',
+                lastSyncAt: new Date(),
+            };
+            if (refresh_token) {
+                updateFields['tokens.refresh_token'] = refresh_token;
+            }
+            if (expiry_date) {
+                updateFields['tokens.expiry_date'] = expiry_date;
+            }
+
+            await Mailbox.findOneAndUpdate(
+                { userEmail: ownerEmail, email: newMailboxEmail },
+                { $set: updateFields },
+                { upsert: true, new: true }
+            );
+
+            // Synchronize across any other workspaces linking this Gmail account
+            const syncFields: any = {
+                'tokens.access_token': access_token,
+                'tokens.id_token': id_token,
+                status: 'connected',
+                lastSyncAt: new Date(),
+            };
+            if (refresh_token) {
+                syncFields['tokens.refresh_token'] = refresh_token;
+            }
+            if (expiry_date) {
+                syncFields['tokens.expiry_date'] = expiry_date;
+            }
+            await Mailbox.updateMany({ email: newMailboxEmail }, { $set: syncFields });
+
+            // Synchronize User table if user exists
+            await User.updateOne(
+                { email: newMailboxEmail },
+                {
+                    $set: {
+                        'google.accessToken': access_token,
+                        ...(refresh_token ? { 'google.refreshToken': refresh_token } : {}),
+                        'google.IdToken': id_token,
+                    }
+                }
+            );
+
+            return res.redirect(`https://${frontendOrigin}/accounts?reauthorized=${encodeURIComponent(newMailboxEmail)}`);
+        }
+
+        // Standard user login / registration
+        await createUser(res, userInfo, { access_token, refresh_token, id_token, expiry_date });
+
+        // Update all Mailbox documents referencing this email with the fresh tokens
+        const syncMailboxFields: any = {
+            'tokens.access_token': access_token,
+            'tokens.id_token': id_token,
+            status: 'connected',
+            lastSyncAt: new Date(),
+        };
+        if (refresh_token) {
+            syncMailboxFields['tokens.refresh_token'] = refresh_token;
+        }
+        if (expiry_date) {
+            syncMailboxFields['tokens.expiry_date'] = expiry_date;
+        }
+        await Mailbox.updateMany({ email: userInfo.email }, { $set: syncMailboxFields });
+
+        await createAuthTokens(userInfo.email, res);
+
+        res.cookie('picture', userInfo.picture, {
+            httpOnly: false,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            domain: process.env.COOKIE_DOMAIN || '.plum.jam',
+            maxAge: Number(process.env.GMAIL_EXPIRY || 15) * 24 * 60 * 60 * 1000
+        });
+
+        return res.redirect(`https://${frontendOrigin}/inbox`);
+    } catch (err) {
+        handleError('/src/controllers/user.controllers.ts', 'googleHandoff', res, err, 'Google Handoff from Basket');
     }
 };
 
@@ -368,6 +481,7 @@ const userOps = {
     loginUser,
     updateUserGoogleTokens,
     googleCallback,
+    googleHandoff,
     refreshGoogleAccessToken,
     getGoogleTokensUtil
 };

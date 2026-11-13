@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = 'https://api.plum.com';
+const API_BASE = 'https://api.plum.jam';
 
 export const apiClient = axios.create({
   baseURL: API_BASE,
@@ -303,7 +303,7 @@ export const api = {
     onMessage: (data: any) => void;
     signal?: AbortSignal;
   }): Promise<void> {
-    const response = await fetch('https://api.plum.com/chat/prompt', {
+    const response = await fetch(`${API_BASE}/chat/prompt`, {
       method: 'POST',
       credentials: 'include',
       headers: {

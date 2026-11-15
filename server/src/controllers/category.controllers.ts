@@ -3,11 +3,23 @@ import CategoryModel from "../models/category";
 import { CategoryType, AuthenticatedRequest } from "../types/types";
 import { handleErrorUtil } from "../utils/errors.utils";
 
+import { DEFAULT_PLUM_CATEGORIES } from "../ai/services/categorizer.service";
+
 const filePath = "/src/controllers/category.controllers.ts";
 
 const findUserCategories = async (email: string): Promise<CategoryType[]> => {
     try {
-        const categories = await CategoryModel.find({ email });
+        let categories = await CategoryModel.find({ email });
+        if (!categories || categories.length === 0) {
+            try {
+                const toInsert = DEFAULT_PLUM_CATEGORIES.map(c => ({ ...c, email }));
+                await CategoryModel.insertMany(toInsert);
+                categories = await CategoryModel.find({ email });
+            } catch (seedErr) {
+                // Return default categories if concurrent insert occurs
+                return DEFAULT_PLUM_CATEGORIES as any;
+            }
+        }
         return categories;
     } catch (err) {
         handleErrorUtil(filePath, "findUserCategories", err, `Fetching Categories for user=${email}`);

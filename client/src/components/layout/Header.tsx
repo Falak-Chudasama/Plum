@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Inbox,
   Send,
@@ -13,11 +13,10 @@ import {
   Check,
   Plus,
   LogOut,
-  Mail,
-  ShieldCheck,
 } from 'lucide-react';
 import { useTheme } from '../ui/ThemeProvider';
 import { usePlumStore } from '../../store/usePlumStore';
+import { playEnter, playScroll } from '../../lib/sound';
 import plumLogo from '../../assets/plum-icon.svg';
 
 const NAV_ITEMS = [
@@ -33,6 +32,78 @@ export function Header() {
   const { user, mailboxes, activeMailbox, setActiveMailbox, openComposer, logout } = usePlumStore();
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const navContainerRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const [pillStyle, setPillStyle] = useState({ left: 0, top: 0, width: 0, height: 0, opacity: 0 });
+  const [isReady, setIsReady] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Dynamic Sliding Active Pill calculation (Section 2.9: 300ms cubic-bezier(0.2, 0.8, 0.2, 1))
+  const updatePill = () => {
+    const activeItem = NAV_ITEMS.find((item) => location.pathname.startsWith(item.to));
+    if (activeItem && itemRefs.current[activeItem.to] && navContainerRef.current) {
+      const navRect = navContainerRef.current.getBoundingClientRect();
+      const elRect = itemRefs.current[activeItem.to]!.getBoundingClientRect();
+
+      setPillStyle({
+        left: elRect.left - navRect.left,
+        top: elRect.top - navRect.top,
+        width: elRect.width,
+        height: elRect.height,
+        opacity: 1,
+      });
+    } else {
+      setPillStyle((prev) => ({ ...prev, opacity: 0 }));
+    }
+  };
+
+  useEffect(() => {
+    updatePill();
+    const timer = setTimeout(() => {
+      setIsReady(true);
+    }, 50);
+    window.addEventListener('resize', updatePill);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updatePill);
+    };
+  }, [location.pathname]);
+
+  // Keyboard shortcut: Ctrl + Left / Right arrow keys to navigate between primary tabs
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        const currentPath = location.pathname;
+        const currentIndex = NAV_ITEMS.findIndex((item) => currentPath.startsWith(item.to));
+        const activeIdx = currentIndex !== -1 ? currentIndex : 0;
+
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          const prevIndex = (activeIdx - 1 + NAV_ITEMS.length) % NAV_ITEMS.length;
+          playScroll();
+          navigate(NAV_ITEMS[prevIndex].to);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          const nextIndex = (activeIdx + 1) % NAV_ITEMS.length;
+          playScroll();
+          navigate(NAV_ITEMS[nextIndex].to);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [location.pathname, navigate]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -47,14 +118,35 @@ export function Header() {
 
   const activeAccountObj = mailboxes.find((m) => m.email === activeMailbox);
 
+  const handleNavClick = () => {
+    playScroll();
+  };
+
+  const handleCompose = () => {
+    playEnter();
+    openComposer();
+  };
+
+  const handleAccountSelect = (email: string) => {
+    playEnter();
+    setActiveMailbox(email);
+    setIsAccountDropdownOpen(false);
+  };
+
+  const handleThemeToggle = () => {
+    playEnter();
+    toggleTheme();
+  };
+
   return (
     <>
-      {/* Desktop Floating Navigation Capsule */}
-      <header className="sticky top-4 z-40 mx-auto hidden w-full max-w-5xl px-4 sm:block">
-        <div className="glass-capsule flex items-center justify-between gap-3 rounded-full px-4 py-2.5 shadow-floating transition-colors duration-200">
+      {/* Desktop Floating Navigation Capsule (Docked fixed at top-3.5, 15px blur, 0.20 fill, stationary during scroll) */}
+      <header className="fixed top-3.5 inset-x-0 z-40 mx-auto hidden w-full max-w-5xl px-4 sm:block pointer-events-none">
+        <div className="glass-capsule pointer-events-auto flex items-center justify-between gap-3 rounded-full px-4 py-2 shadow-floating transition-colors duration-200">
           {/* Brand Wordmark & Logo */}
           <Link
             to="/inbox"
+            onClick={handleNavClick}
             className="focus-ring flex items-center gap-2 rounded-full pr-1.5 transition hover:opacity-90 shrink-0"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-stone-800 p-1 shadow-2xs border border-black/[0.05] dark:border-white/[0.08]">
@@ -65,33 +157,54 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Nav Links */}
+          {/* Navigation Links with Smooth Indicator & SFX */}
           <nav className="flex items-center gap-1" aria-label="Primary Desktop Navigation">
-            {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `focus-ring flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                    isActive
-                      ? 'bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 shadow-xs'
-                      : 'text-stone-600 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-stone-900 dark:hover:text-white'
-                  }`
-                }
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span>{label}</span>
-              </NavLink>
-            ))}
+            <div ref={navContainerRef} className="relative flex items-center gap-1">
+              {/* Dynamic Sliding Active Indicator Pill (Section 2.9 & 5.6: 300ms cubic-bezier(0.2, 0.8, 0.2, 1)) */}
+              <div
+                className={`absolute rounded-full bg-stone-900 dark:bg-stone-100 shadow-xs pointer-events-none ${
+                  isReady ? 'transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]' : ''
+                }`}
+                style={{
+                  transform: `translate3d(${pillStyle.left}px, ${pillStyle.top}px, 0)`,
+                  width: `${pillStyle.width}px`,
+                  height: `${pillStyle.height}px`,
+                  opacity: pillStyle.opacity,
+                  willChange: 'transform, width',
+                }}
+                aria-hidden="true"
+              />
+
+              {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  ref={(el) => {
+                    itemRefs.current[to] = el;
+                  }}
+                  onClick={handleNavClick}
+                  className={({ isActive }) =>
+                    `relative z-10 focus-ring flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors duration-200 ${
+                      isActive
+                        ? 'text-white dark:text-stone-900'
+                        : 'text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-white'
+                    }`
+                  }
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{label}</span>
+                </NavLink>
+              ))}
+            </div>
           </nav>
 
-          {/* Quick Compose & Account Switcher */}
+          {/* Actions: Compose, Accounts, Sound Toggle, Theme Toggle */}
           <div className="flex items-center gap-2">
-            {/* Compose Button */}
+            {/* Compose Button (Plum Accessible Primary Action #7E36B2) */}
             <button
               type="button"
-              onClick={() => openComposer()}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-full bg-[#B266E6] hover:bg-[#8F40C7] text-white px-3.5 py-1.5 text-xs font-semibold shadow-xs transition"
+              onClick={handleCompose}
+              className="focus-ring btn-interactive inline-flex items-center gap-1.5 rounded-full bg-[#7E36B2] hover:bg-[#8F40C7] text-white px-3.5 py-1.5 text-xs font-bold shadow-xs transition"
             >
               <PenSquare className="h-3.5 w-3.5" />
               <span>Compose</span>
@@ -114,7 +227,7 @@ export function Header() {
                     )}
                   </div>
                   <span
-                    className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-[#181915] z-10 ${
+                    className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#181915] z-10 ${
                       activeAccountObj?.status === 'connected' ? 'bg-emerald-500' : 'bg-amber-500'
                     }`}
                   />
@@ -122,12 +235,12 @@ export function Header() {
                 <span className="max-w-[110px] truncate font-semibold text-stone-800 dark:text-stone-200 text-xs">
                   {activeMailbox ? activeMailbox.split('@')[0] : 'Select Account'}
                 </span>
-                <ChevronDown className={`h-3 w-3 text-stone-400 transition-transform ${isAccountDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-3 w-3 text-stone-400 transition-transform duration-200 ease-out ${isAccountDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Dropdown Menu */}
               {isAccountDropdownOpen && (
-                <div className="glass-panel absolute right-0 mt-2.5 w-80 rounded-2xl p-2.5 shadow-lift border border-black/[0.08] dark:border-white/[0.1] bg-white/95 dark:bg-[#181915]/95 backdrop-blur-xl z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="glass-panel absolute right-0 mt-2.5 w-80 rounded-2xl p-2.5 shadow-lift border border-black/[0.08] dark:border-white/[0.1] bg-white/95 dark:bg-[#181915]/95 backdrop-blur-xl z-50 animate-scale-in">
                   {/* User Workspace Header */}
                   <div className="rounded-xl bg-black/[0.02] dark:bg-white/[0.03] p-3 border border-black/[0.04] dark:border-white/[0.05]">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
@@ -136,7 +249,7 @@ export function Header() {
                     <div className="mt-0.5 text-xs font-bold text-stone-900 dark:text-white truncate">
                       {user?.name ? `${user.name} ${user.lastName || ''}`.trim() : user?.email}
                     </div>
-                    <div className="text-[11px] text-stone-500 dark:text-stone-400 truncate">
+                    <div className="text-[10px] text-stone-500 dark:text-stone-400 truncate">
                       {user?.email}
                     </div>
                   </div>
@@ -153,10 +266,7 @@ export function Header() {
                         <button
                           key={mb.id}
                           type="button"
-                          onClick={() => {
-                            setActiveMailbox(mb.email);
-                            setIsAccountDropdownOpen(false);
-                          }}
+                          onClick={() => handleAccountSelect(mb.email)}
                           className={`w-full flex items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs transition border ${
                             isActive
                               ? 'bg-[#B266E6]/10 border-[#B266E6]/30 text-stone-900 dark:text-white font-semibold'
@@ -173,7 +283,7 @@ export function Header() {
                                 )}
                               </div>
                               <span
-                                className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-[#181915] z-10 ${
+                                className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#181915] z-10 ${
                                   mb.status === 'connected' ? 'bg-emerald-500' : 'bg-amber-500'
                                 }`}
                               />
@@ -191,7 +301,7 @@ export function Header() {
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             {isExpired && (
-                              <span className="rounded-md bg-amber-500/15 border border-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300">
+                              <span className="rounded-lg bg-amber-500/15 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
                                 Reauth
                               </span>
                             )}
@@ -229,27 +339,27 @@ export function Header() {
 
             <div className="mx-0.5 h-4 w-px bg-stone-200 dark:bg-stone-700" aria-hidden="true" />
 
-            {/* Dark/Light Mode Switcher */}
+            {/* Dark/Light Mode Switcher with Tactile Hover Transforms */}
             <button
               type="button"
-              onClick={toggleTheme}
+              onClick={handleThemeToggle}
               className="focus-ring flex h-8 w-8 items-center justify-center rounded-full text-stone-600 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {isDark ? (
-                <Sun className="h-4 w-4 text-[#B266E6] dark:text-[#DBBFFF] transition-transform duration-200 hover:rotate-45" />
+                <Sun className="h-4 w-4 text-[#DBBFFF] transition-transform duration-200 hover:rotate-45" />
               ) : (
-                <Moon className="h-4 w-4 text-[#B266E6] dark:text-[#DBBFFF] transition-transform duration-200 hover:-rotate-12" />
+                <Moon className="h-4 w-4 text-[#7E36B2] transition-transform duration-200 hover:-rotate-12" />
               )}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile Top Header Bar */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-black/[0.05] dark:border-white/[0.08] bg-white/95 dark:bg-[#181915]/95 px-4 py-3 backdrop-blur-md transition-colors duration-200 sm:hidden">
-        <Link to="/inbox" className="flex items-center gap-2">
+      {/* Mobile Top Header Bar (Fixed at top-0, stationary during scroll) */}
+      <header className="fixed top-0 inset-x-0 z-40 flex items-center justify-between border-b border-black/[0.05] dark:border-white/[0.08] bg-white/95 dark:bg-[#181915]/95 px-4 py-3 backdrop-blur-md transition-colors duration-200 sm:hidden">
+        <Link to="/inbox" onClick={handleNavClick} className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white dark:bg-stone-800 p-0.5 shadow-2xs border border-black/[0.05] dark:border-white/[0.08]">
             <img src={plumLogo} alt="Plum" className="h-5 w-5 object-contain" />
           </div>
@@ -262,38 +372,41 @@ export function Header() {
               {activeMailbox.split('@')[0]}
             </span>
           )}
+          {/* Quick Compose Button */}
           <button
             type="button"
-            onClick={() => openComposer()}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-[#B266E6] text-white shadow-xs"
+            onClick={handleCompose}
+            className="flex h-8 w-8 min-h-[32px] min-w-[32px] items-center justify-center rounded-full bg-[#7E36B2] text-white shadow-xs"
             aria-label="Compose"
           >
-            <PenSquare className="h-3.5 w-3.5" />
+            <PenSquare className="h-4 w-4" />
           </button>
+          {/* Theme Toggle */}
           <button
             type="button"
-            onClick={toggleTheme}
-            className="focus-ring flex h-7 w-7 items-center justify-center rounded-full text-stone-600 dark:text-stone-300"
+            onClick={handleThemeToggle}
+            className="focus-ring flex h-8 w-8 min-h-[32px] min-w-[32px] items-center justify-center rounded-full text-stone-600 dark:text-stone-300"
             aria-label="Toggle theme"
           >
-            {isDark ? <Sun className="h-3.5 w-3.5 text-[#89D66D]" /> : <Moon className="h-3.5 w-3.5 text-stone-600" />}
+            {isDark ? <Sun className="h-4 w-4 text-[#DBBFFF]" /> : <Moon className="h-4 w-4 text-[#7E36B2]" />}
           </button>
         </div>
       </header>
 
-      {/* Mobile Floating Bottom Dock */}
+      {/* Mobile Floating Bottom Dock (Section 4.1 & 6.3 - 48dp Touch Targets) */}
       <nav
-        className="fixed bottom-3 inset-x-3 z-50 flex justify-around rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-[#181915]/95 py-2 px-1 shadow-lift backdrop-blur-lg transition-colors duration-200 sm:hidden"
+        className="fixed bottom-3 inset-x-3 z-50 flex justify-around rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-[#181915]/95 py-1 px-1 shadow-lift backdrop-blur-lg transition-colors duration-200 sm:hidden"
         aria-label="Primary Mobile Navigation"
       >
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
+            onClick={handleNavClick}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-1 text-[10px] font-semibold transition ${
+              `flex min-h-[48px] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-[10px] font-semibold transition ${
                 isActive
-                  ? 'text-[#B266E6] dark:text-[#DBBFFF] bg-[#B266E6]/10 font-bold'
+                  ? 'text-[#7E36B2] dark:text-[#DBBFFF] bg-[#B266E6]/10 font-bold'
                   : 'text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100'
               }`
             }
@@ -306,4 +419,3 @@ export function Header() {
     </>
   );
 }
-

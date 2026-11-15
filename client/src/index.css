@@ -33,9 +33,34 @@
   --font-display: "Unbounded", sans-serif;
   --font-heading: "Host Grotesk", sans-serif;
 
-  /* Plum Brand Colors */
+  /* --- Section 1: Literal 7-Step Type Scale --- */
+  --text-micro: 10px;
+  --text-caption: 12px;
+  --text-body: 14px;
+  --text-subtitle: 16px;
+  --text-title: 20px;
+  --text-pagetitle: 24px;
+  --text-hero: 36px;
+
+  /* --- Section 1: Literal 6-Step Radii Scale --- */
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
+  --radius-modal: 32px;
+  --radius-capsule: 9999px;
+
+  /* --- Section 1: Literal 4-Level Elevation (+ Flat) --- */
+  --shadow-none: none;
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  --shadow-floating: 0 8px 30px -4px rgba(0, 0, 0, 0.08), 0 2px 8px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lift: 0 12px 32px -4px rgba(0, 0, 0, 0.09);
+
+  /* --- Section 3: Plum Deterministically Derived Accent Tokens (No Kiwi green/lime) --- */
   --color-plum-flesh: #B266E6;
   --color-plum-dark: #8F40C7;
+  --color-plum-strong: #7E36B2;
   --color-plum-deep: #5C207E;
   --color-plum-pastel: #DBBFFF;
   --color-plum-leaf: #89D66D;
@@ -43,26 +68,42 @@
   --color-plum-obsidian: #121310;
   --color-plum-panel: #181915;
 
-  /* Plum Legacy compatibility mappings */
+  /* Legacy aliases mapped directly to Plum tokens */
   --color-plum-primary: #B266E6;
   --color-plum-primary-dark: #8F40C7;
   --color-plum-secondary: #5C207E;
   --color-plum-purple: #DBBFFF;
   --color-plum-bg: #F8F9F5;
 
-  /* Category accent colors */
+  /* Domain Category Colors (Customizable tags) */
   --color-cat-academic: #B266E6;
   --color-cat-session: #89D66D;
   --color-cat-deadline: #F59E0B;
   --color-cat-urgent: #EF4444;
   --color-cat-general: #64748B;
 
-  /* Radii & Shadows */
-  --radius-card: 1.25rem;
-  --radius-capsule: 9999px;
-  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lift: 0 12px 32px -4px rgba(0, 0, 0, 0.09);
-  --shadow-floating: 0 8px 30px -4px rgba(0, 0, 0, 0.08), 0 2px 8px -2px rgba(0, 0, 0, 0.04);
+  /* --- Section 2.9: Complete Motion Timing & Easing Tokens --- */
+  --duration-micro: 140ms;
+  --duration-short: 180ms;
+  --duration-medium: 220ms;
+  --duration-slide: 260ms;
+  --duration-subpage: 280ms;
+  --duration-pill: 300ms;
+  --duration-toast: 4200ms;
+  --ease-tactile: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-slide: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:root {
+  --accent-light: #B266E6;
+  --accent-dark: #DBBFFF;
+  --accent-strong-light: #7E36B2;
+  --accent-pressed-light: #8F40C7;
+  --accent-pressed-dark: #5C207E;
+  --accent-subtle-light: rgba(178, 102, 230, 0.10);
+  --accent-subtle-dark: rgba(219, 191, 255, 0.10);
+  --on-accent-light: #FFFFFF;
+  --on-accent-dark: #121310;
 }
 
 @layer base {
@@ -73,13 +114,23 @@
 
   body {
     background-color: #F8F9F5;
-    color: #1A1A1A;
+    background-image:
+      radial-gradient(at 15% 15%, rgba(178, 102, 230, 0.05) 0px, transparent 55%),
+      radial-gradient(at 85% 85%, rgba(219, 191, 255, 0.04) 0px, transparent 50%),
+      radial-gradient(at 85% 15%, rgba(178, 102, 230, 0.03) 0px, transparent 45%);
+    background-attachment: fixed;
+    color: #1C1917;
     min-height: 100vh;
-    transition: background-color 0.25s ease, color 0.25s ease;
+    transition: background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1), color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   html.dark body {
     background-color: #121310;
+    background-image:
+      radial-gradient(at 15% 15%, rgba(219, 191, 255, 0.05) 0px, transparent 55%),
+      radial-gradient(at 85% 85%, rgba(178, 102, 230, 0.045) 0px, transparent 50%),
+      radial-gradient(at 80% 20%, rgba(219, 191, 255, 0.035) 0px, transparent 45%);
+    background-attachment: fixed;
     color: #F3F4F1;
   }
 
@@ -93,60 +144,244 @@
   }
 }
 
-/* --- Glass Material System --- */
+/* --- Section 2.6: Apple-Grade Glass Material System (Strict 3 Blur Tiers) --- */
 @layer components {
+  /* Tier 1: Floating Navigation Capsule (15px blur, 0.20 fill) */
   .glass-capsule {
-    background: rgba(255, 255, 255, 0.82);
+    background: rgba(255, 255, 255, 0.20);
     border: 1px solid rgba(0, 0, 0, 0.07);
     box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
   }
 
   html.dark .glass-capsule {
-    background: rgba(24, 25, 21, 0.88);
+    background: rgba(24, 25, 21, 0.20);
     border: 1px solid rgba(255, 255, 255, 0.09);
-    box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.45), 0 2px 8px -1px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.45), 0 2px 8px -1px rgba(0, 0, 0, 0.30);
   }
 
+  /* Tier 2: Glass Panel / Dialog / Overlay / Sheet (12px blur, 160% saturation, 0.38/0.40 fill) */
   .glass-panel {
-    background: rgba(255, 255, 255, 0.78);
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.70), 0 12px 36px -4px rgba(0, 0, 0, 0.05);
   }
 
   html.dark .glass-panel {
-    background: rgba(24, 25, 21, 0.85);
+    background: rgba(22, 23, 19, 0.40);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.08), 0 12px 36px -4px rgba(0, 0, 0, 0.50);
+  }
+
+  /* Tier 3: Glass Card / Workspace Row / Input Container (10px blur, 150% saturation, 0.28/0.34 fill) */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.50);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.50), 0 4px 16px -2px rgba(0, 0, 0, 0.03);
+  }
+
+  html.dark .glass-card {
+    background: rgba(22, 23, 19, 0.34);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.5);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 4px 20px -2px rgba(0, 0, 0, 0.35);
   }
 
   @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
     .glass-capsule {
-      -webkit-backdrop-filter: blur(16px);
-      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(15px);
+      backdrop-filter: blur(15px);
     }
     .glass-panel {
-      -webkit-backdrop-filter: blur(20px);
-      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(12px) saturate(160%);
+      backdrop-filter: blur(12px) saturate(160%);
+    }
+    .glass-card {
+      -webkit-backdrop-filter: blur(10px) saturate(150%);
+      backdrop-filter: blur(10px) saturate(150%);
     }
   }
 
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .glass-capsule {
+    .glass-capsule, .glass-panel, .glass-card {
       background: #FFFFFF;
     }
-    .glass-panel {
-      background: #FFFFFF;
-    }
-    html.dark .glass-capsule {
+    html.dark .glass-capsule, html.dark .glass-panel, html.dark .glass-card {
       background: #181915;
     }
-    html.dark .glass-panel {
-      background: #181915;
-    }
+  }
+
+  /* Section 2.9: Tactile Micro-Physics Interactive Transforms */
+  .btn-interactive {
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, opacity 0.18s ease;
+  }
+  .btn-interactive:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.015);
+  }
+  .btn-interactive:active:not(:disabled) {
+    transform: translateY(0.5px) scale(0.985);
+  }
+
+  .row-interactive {
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .row-interactive:hover {
+    transform: translateY(-1px);
+  }
+  .row-interactive:active {
+    transform: translateY(0.5px) scale(0.995);
+  }
+
+  /* Smooth Apple-like page & element transitions (Section 2.9) */
+  .animate-page-enter {
+    animation: page-enter 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 150ms ease-out both;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 180ms ease-out both;
+  }
+
+  .animate-slide-from-right {
+    animation: slide-from-right 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    will-change: transform, opacity;
+  }
+
+  .animate-slide-from-left {
+    animation: slide-from-left 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    will-change: transform, opacity;
+  }
+
+  /* Two-layer Apple-like directional slide transitions (Section 2.9) */
+  .animate-slide-out-to-left {
+    animation: slide-out-to-left 260ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    will-change: transform, opacity;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+
+  .animate-slide-in-from-right {
+    animation: slide-in-from-right 260ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    will-change: transform, opacity;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+
+  .animate-slide-out-to-right {
+    animation: slide-out-to-right 260ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    will-change: transform, opacity;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+
+  .animate-slide-in-from-left {
+    animation: slide-in-from-left 260ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    will-change: transform, opacity;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+
+  /* Section 5.1: Primary Glass Action Button (WCAG AA 6.87:1 Contrast Passed via #7E36B2) */
+  .btn-glass-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.35rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    border-radius: 9999px;
+    background: #7E36B2;
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.40);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.45), 0 4px 14px -2px rgba(126, 54, 178, 0.35);
+    backdrop-filter: blur(15px) saturate(140%);
+    -webkit-backdrop-filter: blur(15px) saturate(140%);
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, opacity 0.18s ease;
+    cursor: pointer;
+  }
+
+  .btn-glass-primary:hover:not(:disabled) {
+    background: #8F40C7;
+    transform: translateY(-1px) scale(1.015);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.55), 0 6px 18px -2px rgba(126, 54, 178, 0.45);
+  }
+
+  .btn-glass-primary:active:not(:disabled) {
+    transform: translateY(0.5px) scale(0.985);
+  }
+
+  .btn-glass-primary:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  html.dark .btn-glass-primary {
+    background: rgba(219, 191, 255, 0.70);
+    color: #121310;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.20), 0 4px 16px -2px rgba(219, 191, 255, 0.28);
+  }
+
+  html.dark .btn-glass-primary:hover:not(:disabled) {
+    background: rgba(219, 191, 255, 0.85);
+    border-color: rgba(255, 255, 255, 0.40);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.30), 0 6px 20px -2px rgba(219, 191, 255, 0.38);
+  }
+
+  /* Section 5.1: Secondary Glass Action Button */
+  .btn-glass-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.35);
+    color: #1C1917;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.70), 0 2px 8px -1px rgba(0, 0, 0, 0.04);
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease;
+    cursor: pointer;
+  }
+
+  .btn-glass-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.55);
+    transform: translateY(-1px) scale(1.015);
+  }
+
+  .btn-glass-secondary:active:not(:disabled) {
+    transform: translateY(0.5px) scale(0.985);
+  }
+
+  html.dark .btn-glass-secondary {
+    background: rgba(22, 23, 19, 0.40);
+    color: #F3F4F1;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.08), 0 2px 8px -1px rgba(0, 0, 0, 0.30);
+  }
+
+  html.dark .btn-glass-secondary:hover:not(:disabled) {
+    background: rgba(22, 23, 19, 0.60);
+    border-color: rgba(255, 255, 255, 0.20);
   }
 }
 
 @layer utilities {
+  /* Section 7.2: High-Visibility Two-Layer Focus Ring (Plum Accent) */
   .focus-ring {
     outline: none;
   }
@@ -166,13 +401,13 @@
   }
   .scrollbar-clean::-webkit-scrollbar-thumb {
     background-color: rgba(0, 0, 0, 0.15);
-    border-radius: 999px;
+    border-radius: 9999px;
   }
   html.dark .scrollbar-clean::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.20);
   }
 
-  /* --- Quiet Utility Markdown Typography --- */
+  /* Quiet Utility Markdown Typography */
   .markdown-body {
     font-family: var(--font-sans);
     line-height: 1.65;
@@ -234,6 +469,116 @@
   }
 }
 
+/* --- Section 2.9: Exhaustive Keyframe Definitions --- */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes page-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.996);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slide-out-to-left {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-60px, 0, 0);
+  }
+}
+
+@keyframes slide-in-from-right {
+  0% {
+    opacity: 0;
+    transform: translate3d(60px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slide-out-to-right {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(60px, 0, 0);
+  }
+}
+
+@keyframes slide-in-from-left {
+  0% {
+    opacity: 0;
+    transform: translate3d(-60px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slide-from-right {
+  0% {
+    opacity: 0;
+    transform: translate3d(40px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slide-from-left {
+  0% {
+    opacity: 0;
+    transform: translate3d(-40px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Section 2.9: Reduced Motion Policy */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;

@@ -22,7 +22,7 @@ const main = async () => {
         for (const user of users) {
             try {
                 const OAuth = await createOAuthClientForUser(user.email);
-                const emails = await emailOps.fetchEmailsUtil(OAuth, 10);
+                const emails = await emailOps.fetchEmailsUtil(OAuth, 50);
                 if (!emails || !emails.length) continue;
                 const uniqueEmails = await emailOps.fetchUniqueEmails(emails as InboundEmailType[]);
 

@@ -108,7 +108,7 @@ const saveInboundEmails = async (emails: InboundEmailType[]): Promise<{ inserted
     }
 };
 
-const fetchEmailsUtil = async (OAuth: object, numberOfEmails: number = 10) => {
+const fetchEmailsUtil = async (OAuth: object, numberOfEmails: number = 50) => {
     // @ts-ignore
     const gmail = google.gmail({ version: 'v1', auth: OAuth });
     try {
@@ -374,7 +374,7 @@ const fetchEmails = async (req: Request, res: Response) => {
     const targetMailbox = googleReq.mailbox?.email || (await resolveTargetMailbox(userEmail, req.query.mailboxEmail as string || req.headers['x-mailbox-email'] as string));
     const OAuth = googleReq.auth!;
 
-    const numberOfEmails = Number(req.query.numberOfEmails || 10);
+    const numberOfEmails = Math.min(Math.max(Number(req.query.numberOfEmails || 50), 1), 100);
 
     try {
         const rawEmails = await fetchEmailsUtil(OAuth, numberOfEmails);
@@ -735,6 +735,45 @@ const generateAiDraft = async (req: Request, res: Response) => {
     }
 };
 
+// POST api.plum.jam/email/recategorize
+const recategorizeEmails = async (req: Request, res: Response) => {
+    try {
+        const userEmail = (req as AuthenticatedRequest).user.email;
+        const targetMailbox = await resolveTargetMailbox(
+            userEmail,
+            (req.headers['x-mailbox-email'] as string) || (req.query.mailboxEmail as string)
+        );
+
+        // Find uncategorized or "Other" emails for this mailbox
+        const emailsToClassify = await models.InboundEmail.find({
+            email: targetMailbox,
+            $or: [
+                { categories: { $size: 0 } },
+                { categories: "Other" },
+                { categories: { $exists: false } }
+            ]
+        }).limit(50);
+
+        if (!emailsToClassify.length) {
+            return res.status(200).json({ success: true, count: 0, message: "No unclassified emails found" });
+        }
+
+        let updated = 0;
+        const { categorizeEmail } = await import("../ai/services/categorizer.service");
+        for (const email of emailsToClassify) {
+            const category = await categorizeEmail(email as any, targetMailbox);
+            if (category && category !== "Other") {
+                await models.InboundEmail.updateOne({ _id: email._id }, { $set: { categories: [category] } });
+                updated++;
+            }
+        }
+
+        return res.status(200).json({ success: true, count: updated, totalChecked: emailsToClassify.length });
+    } catch (err: any) {
+        return handleError(filePath, 'recategorizeEmails', res, err, 'Recategorizing existing emails');
+    }
+};
+
 const emailOps = {
     sendEmail,
     fetchEmails,
@@ -751,6 +790,7 @@ const emailOps = {
     saveOutboundEmail,
     saveInboundEmails,
     generateAiDraft,
+    recategorizeEmails,
 };
 
 export default emailOps;

@@ -4,6 +4,10 @@ import { PageShell } from '../components/layout/PageShell';
 import { usePlumStore } from '../store/usePlumStore';
 import { api } from '../lib/api';
 import type { OutboundEmailItem } from '../lib/api';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { playEnter } from '../lib/sound';
 
 export function DraftsPage() {
   const { activeMailbox, openComposer } = usePlumStore();
@@ -35,6 +39,7 @@ export function DraftsPage() {
   }, [activeMailbox]);
 
   const handleEditDraft = (draft: OutboundEmailItem) => {
+    playEnter();
     openComposer({
       from: draft.from,
       to: draft.to,
@@ -47,19 +52,24 @@ export function DraftsPage() {
     });
   };
 
+  const handleNewDraft = () => {
+    playEnter();
+    openComposer();
+  };
+
   return (
     <PageShell
       title="Drafts"
       subtitle={`Saved drafts for mailbox: ${activeMailbox || 'No account selected'}`}
       action={
-        <button
-          type="button"
-          onClick={() => openComposer()}
-          className="focus-ring inline-flex items-center gap-1.5 rounded-2xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-4 py-2 text-xs font-semibold shadow-soft transition"
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={handleNewDraft}
+          icon={<PenSquare className="h-3.5 w-3.5" />}
         >
-          <PenSquare className="h-3.5 w-3.5" />
-          <span>New Draft</span>
-        </button>
+          New Draft
+        </Button>
       }
     >
       <div className="space-y-4">
@@ -68,69 +78,79 @@ export function DraftsPage() {
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-20 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] bg-white/60 dark:bg-[#181915]/60 animate-pulse p-4"
-              />
+                className="h-20 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] bg-white/60 dark:bg-[#181915]/60 animate-pulse p-4 flex items-center gap-4"
+              >
+                <div className="h-10 w-10 rounded-full bg-stone-200 dark:bg-stone-800 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3.5 w-1/4 rounded bg-stone-200 dark:bg-stone-800" />
+                  <div className="h-3 w-3/4 rounded bg-stone-200 dark:bg-stone-800" />
+                </div>
+              </div>
             ))}
           </div>
         ) : drafts.length === 0 ? (
-          <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] p-12 text-center shadow-soft">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF]">
+          <Card radius="3xl" elevation="soft" className="p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
               <FileText className="h-6 w-6" />
             </div>
             <h3 className="mt-3 text-sm font-bold text-stone-900 dark:text-white">
-              No saved drafts
+              No drafts in progress
             </h3>
             <p className="mx-auto mt-1 max-w-sm text-xs text-stone-500 dark:text-stone-400">
-              You haven't saved any drafts for {activeMailbox} yet.
+              When you craft an email and save it for later, it will be preserved here across your sessions.
             </p>
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={() => openComposer()}
-                className="focus-ring inline-flex items-center gap-2 rounded-xl bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 px-4 py-2 text-xs font-semibold hover:opacity-90 transition"
-              >
-                <PenSquare className="h-3.5 w-3.5" />
-                <span>Create a Draft</span>
-              </button>
+            <div className="mt-4 flex justify-center">
+              <Button variant="secondary" size="sm" onClick={handleNewDraft} icon={<PenSquare className="h-3.5 w-3.5" />}>
+                Start New Draft
+              </Button>
             </div>
-          </div>
+          </Card>
         ) : (
           <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] shadow-soft divide-y divide-black/[0.04] dark:divide-white/[0.06] overflow-hidden">
-            {drafts.map((draft, idx) => (
+            {drafts.map((draft) => (
               <div
-                key={draft._id || idx}
+                key={draft.id}
                 onClick={() => handleEditDraft(draft)}
-                className="group flex items-start gap-3.5 p-4 sm:px-5 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer transition"
+                className="group row-interactive flex items-start justify-between gap-4 p-4 sm:p-5 cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#B266E6]/15 text-[#5C207E] dark:text-[#DBBFFF] font-bold text-xs mt-0.5">
-                  <FileText className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-stone-900 dark:text-white truncate">
-                      {draft.to && draft.to.length > 0 ? `To: ${draft.to.join(', ')}` : 'Draft (No recipient)'}
-                    </span>
-                    <span className="text-[11px] text-stone-400">
-                      {draft.updatedAt ? new Date(draft.updatedAt).toLocaleDateString() : ''}
-                    </span>
+                <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 text-xs font-bold">
+                    <FileText className="h-4 w-4" />
                   </div>
-                  <div className="text-xs font-semibold text-stone-800 dark:text-stone-200 truncate mt-0.5">
-                    {draft.subject || 'Untitled Draft'}
-                  </div>
-                  <p className="text-[11px] text-stone-500 dark:text-stone-400 line-clamp-1 mt-0.5">
-                    {draft.body || 'Empty draft.'}
-                  </p>
-                  {draft.category && (
-                    <div className="mt-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#B266E6]/10 px-2 py-0.5 text-[10px] font-semibold text-[#5C207E] dark:text-[#DBBFFF]">
-                        <Tag className="h-2.5 w-2.5" />
-                        {draft.category}
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-stone-900 dark:text-white truncate">
+                        To: {draft.to?.length ? draft.to.join(', ') : '(No recipient specified)'}
+                      </span>
+                      <span className="text-[10px] text-stone-400 dark:text-stone-500 shrink-0 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {draft.updatedAt ? new Date(draft.updatedAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}
                       </span>
                     </div>
-                  )}
+
+                    <div className="text-xs font-semibold text-stone-800 dark:text-stone-200 truncate mt-0.5">
+                      {draft.subject || '(Untitled draft)'}
+                    </div>
+
+                    <p className="text-[10px] text-stone-500 dark:text-stone-400 line-clamp-1 mt-0.5">
+                      {draft.body || 'Empty message body...'}
+                    </p>
+
+                    {draft.category && (
+                      <div className="mt-2">
+                        <Badge variant="academic">
+                          {draft.category}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center self-center text-xs font-semibold text-[#B266E6] group-hover:translate-x-0.5 transition-transform">
-                  <ArrowRight className="h-4 w-4" />
+
+                <div className="self-center shrink-0">
+                  <Button variant="secondary" size="sm" iconTrailing={<ArrowRight className="h-3.5 w-3.5" />}>
+                    Resume
+                  </Button>
                 </div>
               </div>
             ))}

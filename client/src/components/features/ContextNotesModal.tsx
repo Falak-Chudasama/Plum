@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   X,
   Plus,
@@ -9,7 +9,6 @@ import {
   Tag,
   Check,
   Brain,
-  Zap,
   Clock,
   BookOpen,
 } from 'lucide-react';
@@ -17,6 +16,10 @@ import { api } from '../../lib/api';
 import type { ContextNoteItem } from '../../lib/api';
 import { useToast } from '../ui/ToastProvider';
 import { ConfirmationModal } from '../ui/ConfirmationModal';
+import { Button } from '../ui/Button';
+import { TextField } from '../ui/TextField';
+import { Badge } from '../ui/Badge';
+import { playBack, playEnter } from '../../lib/sound';
 
 interface ContextNotesModalProps {
   isOpen: boolean;
@@ -44,6 +47,25 @@ export function ContextNotesModal({
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmNote, setDeleteConfirmNote] = useState<ContextNoteItem | null>(null);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        playBack();
+        resetForm();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, onClose]);
+
   const filteredNotes = useMemo(() => {
     if (!searchQuery.trim()) return notes;
     const q = searchQuery.toLowerCase();
@@ -65,12 +87,20 @@ export function ContextNotesModal({
     setTagsInput('');
   };
 
+  const handleClose = () => {
+    playBack();
+    resetForm();
+    onClose();
+  };
+
   const startCreate = () => {
+    playEnter();
     resetForm();
     setIsEditing(true);
   };
 
   const startEdit = (note: ContextNoteItem) => {
+    playEnter();
     setIsEditing(true);
     setEditingId(note._id);
     setTitle(note.title);
@@ -91,6 +121,7 @@ export function ContextNotesModal({
       .filter(Boolean);
 
     setIsSaving(true);
+    playEnter();
     try {
       if (editingId) {
         await api.updateNote(editingId, {
@@ -132,28 +163,37 @@ export function ContextNotesModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5">
+        {/* Dimmed backdrop scrim (Section 2.9: 150ms ease-out) */}
+        <div
+          className="fixed inset-0 bg-stone-900/45 dark:bg-black/60 backdrop-blur-sm transition-opacity animate-fade-in"
+          onClick={handleClose}
+          aria-hidden="true"
+        />
+
+        {/* Modal Shell (Section 2.9 & 5.8: 32px radius, 180ms cubic-bezier(0.16, 1, 0.3, 1)) */}
         <div
           role="dialog"
           aria-modal="true"
-          className="relative flex flex-col w-full max-w-2xl max-h-[88vh] rounded-3xl border border-black/[0.08] dark:border-white/[0.1] bg-[#F8F9F5] dark:bg-[#121310] shadow-lift overflow-hidden text-stone-900 dark:text-[#F3F4F1] font-sans antialiased"
+          aria-labelledby="notes-modal-title"
+          className="relative z-10 flex flex-col w-full max-w-2xl max-h-[88vh] rounded-[2rem] glass-panel border border-black/[0.08] dark:border-white/[0.1] bg-[#F8F9F5] dark:bg-[#121310] shadow-lift overflow-hidden text-stone-900 dark:text-[#F3F4F1] font-sans animate-scale-in"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] px-6 py-4 bg-white/80 dark:bg-[#181915]/80 backdrop-blur-md">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF] shadow-2xs">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF] shadow-2xs">
                 <Brain className="h-5 w-5 text-[#B266E6]" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold text-stone-900 dark:text-white">
+                  <h2 id="notes-modal-title" className="text-base font-bold text-stone-900 dark:text-white">
                     Context Notes
                   </h2>
-                  <span className="rounded-full bg-[#B266E6]/15 text-[#5C207E] dark:text-[#DBBFFF] px-2 py-0.5 text-[10px] font-bold">
+                  <span className="rounded-full bg-[#B266E6]/15 text-[#7E36B2] dark:text-[#DBBFFF] px-2 py-0.5 text-[10px] font-bold">
                     Hybrid RAG
                   </span>
                 </div>
-                <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                <p className="text-[10px] text-stone-500 dark:text-stone-400">
                   Persistent personal memory retrieved on demand via Vector + BM25 search.
                 </p>
               </div>
@@ -161,250 +201,189 @@ export function ContextNotesModal({
 
             <button
               type="button"
-              onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition"
-              title="Close (Esc)"
+              onClick={handleClose}
+              aria-label="Close"
+              className="focus-ring flex h-8 w-8 items-center justify-center rounded-full text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Body Content */}
-          <div className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1 min-h-0 scrollbar-clean">
-            {/* Inline Editor Form */}
+          {/* Modal Body */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 scrollbar-clean">
             {isEditing ? (
-              <form
-                onSubmit={handleSave}
-                className="rounded-3xl border border-[#B266E6]/40 bg-white dark:bg-[#181915] p-5 shadow-soft space-y-4 animate-in fade-in zoom-in-95 duration-150"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#5C207E] dark:text-[#DBBFFF]">
-                    <Sparkles className="h-4 w-4 text-[#B266E6]" />
-                    <span>{editingId ? 'Edit Context Note' : 'Add New Context Note'}</span>
-                  </div>
+              <form onSubmit={handleSave} className="rounded-2xl border border-[#B266E6]/30 bg-white dark:bg-[#181915] p-5 shadow-soft space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between pb-2 border-b border-black/[0.04] dark:border-white/[0.05]">
+                  <span className="text-xs font-bold text-[#7E36B2] dark:text-[#DBBFFF]">
+                    {editingId ? 'Edit Context Note' : 'Create Context Note'}
+                  </span>
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="text-xs text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition"
+                    className="text-xs font-semibold text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition"
                   >
                     Cancel
                   </button>
                 </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 mb-1">
-                      Note Title *
-                    </label>
-                    <input
-                      type="text"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="e.g. Boss Email & Preferences, Somaiya Project Info"
-                      className="w-full rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.02] dark:bg-white/[0.04] px-3.5 py-2 text-xs font-semibold text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#B266E6]"
-                      required
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1">
+                    Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. My College Major & Advisor, Office Hours Schedule"
+                    className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-stone-50/70 dark:bg-stone-900/90 px-3.5 py-2 text-xs sm:text-sm text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#B266E6]"
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 mb-1">
-                      Information / Facts *
-                    </label>
-                    <textarea
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      rows={4}
-                      placeholder="e.g. 'abc@gmail.com is my boss' email account. He manages company operations and handles project sign-offs. Always keep emails to him concise with bullet points.'"
-                      className="w-full rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.02] dark:bg-white/[0.04] p-3.5 text-xs text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#B266E6] font-sans leading-relaxed"
-                      required
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1">
+                    Tags (comma separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={tagsInput}
+                    onChange={(e) => setTagsInput(e.target.value)}
+                    placeholder="e.g. academic, schedule, advisor, bio"
+                    className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-stone-50/70 dark:bg-stone-900/90 px-3.5 py-2 text-xs text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#B266E6]"
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 mb-1">
-                      Tags (Optional, comma-separated)
-                    </label>
-                    <input
-                      type="text"
-                      value={tagsInput}
-                      onChange={(e) => setTagsInput(e.target.value)}
-                      placeholder="e.g. contacts, work, boss, priority"
-                      className="w-full rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.02] dark:bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#B266E6]"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1">
+                    Content *
+                  </label>
+                  <textarea
+                    required
+                    rows={6}
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Write detailed factual context here that Basket AI can retrieve during email drafting or conversation answering..."
+                    className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-stone-50/70 dark:bg-stone-900/90 p-3.5 text-xs sm:text-sm text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#B266E6] leading-relaxed resize-none"
+                  />
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="rounded-2xl px-4 py-2 text-xs font-semibold text-stone-600 dark:text-stone-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition"
-                  >
+                  <Button variant="ghost" size="sm" onClick={resetForm}>
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
                     type="submit"
-                    disabled={isSaving || !title.trim() || !content.trim()}
-                    className="focus-ring inline-flex items-center gap-1.5 rounded-2xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-4 py-2 text-xs font-bold shadow-soft transition disabled:opacity-50"
+                    disabled={isSaving}
+                    isLoading={isSaving}
+                    icon={<Check className="h-3.5 w-3.5" />}
                   >
-                    {isSaving ? (
-                      <>
-                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        <span>Indexing with RAG...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-3.5 w-3.5" />
-                        <span>{editingId ? 'Update Note' : 'Save & Index Note'}</span>
-                      </>
-                    )}
-                  </button>
+                    {editingId ? 'Update & Re-Index' : 'Save & Index with RAG'}
+                  </Button>
                 </div>
               </form>
-            ) : null}
-
-            {/* Search & Action Bar */}
-            {!isEditing && (
-              <div className="flex items-center justify-between gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search notes or tags..."
-                    className="w-full rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#181915] pl-9 pr-4 py-2 text-xs text-stone-900 dark:text-white placeholder-stone-400 shadow-soft focus:outline-none focus:ring-2 focus:ring-[#B266E6]"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={startCreate}
-                  className="focus-ring inline-flex items-center gap-1.5 rounded-2xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-3.5 py-2 text-xs font-bold shadow-soft transition shrink-0 active:scale-95"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>New Note</span>
-                </button>
-              </div>
-            )}
-
-            {/* Notes List */}
-            <div className="space-y-3">
-              {filteredNotes.length === 0 ? (
-                <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] p-8 text-center space-y-3 shadow-soft">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF]">
-                    <BookOpen className="h-6 w-6 text-[#B266E6]" />
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="relative flex-1">
+                    <TextField
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onClear={() => setSearchQuery('')}
+                      placeholder="Search memory notes..."
+                      icon={<Search />}
+                    />
                   </div>
-                  <div className="text-xs font-bold text-stone-900 dark:text-white">
-                    {searchQuery ? 'No matching notes found' : 'No Context Notes Yet'}
-                  </div>
-                  <p className="text-[11px] text-stone-500 max-w-sm mx-auto leading-relaxed">
-                    Add notes about relationships, important emails (e.g. boss, professors), deadlines, or personal writing guidelines. Plum will retrieve only relevant notes when you chat or draft emails.
-                  </p>
-                  {!isEditing && (
-                    <button
-                      type="button"
-                      onClick={startCreate}
-                      className="inline-flex items-center gap-1.5 rounded-2xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-4 py-1.5 text-xs font-semibold shadow-xs transition"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>Create First Note</span>
-                    </button>
-                  )}
-                </div>
-              ) : (
-                filteredNotes.map((note) => (
-                  <div
-                    key={note._id}
-                    className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] p-4 sm:p-5 shadow-soft hover:border-[#B266E6]/30 transition space-y-2.5"
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={startCreate}
+                    icon={<Plus className="h-3.5 w-3.5" />}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-xs sm:text-sm font-bold text-stone-900 dark:text-white">
-                          {note.title}
-                        </h3>
+                    Add Note
+                  </Button>
+                </div>
+
+                {filteredNotes.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-black/[0.08] dark:border-white/[0.1] p-10 text-center text-xs text-stone-400 space-y-2">
+                    <BookOpen className="h-8 w-8 mx-auto text-stone-300 dark:text-stone-600" />
+                    <p className="font-semibold text-stone-600 dark:text-stone-300">
+                      {searchQuery ? `No notes matching "${searchQuery}"` : 'No context notes indexed yet'}
+                    </p>
+                    <p className="max-w-xs mx-auto text-[10px]">
+                      Add personal facts, student ID details, advisor names, or project specs for automatic RAG injection.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredNotes.map((note) => (
+                      <div
+                        key={note._id}
+                        className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] p-4 shadow-soft space-y-2 transition hover:border-[#B266E6]/30"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xs font-bold text-stone-900 dark:text-white truncate">
+                            {note.title}
+                          </h3>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(note)}
+                              className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition rounded-lg"
+                              title="Edit note"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                playBack();
+                                setDeleteConfirmNote(note);
+                              }}
+                              className="p-1 text-stone-400 hover:text-rose-500 transition rounded-lg"
+                              title="Delete note"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-stone-600 dark:text-stone-300 line-clamp-3 leading-relaxed whitespace-pre-wrap">
+                          {note.content}
+                        </p>
+
                         {note.tags && note.tags.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
                             {note.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="inline-flex items-center gap-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-stone-600 dark:text-stone-300"
-                              >
-                                <Tag className="h-2.5 w-2.5 text-[#B266E6]" />
+                              <Badge key={tag} variant="neutral">
                                 {tag}
-                              </span>
+                              </Badge>
                             ))}
                           </div>
                         )}
                       </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => startEdit(note)}
-                          className="rounded-xl p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition"
-                          title="Edit note"
-                        >
-                          <Edit3 className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirmNote(note)}
-                          className="rounded-xl p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-500/10 transition"
-                          title="Delete note"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-stone-700 dark:text-stone-300 whitespace-pre-wrap font-sans leading-relaxed">
-                      {note.content}
-                    </p>
-
-                    <div className="flex items-center justify-between pt-1 border-t border-black/[0.04] dark:border-white/[0.05] text-[10px] text-stone-400">
-                      <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
-                        <Zap className="h-3 w-3" />
-                        <span>RAG Indexed (768d Vector + BM25)</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        <span>
-                          {note.updatedAt
-                            ? new Date(note.updatedAt).toLocaleDateString()
-                            : 'Recently'}
-                        </span>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmNote && (
-        <ConfirmationModal
-          isOpen={Boolean(deleteConfirmNote)}
-          title="Delete Context Note"
-          message={`Are you sure you want to delete note "${deleteConfirmNote.title}"? Plum AI will no longer use this memory when answering queries or drafting emails.`}
-          confirmLabel="Delete Note"
-          confirmVariant="danger"
-          onConfirm={confirmDelete}
-          onCancel={() => setDeleteConfirmNote(null)}
-        />
-      )}
+      <ConfirmationModal
+        isOpen={Boolean(deleteConfirmNote)}
+        onClose={() => setDeleteConfirmNote(null)}
+        onConfirm={confirmDelete}
+        title="Delete Context Note"
+        isDestructive
+        description={
+          <span>
+            Are you sure you want to delete <strong className="text-stone-900 dark:text-white">{deleteConfirmNote?.title}</strong>? It will be removed from your Basket RAG index.
+          </span>
+        }
+      />
     </>
   );
 }

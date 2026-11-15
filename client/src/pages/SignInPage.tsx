@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Mail, ArrowRight, ShieldCheck, Sparkles, AlertCircle } from 'lucide-react';
+import { ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import plumLogo from '../assets/plum-icon.svg';
 import constants from '../constants/constants';
 import { api } from '../lib/api';
 import { usePlumStore } from '../store/usePlumStore';
 import { useToast } from '../components/ui/ToastProvider';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import { playEnter } from '../lib/sound';
 
 export function SignInPage() {
   const [searchParams] = useSearchParams();
@@ -17,6 +20,7 @@ export function SignInPage() {
   const warning = searchParams.get('warning');
 
   const handleGoogleSignIn = () => {
+    playEnter();
     const statePayload = btoa(JSON.stringify({
       fruit: 'plum',
       action: 'login',
@@ -29,8 +33,8 @@ export function SignInPage() {
     window.location.href = constants.googleAuthUrl + params.toString();
   };
 
-  // Quick sign-in helper for verified existing accounts during testing
   const handleQuickLogin = async (email: string, fName: string, lName: string) => {
+    playEnter();
     setIsLoading(true);
     try {
       await api.login(email, fName, lName);
@@ -59,7 +63,7 @@ export function SignInPage() {
               Plum
             </h1>
             <p className="mt-1 text-xs text-stone-500 dark:text-stone-400 font-medium">
-              Intelligent Email & Productivity Gateway
+              Intelligent Multi-Account Email & Productivity Workspace
             </p>
           </div>
         </div>
@@ -73,9 +77,9 @@ export function SignInPage() {
         )}
 
         {/* Auth Card */}
-        <div className="rounded-3xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#181915] p-7 shadow-lift space-y-6">
+        <Card radius="3xl" elevation="lift" className="p-7 space-y-6">
           <div className="space-y-1">
-            <h2 className="font-display text-sm font-bold text-stone-900 dark:text-white">
+            <h2 className="font-heading text-sm font-bold text-stone-900 dark:text-white">
               Access Your Workspace
             </h2>
             <p className="text-xs text-stone-500 dark:text-stone-400">
@@ -87,7 +91,7 @@ export function SignInPage() {
           <button
             type="button"
             onClick={handleGoogleSignIn}
-            className="focus-ring w-full flex items-center justify-center gap-3 rounded-2xl border border-black/[0.1] dark:border-white/[0.12] bg-stone-900 hover:bg-stone-800 text-white dark:bg-white dark:hover:bg-stone-100 dark:text-stone-900 py-3 px-4 text-xs font-semibold shadow-soft transition"
+            className="focus-ring w-full flex items-center justify-center gap-3 rounded-full border border-black/[0.1] dark:border-white/[0.12] bg-stone-900 hover:bg-stone-800 text-white dark:bg-white dark:hover:bg-stone-100 dark:text-stone-900 py-3 px-4 text-xs font-semibold shadow-soft transition active:scale-98"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path
@@ -112,7 +116,7 @@ export function SignInPage() {
 
           {/* Quick Workspace Switch for verified accounts */}
           <div className="pt-4 border-t border-black/[0.05] dark:border-white/[0.06] space-y-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
               Direct Workspace Access (Falak Chudasama)
             </span>
             <div className="grid grid-cols-1 gap-2">
@@ -120,41 +124,41 @@ export function SignInPage() {
                 type="button"
                 onClick={() => handleQuickLogin('falak.chudasama@somaiya.edu', 'Falak', 'Chudasama')}
                 disabled={isLoading}
-                className="focus-ring flex items-center justify-between rounded-xl border border-black/[0.06] dark:border-white/[0.08] p-2.5 text-left text-xs hover:border-[#B266E6] hover:bg-[#B266E6]/5 transition disabled:opacity-50"
+                className="focus-ring flex items-center justify-between rounded-2xl border border-black/[0.06] dark:border-white/[0.08] p-3 text-left text-xs hover:border-[#B266E6] hover:bg-[#B266E6]/5 transition disabled:opacity-50"
               >
                 <div>
                   <div className="font-semibold text-stone-900 dark:text-white">
                     College Workspace
                   </div>
-                  <div className="text-[11px] text-stone-500 dark:text-stone-400">
+                  <div className="text-[10px] text-stone-500 dark:text-stone-400">
                     falak.chudasama@somaiya.edu
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-[#B266E6]" />
+                <ArrowRight className="h-4 w-4 text-[#7E36B2] dark:text-[#DBBFFF]" />
               </button>
 
               <button
                 type="button"
                 onClick={() => handleQuickLogin('falakchudasama7766@gmail.com', 'Falak', 'Chudasama')}
                 disabled={isLoading}
-                className="focus-ring flex items-center justify-between rounded-xl border border-black/[0.06] dark:border-white/[0.08] p-2.5 text-left text-xs hover:border-[#B266E6] hover:bg-[#B266E6]/5 transition disabled:opacity-50"
+                className="focus-ring flex items-center justify-between rounded-2xl border border-black/[0.06] dark:border-white/[0.08] p-3 text-left text-xs hover:border-[#B266E6] hover:bg-[#B266E6]/5 transition disabled:opacity-50"
               >
                 <div>
                   <div className="font-semibold text-stone-900 dark:text-white">
                     Personal Workspace
                   </div>
-                  <div className="text-[11px] text-stone-500 dark:text-stone-400">
+                  <div className="text-[10px] text-stone-500 dark:text-stone-400">
                     falakchudasama7766@gmail.com
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-[#B266E6]" />
+                <ArrowRight className="h-4 w-4 text-[#7E36B2] dark:text-[#DBBFFF]" />
               </button>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Security Note */}
-        <div className="flex items-center justify-center gap-2 text-center text-[11px] text-stone-400 dark:text-stone-500">
+        <div className="flex items-center justify-center gap-2 text-center text-[10px] text-stone-400 dark:text-stone-500">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
           <span>OAuth 2.0 Multi-Account Isolation • LLM Inference via Basket</span>
         </div>
@@ -162,4 +166,3 @@ export function SignInPage() {
     </div>
   );
 }
-

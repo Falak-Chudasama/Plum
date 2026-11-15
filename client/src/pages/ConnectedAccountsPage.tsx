@@ -12,7 +12,8 @@ import {
   Clock,
   ArrowRight,
   KeyRound,
-  ExternalLink,
+  Volume2,
+  Sparkles,
 } from 'lucide-react';
 import { PageShell } from '../components/layout/PageShell';
 import { usePlumStore } from '../store/usePlumStore';
@@ -20,6 +21,15 @@ import { api } from '../lib/api';
 import type { MailboxItem } from '../lib/api';
 import { useToast } from '../components/ui/ToastProvider';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
+import {
+  playEnter,
+  playBack,
+  playNotification,
+  playFailed,
+  playScroll,
+} from '../lib/sound';
 
 export function ConnectedAccountsPage() {
   const { user, mailboxes, activeMailbox, setActiveMailbox, refreshMailboxes } = usePlumStore();
@@ -53,6 +63,7 @@ export function ConnectedAccountsPage() {
   }, [searchParams, refreshMailboxes, setActiveMailbox, setSearchParams, toast]);
 
   const handleConnectNewAccount = async () => {
+    playEnter();
     setIsConnecting(true);
     try {
       const authUrl = await api.getConnectUrl();
@@ -68,6 +79,7 @@ export function ConnectedAccountsPage() {
   };
 
   const handleReauthorize = async (mailbox: MailboxItem) => {
+    playEnter();
     try {
       toast.info(`Redirecting to Google to reauthorize ${mailbox.email}...`);
       const authUrl = await api.getConnectUrl(mailbox.email);
@@ -82,6 +94,7 @@ export function ConnectedAccountsPage() {
   };
 
   const handleRefreshToken = async (mailbox: MailboxItem) => {
+    playEnter();
     setRefreshingId(mailbox.id);
     try {
       const res = await api.refreshMailboxToken(mailbox.id);
@@ -101,24 +114,8 @@ export function ConnectedAccountsPage() {
     }
   };
 
-  const handleTestConnection = async (mailbox: MailboxItem) => {
-    setTestingId(mailbox.id);
-    try {
-      const res = await api.getMailboxStatus(mailbox.id);
-      if (res.isLive) {
-        toast.success(`Connection verified for ${mailbox.email}! Tokens are fresh and healthy.`);
-      } else {
-        toast.warning(`Token requires re-authorization for ${mailbox.email}. Click "Reauthorize" to renew.`);
-      }
-      refreshMailboxes();
-    } catch (err: any) {
-      toast.error(`Health check failed for ${mailbox.email}`);
-    } finally {
-      setTestingId(null);
-    }
-  };
-
   const handleSetPrimary = async (mailbox: MailboxItem) => {
+    playEnter();
     try {
       await api.setPrimaryMailbox(mailbox.id);
       toast.success(`${mailbox.email} is now your primary mailbox.`);
@@ -157,25 +154,97 @@ export function ConnectedAccountsPage() {
 
   return (
     <PageShell
-      title="Connected Gmail Accounts"
-      subtitle="Manage linked Gmail accounts, check OAuth token freshness, and switch your active mailbox context."
+      title="Connected Accounts & Preferences"
+      subtitle="Manage linked Gmail accounts, OAuth tokens, and fruit family audio feedback settings."
       action={
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          size="sm"
           onClick={handleConnectNewAccount}
           disabled={isConnecting}
-          className="focus-ring inline-flex items-center gap-2 rounded-2xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-4 py-2 text-xs font-semibold shadow-soft transition disabled:opacity-50"
+          isLoading={isConnecting}
+          icon={<Plus className="h-4 w-4" />}
         >
-          {isConnecting ? (
-            <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
-          <span>Connect Gmail Account</span>
-        </button>
+          Connect Gmail Account
+        </Button>
       }
     >
       <div className="space-y-6">
+        {/* Section 2.10 Tactile Audio Feedback Card */}
+        <Card radius="2xl" elevation="soft" className="p-5 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF] shrink-0 shadow-2xs">
+                <Volume2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-heading text-sm font-bold text-stone-900 dark:text-white">
+                  Tactile Audio Feedback (5-Category SFX Engine)
+                </h3>
+                <p className="mt-1 text-xs text-stone-500 dark:text-stone-400 leading-relaxed max-w-xl">
+                  Shared Fruit Family audio engine permanently active across Plum. Emits subtle, calibrated acoustic confirmations for actions, dismissals, toasts, and navigation.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Active
+              </span>
+            </div>
+          </div>
+
+          {/* Audio Category Test Trigger Bar */}
+          <div className="mt-5 pt-4 border-t border-black/[0.05] dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+              Preview Audio Categories:
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => playEnter()}
+                className="focus-ring rounded-full px-2.5 py-1 text-[10px] font-semibold bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] text-stone-700 dark:text-stone-300 transition"
+                title="Play Enter sound (primary action)"
+              >
+                Enter (0.40)
+              </button>
+              <button
+                type="button"
+                onClick={() => playBack()}
+                className="focus-ring rounded-full px-2.5 py-1 text-[10px] font-semibold bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] text-stone-700 dark:text-stone-300 transition"
+                title="Play Back sound (modal dismiss / cancel)"
+              >
+                Back (0.35)
+              </button>
+              <button
+                type="button"
+                onClick={() => playNotification()}
+                className="focus-ring rounded-full px-2.5 py-1 text-[10px] font-semibold bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] text-stone-700 dark:text-stone-300 transition"
+                title="Play Notification sound (success / info toast)"
+              >
+                Notification (0.45)
+              </button>
+              <button
+                type="button"
+                onClick={() => playFailed()}
+                className="focus-ring rounded-full px-2.5 py-1 text-[10px] font-semibold bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] text-stone-700 dark:text-stone-300 transition"
+                title="Play Failed sound (error toast)"
+              >
+                Failed (0.45)
+              </button>
+              <button
+                type="button"
+                onClick={() => playScroll()}
+                className="focus-ring rounded-full px-2.5 py-1 text-[10px] font-semibold bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] text-stone-700 dark:text-stone-300 transition"
+                title="Play Scroll sound (tab / route switch)"
+              >
+                Scroll (0.25)
+              </button>
+            </div>
+          </div>
+        </Card>
+
         {/* List of Connected Accounts */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -184,7 +253,10 @@ export function ConnectedAccountsPage() {
             </h2>
             <button
               type="button"
-              onClick={() => refreshMailboxes()}
+              onClick={() => {
+                playScroll();
+                refreshMailboxes();
+              }}
               className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-800 dark:hover:text-stone-300 transition"
             >
               <RefreshCw className="h-3.5 w-3.5" />
@@ -195,35 +267,37 @@ export function ConnectedAccountsPage() {
           <div className="grid grid-cols-1 gap-4">
             {mailboxes.map((mb) => {
               const isActive = mb.email === activeMailbox;
-              const isCheckingThis = testingId === mb.id;
               const isRefreshingThis = refreshingId === mb.id;
               const isExpired = mb.status === 'expired';
 
               return (
-                <div
+                <Card
                   key={mb.id}
-                  className={`rounded-2xl border p-5 transition-all shadow-soft ${
+                  radius="2xl"
+                  elevation="soft"
+                  interactive={true}
+                  className={`${
                     isActive
-                      ? 'border-[#B266E6]/40 bg-[#B266E6]/[0.03] dark:bg-[#B266E6]/[0.05] ring-1 ring-[#B266E6]/20'
+                      ? 'ring-1 ring-[#7E36B2]/40 bg-[#B266E6]/[0.03] dark:bg-[#B266E6]/[0.05]'
                       : isExpired
                       ? 'border-amber-300 dark:border-amber-700/60 bg-amber-500/[0.02]'
-                      : 'border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915]'
+                      : ''
                   }`}
                 >
                   {isExpired && (
                     <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3.5 py-2.5 text-xs text-amber-800 dark:text-amber-300">
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                        <span><strong>Token Renewal Required:</strong> Google authorization has lapsed. Click <strong>Reauthorize</strong> to grant fresh tokens without re-adding the account.</span>
+                        <span><strong>Token Renewal Required:</strong> Google authorization has lapsed. Click <strong>Reauthorize</strong> to grant fresh tokens.</span>
                       </div>
-                      <button
-                        type="button"
+                      <Button
+                        variant="primary"
+                        size="sm"
                         onClick={() => handleReauthorize(mb)}
-                        className="self-start sm:self-auto shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3.5 py-1.5 text-xs transition shadow-2xs"
+                        icon={<KeyRound className="h-3.5 w-3.5" />}
                       >
-                        <KeyRound className="h-3.5 w-3.5" />
-                        <span>Reauthorize Now</span>
-                      </button>
+                        Reauthorize Now
+                      </Button>
                     </div>
                   )}
 
@@ -253,7 +327,7 @@ export function ConnectedAccountsPage() {
 
                           {/* Active Context Badge */}
                           {isActive && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-[#B266E6] text-white px-2.5 py-0.5 text-[10px] font-bold shadow-xs">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#7E36B2] text-white px-2.5 py-0.5 text-[10px] font-bold shadow-xs">
                               <CheckCircle2 className="h-3 w-3" />
                               Active Context
                             </span>
@@ -284,17 +358,17 @@ export function ConnectedAccountsPage() {
                         </div>
 
                         {/* Token Health & Last Sync */}
-                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-stone-400 dark:text-stone-500">
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-stone-400 dark:text-stone-500">
                           <span className="flex items-center gap-1">
                             {mb.status === 'connected' ? (
                               <>
                                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                                <span className="text-stone-600 dark:text-stone-300">Refresh Token Active (Permanent Offline Sync)</span>
+                                <span className="text-stone-600 dark:text-stone-300">Refresh Token Active</span>
                               </>
                             ) : (
                               <>
                                 <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
-                                <span className="text-rose-600 dark:text-rose-400 font-semibold">Authorization Lapsed — Reauthorization Required</span>
+                                <span className="text-rose-600 dark:text-rose-400 font-semibold">Lapsed Token</span>
                               </>
                             )}
                           </span>
@@ -308,81 +382,77 @@ export function ConnectedAccountsPage() {
 
                     {/* Action Buttons */}
                     <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-black/[0.05] dark:border-white/[0.06]">
-                      {/* Primary Reauthorize / Refresh Action */}
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => handleReauthorize(mb)}
-                        className={`focus-ring inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition shadow-xs ${
-                          isExpired
-                            ? 'bg-amber-600 hover:bg-amber-700 text-white font-bold'
-                            : 'border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
-                        }`}
-                        title="Sign in with Google to grant fresh tokens for this mailbox"
+                        icon={<KeyRound className="h-3.5 w-3.5 text-stone-500" />}
                       >
-                        <KeyRound className={`h-3.5 w-3.5 ${isExpired ? 'text-white' : 'text-stone-500'}`} />
-                        <span>Reauthorize</span>
-                      </button>
+                        Reauthorize
+                      </Button>
 
-                      {/* Immediate Refresh Token attempt */}
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => handleRefreshToken(mb)}
                         disabled={isRefreshingThis}
-                        className="focus-ring inline-flex items-center gap-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-800 px-3 py-1.5 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition disabled:opacity-50"
-                        title="Attempt refreshing Google access token"
+                        isLoading={isRefreshingThis}
+                        icon={<RefreshCw className={`h-3.5 w-3.5 ${isRefreshingThis ? 'animate-spin' : ''}`} />}
                       >
-                        <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingThis ? 'animate-spin' : ''}`} />
-                        <span>{isRefreshingThis ? 'Refreshing...' : 'Refresh Token'}</span>
-                      </button>
+                        Refresh Token
+                      </Button>
 
                       {!isActive && (
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => {
+                            playEnter();
                             setActiveMailbox(mb.email);
                             toast.info(`Switched active mailbox to ${mb.email}`);
                           }}
-                          className="focus-ring inline-flex items-center gap-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white px-3 py-1.5 text-xs font-semibold transition"
+                          icon={<ArrowRight className="h-3.5 w-3.5" />}
                         >
-                          <ArrowRight className="h-3.5 w-3.5" />
-                          <span>Make Active</span>
-                        </button>
+                          Make Active
+                        </Button>
                       )}
 
                       {!mb.isPrimary && (
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => handleSetPrimary(mb)}
-                          className="focus-ring inline-flex items-center gap-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-800 px-3 py-1.5 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
-                          title="Set as default primary account"
+                          icon={<Star className="h-3.5 w-3.5 text-stone-400" />}
                         >
-                          <Star className="h-3.5 w-3.5 text-stone-400" />
-                          <span>Set Primary</span>
-                        </button>
+                          Set Primary
+                        </Button>
                       )}
 
                       {mailboxes.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setDisconnectModalData(mb)}
-                          className="focus-ring inline-flex items-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/20 px-3 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition"
-                          title="Disconnect this Gmail mailbox"
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            playBack();
+                            setDisconnectModalData(mb);
+                          }}
+                          className="text-rose-600 dark:text-rose-400 hover:bg-rose-500/10"
+                          icon={<Trash2 className="h-3.5 w-3.5" />}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span>Disconnect</span>
-                        </button>
+                          Disconnect
+                        </Button>
                       )}
                     </div>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
         </div>
 
         {/* Add Account Guidance Card */}
-        <div className="rounded-2xl border border-dashed border-black/[0.1] dark:border-white/[0.12] p-6 text-center bg-black/[0.01] dark:bg-white/[0.01]">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF]">
+        <div className="rounded-3xl border border-dashed border-black/[0.1] dark:border-white/[0.12] p-6 text-center bg-black/[0.01] dark:bg-white/[0.01]">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
             <Plus className="h-6 w-6" />
           </div>
           <h3 className="mt-3 text-sm font-bold text-stone-900 dark:text-white">
@@ -392,15 +462,15 @@ export function ConnectedAccountsPage() {
             Sign in with another Google account to link personal, college, or team mailboxes. Plum isolates credentials per account so your data never mixes.
           </p>
           <div className="mt-4">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleConnectNewAccount}
               disabled={isConnecting}
-              className="focus-ring inline-flex items-center gap-2 rounded-xl bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 px-4 py-2 text-xs font-semibold hover:opacity-90 transition disabled:opacity-50"
+              icon={<Plus className="h-4 w-4" />}
             >
-              <Plus className="h-4 w-4" />
-              <span>{isConnecting ? 'Opening Google Sign-In...' : 'Add Google Account'}</span>
-            </button>
+              {isConnecting ? 'Opening Google Sign-In...' : 'Add Google Account'}
+            </Button>
           </div>
         </div>
       </div>
@@ -411,6 +481,8 @@ export function ConnectedAccountsPage() {
         onClose={() => setDisconnectModalData(null)}
         onConfirm={confirmDisconnect}
         title="Disconnect Mailbox"
+        isDestructive
+        isLoading={isDisconnecting}
         description={
           <div>
             Are you sure you want to disconnect <strong className="text-stone-900 dark:text-white">{disconnectModalData?.email}</strong>?
@@ -419,9 +491,6 @@ export function ConnectedAccountsPage() {
             </p>
           </div>
         }
-        confirmLabel="Disconnect"
-        isDestructive={true}
-        isLoading={isDisconnecting}
       />
     </PageShell>
   );

@@ -4,17 +4,14 @@ import {
   RefreshCw,
   Search,
   Calendar,
-  Filter,
-  Tag,
   Paperclip,
   CheckCircle2,
-  Mail,
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
   KeyRound,
   Plus,
-  SlidersHorizontal,
+  Sparkles,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageShell } from '../components/layout/PageShell';
@@ -24,6 +21,11 @@ import type { InboundEmailItem, CategoryItem } from '../lib/api';
 import { useToast } from '../components/ui/ToastProvider';
 import { EmailDetailModal } from '../components/features/EmailDetailModal';
 import { CategoryManagerModal } from '../components/features/CategoryManagerModal';
+import { Button } from '../components/ui/Button';
+import { TextField } from '../components/ui/TextField';
+import { Badge } from '../components/ui/Badge';
+import { Card } from '../components/ui/Card';
+import { playEnter, playScroll, playBack } from '../lib/sound';
 
 export function InboxPage() {
   const { activeMailbox, mailboxes, user } = usePlumStore();
@@ -38,6 +40,7 @@ export function InboxPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isRecategorizing, setIsRecategorizing] = useState<boolean>(false);
   const [selectedEmail, setSelectedEmail] = useState<InboundEmailItem | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState<boolean>(false);
 
@@ -55,6 +58,7 @@ export function InboxPage() {
   }, [currentDate]);
 
   const handlePrevDay = useCallback(() => {
+    playScroll();
     setCurrentDate((prev) => {
       const d = new Date(prev);
       d.setDate(d.getDate() - 1);
@@ -63,6 +67,7 @@ export function InboxPage() {
   }, []);
 
   const handleNextDay = useCallback(() => {
+    playScroll();
     setCurrentDate((prev) => {
       const next = new Date(prev);
       next.setDate(next.getDate() + 1);
@@ -75,16 +80,21 @@ export function InboxPage() {
     });
   }, []);
 
-  // Keyboard shortcut: Ctrl + Left / Right arrow keys
+  // Keyboard shortcut: Shift + Left / Right arrow keys to navigate dates
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable
+      ) {
         return;
       }
-      if (e.ctrlKey && e.key === 'ArrowLeft') {
+      if (e.shiftKey && !e.ctrlKey && !e.metaKey && e.key === 'ArrowLeft') {
         e.preventDefault();
         handlePrevDay();
-      } else if (e.ctrlKey && e.key === 'ArrowRight') {
+      } else if (e.shiftKey && !e.ctrlKey && !e.metaKey && e.key === 'ArrowRight') {
         e.preventDefault();
         handleNextDay();
       }
@@ -92,6 +102,40 @@ export function InboxPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlePrevDay, handleNextDay]);
+
+  // Keyboard shortcut: Alt + Left / Right arrow keys to navigate category tabs
+  useEffect(() => {
+    const handleCategoryKeys = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        const catList = ['ALL', ...categories.map((c) => c.category)];
+        const currentIdx = catList.findIndex(
+          (c) => c.toLowerCase() === selectedCategory.toLowerCase()
+        );
+        const activeIdx = currentIdx !== -1 ? currentIdx : 0;
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          const prev = (activeIdx - 1 + catList.length) % catList.length;
+          playScroll();
+          setSelectedCategory(catList[prev]);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          const next = (activeIdx + 1) % catList.length;
+          playScroll();
+          setSelectedCategory(catList[next]);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleCategoryKeys);
+    return () => window.removeEventListener('keydown', handleCategoryKeys);
+  }, [categories, selectedCategory]);
 
   // Load custom categories for user
   const loadCategories = useCallback(async () => {
@@ -119,7 +163,7 @@ export function InboxPage() {
       setIsLoading(true);
       try {
         const day = currentDate.getDate();
-        const month = currentDate.toLocaleString('default', { month: 'long' }); // e.g. "November"
+        const month = currentDate.toLocaleString('default', { month: 'long' });
         const year = currentDate.getFullYear();
 
         const data = await api.fetchEmailsByDate(day, month, year, activeMailbox);
@@ -142,13 +186,14 @@ export function InboxPage() {
     };
   }, [activeMailbox, currentDate]);
 
-  // Sync live from Gmail
+  // Sync live from Gmail with enhanced headroom (up to 50 emails)
   const handleLiveSync = async () => {
     if (!activeMailbox) return;
     setIsSyncing(true);
+    playEnter();
     try {
-      toast.info(`Fetching latest correspondence for ${activeMailbox}...`);
-      const newEmails = await api.fetchLiveGmail(activeMailbox, 15);
+      toast.info(`Fetching latest correspondence for ${activeMailbox} (50 headroom)...`);
+      const newEmails = await api.fetchLiveGmail(activeMailbox, 50);
       toast.success(`Synced ${newEmails.length} new email${newEmails.length === 1 ? '' : 's'}`);
 
       // Reload current date view
@@ -157,10 +202,38 @@ export function InboxPage() {
       const year = currentDate.getFullYear();
       const updated = await api.fetchEmailsByDate(day, month, year, activeMailbox);
       setEmails(updated || []);
+      loadCategories();
     } catch (err: any) {
       toast.error('Failed to sync live with Gmail. Check mailbox credentials.');
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  // Re-run AI categorization pipeline on existing correspondence
+  const handleRecategorize = async () => {
+    if (!activeMailbox) return;
+    setIsRecategorizing(true);
+    playEnter();
+    try {
+      toast.info('Running AI categorization pipeline via Basket LLM...');
+      const res = await api.recategorizeEmails(activeMailbox);
+      if (res.count > 0) {
+        toast.success(`Successfully classified ${res.count} email${res.count === 1 ? '' : 's'} into smart categories!`);
+      } else {
+        toast.info('Emails are already categorized.');
+      }
+      // Reload current date view and categories
+      const day = currentDate.getDate();
+      const month = currentDate.toLocaleString('default', { month: 'long' });
+      const year = currentDate.getFullYear();
+      const updated = await api.fetchEmailsByDate(day, month, year, activeMailbox);
+      setEmails(updated || []);
+      loadCategories();
+    } catch (err: any) {
+      toast.error('AI categorization pipeline error. Ensure Basket service is online.');
+    } finally {
+      setIsRecategorizing(false);
     }
   };
 
@@ -188,6 +261,7 @@ export function InboxPage() {
   }, [emails, selectedCategory, searchQuery]);
 
   const handleSelectEmail = async (email: InboundEmailItem) => {
+    playEnter();
     setSelectedEmail(email);
     if (!email.isViewed) {
       try {
@@ -199,34 +273,33 @@ export function InboxPage() {
     }
   };
 
-  // Dynamic Category color resolver mapping custom user colors to email tags
+  const handleCategorySelect = (catName: string) => {
+    playScroll();
+    setSelectedCategory(catName);
+  };
+
   const getCategoryColor = (cat: string) => {
     const found = categories.find(
       (c) => c.category.toLowerCase() === cat.toLowerCase()
     );
     if (found?.color) {
-      return {
-        bg: `${found.color}18`,
-        text: found.color,
-        border: `${found.color}40`,
-      };
+      return found.color;
     }
-    // Harmonious fallback palette for tags without explicit custom color
     switch (cat.toLowerCase()) {
       case 'session':
-        return { bg: '#89D66D18', text: '#2E7D32', border: '#89D66D40' };
+        return '#89D66D';
       case 'academic':
       case 'study':
-        return { bg: '#B266E618', text: '#5C207E', border: '#B266E640' };
+        return '#B266E6';
       case 'deadline':
       case 'urgent':
-        return { bg: '#EF444418', text: '#DC2626', border: '#EF444440' };
+        return '#EF4444';
       case 'opportunity':
-        return { bg: '#10B98118', text: '#059669', border: '#10B98140' };
+        return '#10B981';
       case 'holiday':
-        return { bg: '#F59E0B18', text: '#D97706', border: '#F59E0B40' };
+        return '#F59E0B';
       default:
-        return { bg: '#64748B18', text: '#475569', border: '#64748B30' };
+        return '#64748B';
     }
   };
 
@@ -236,15 +309,28 @@ export function InboxPage() {
       subtitle={`Browsing mailbox: ${activeMailbox || 'No account selected'}`}
       action={
         <div className="flex items-center gap-2">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRecategorize}
+            disabled={isRecategorizing || isSyncing}
+            isLoading={isRecategorizing}
+            icon={<Sparkles className="h-3.5 w-3.5 text-[#7E36B2] dark:text-[#DBBFFF]" />}
+            title="Re-run AI categorization pipeline via Basket on uncategorized emails"
+          >
+            AI Categorize
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={handleLiveSync}
             disabled={isSyncing}
-            className="focus-ring inline-flex items-center gap-1.5 rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#181915] px-3.5 py-2 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] shadow-soft transition disabled:opacity-50"
+            isLoading={isSyncing}
+            icon={<RefreshCw className={`h-3.5 w-3.5 text-[#7E36B2] dark:text-[#DBBFFF] ${isSyncing ? 'animate-spin' : ''}`} />}
+            title="Fetch up to 50 latest emails directly from Gmail"
           >
-            <RefreshCw className={`h-3.5 w-3.5 text-[#B266E6] ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Syncing...' : 'Sync Gmail'}</span>
-          </button>
+            {isSyncing ? 'Syncing...' : 'Sync Gmail (50)'}
+          </Button>
         </div>
       }
     >
@@ -258,84 +344,77 @@ export function InboxPage() {
                 <strong>Authorization Required:</strong> Google tokens for <strong>{activeMailbox}</strong> have expired. Live sync and email sending require renewal.
               </span>
             </div>
-            <Link
-              to="/accounts"
-              className="self-start sm:self-auto shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-[#B266E6] hover:bg-[#8F40C7] text-white font-semibold px-3.5 py-1.5 text-xs transition shadow-2xs"
-            >
-              <KeyRound className="h-3.5 w-3.5" />
-              <span>Renew in Accounts</span>
+            <Link to="/accounts" onClick={() => playEnter()}>
+              <Button variant="primary" size="sm" icon={<KeyRound className="h-3.5 w-3.5" />}>
+                Renew in Accounts
+              </Button>
             </Link>
           </div>
         )}
 
-        {/* Prominent Date Navigation Bar (Apple-grade Quiet Utility, Host Grotesk font) */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-black/[0.07] dark:border-white/[0.09] bg-white dark:bg-[#181915] p-4 sm:p-5 shadow-soft transition-colors duration-200">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF] shadow-2xs shrink-0">
-              <Calendar className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg sm:text-xl font-bold tracking-tight text-stone-900 dark:text-white">
-                  {currentDate.toLocaleDateString('default', {
-                    weekday: 'long',
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </span>
-                {isToday && (
-                  <span className="rounded-full bg-[#B266E6] text-white px-2.5 py-0.5 text-[10px] font-bold shadow-xs">
-                    Today
+        {/* Prominent Date Navigation Bar (Section 4.1 Host Grotesk quiet utility) */}
+        <Card radius="3xl" elevation="soft" className="p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF] shadow-2xs shrink-0">
+                <Calendar className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-base sm:text-xl font-bold tracking-tight text-stone-900 dark:text-white">
+                    {currentDate.toLocaleDateString('default', {
+                      weekday: 'long',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
                   </span>
-                )}
+                  {isToday && (
+                    <span className="rounded-full bg-[#7E36B2] text-white px-2.5 py-0.5 text-[10px] font-bold shadow-xs">
+                      Today
+                    </span>
+                  )}
+                  <span className="text-[10px] font-mono text-stone-400 dark:text-stone-500 bg-black/[0.04] dark:bg-white/[0.06] px-1.5 py-0.5 rounded-md hidden sm:inline-block">
+                    Shift + ← / →
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <button
-              type="button"
-              onClick={handlePrevDay}
-              className="focus-ring flex items-center gap-1.5 rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.02] dark:bg-white/[0.04] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] px-3.5 py-2 text-xs font-semibold text-stone-700 dark:text-stone-200 shadow-2xs transition active:scale-95"
-              title="Previous Day (Ctrl + Left Arrow)"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span>Previous</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleNextDay}
-              disabled={isToday}
-              className="focus-ring flex items-center gap-1.5 rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.02] dark:bg-white/[0.04] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] px-3.5 py-2 text-xs font-semibold text-stone-700 dark:text-stone-200 shadow-2xs transition disabled:opacity-30 disabled:cursor-not-allowed active:scale-95"
-              title={isToday ? "Cannot advance beyond today" : "Next Day (Ctrl + Right Arrow)"}
-            >
-              <span>Next</span>
-              <ChevronRight className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handlePrevDay}
+                icon={<ChevronLeft className="h-4 w-4" />}
+                title="Previous Day (Shift + Left Arrow)"
+              >
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleNextDay}
+                disabled={isToday}
+                iconTrailing={<ChevronRight className="h-4 w-4" />}
+                title={isToday ? "Cannot advance beyond today" : "Next Day (Shift + Right Arrow)"}
+              >
+                Next
+              </Button>
+            </div>
           </div>
-        </div>
+        </Card>
 
-        {/* Controls Bar: Search Input */}
+        {/* Controls Bar: Search Input with 48dp Touch Area */}
         <div className="flex items-center justify-between gap-3">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
-            <input
-              type="text"
+            <TextField
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onClear={() => setSearchQuery('')}
               placeholder="Search sender, subject, or content..."
-              className="w-full rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#181915] pl-9 pr-4 py-2 text-xs text-stone-900 dark:text-white placeholder-stone-400 shadow-soft focus-ring font-medium"
+              icon={<Search />}
             />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs"
-              >
-                Clear
-              </button>
-            )}
           </div>
         </div>
 
@@ -344,7 +423,7 @@ export function InboxPage() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => setSelectedCategory('ALL')}
+              onClick={() => handleCategorySelect('ALL')}
               className={`focus-ring shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
                 selectedCategory === 'ALL'
                   ? 'bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 shadow-xs'
@@ -357,23 +436,25 @@ export function InboxPage() {
             {/* Custom User Categories */}
             {categories.map((cat) => {
               const isSelected = selectedCategory.toLowerCase() === cat.category.toLowerCase();
-              const colorObj = getCategoryColor(cat.category);
+              const catColor = getCategoryColor(cat.category);
 
               return (
                 <button
                   key={cat._id || cat.category}
                   type="button"
-                  onClick={() => setSelectedCategory(cat.category)}
-                  className="focus-ring shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition shadow-2xs"
+                  onClick={() => handleCategorySelect(cat.category)}
+                  className={`focus-ring shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition shadow-2xs ${
+                    isSelected ? 'shadow-xs' : ''
+                  }`}
                   style={{
-                    backgroundColor: isSelected ? (cat.color || '#B266E6') : colorObj.bg,
-                    color: isSelected ? '#FFFFFF' : colorObj.text,
-                    borderColor: isSelected ? (cat.color || '#B266E6') : colorObj.border,
+                    backgroundColor: isSelected ? catColor : `${catColor}15`,
+                    color: isSelected ? '#FFFFFF' : catColor,
+                    borderColor: isSelected ? catColor : `${catColor}40`,
                   }}
                 >
                   <span
                     className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: isSelected ? '#FFFFFF' : (cat.color || '#B266E6') }}
+                    style={{ backgroundColor: isSelected ? '#FFFFFF' : catColor }}
                   />
                   <span>{cat.category}</span>
                 </button>
@@ -382,15 +463,19 @@ export function InboxPage() {
           </div>
 
           {/* Manage Categories Action Button */}
-          <button
-            type="button"
-            onClick={() => setIsCategoryModalOpen(true)}
-            className="focus-ring shrink-0 inline-flex items-center gap-1.5 rounded-full border border-dashed border-[#B266E6]/40 hover:border-[#B266E6] bg-[#B266E6]/5 hover:bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF] px-3.5 py-1.5 text-xs font-bold transition shadow-2xs"
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              playEnter();
+              setIsCategoryModalOpen(true);
+            }}
+            icon={<Plus className="h-3.5 w-3.5" />}
+            className="text-[#7E36B2] dark:text-[#DBBFFF] hover:bg-[#B266E6]/10 shrink-0 font-bold"
             title="Create, edit or delete custom categories and customize tag colors"
           >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Customize Tags</span>
-          </button>
+            Customize Tags
+          </Button>
         </div>
 
         {/* Email List */}
@@ -410,8 +495,8 @@ export function InboxPage() {
             ))}
           </div>
         ) : filteredEmails.length === 0 ? (
-          <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] p-12 text-center shadow-soft">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF]">
+          <Card radius="3xl" elevation="soft" className="p-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
               <Inbox className="h-6 w-6" />
             </div>
             <h3 className="mt-3 text-sm font-bold text-stone-900 dark:text-white">
@@ -423,17 +508,17 @@ export function InboxPage() {
                 : `No correspondence saved for ${currentDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })} in ${activeMailbox}.`}
             </p>
             <div className="mt-4 flex items-center justify-center gap-2">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={handleLiveSync}
                 disabled={isSyncing}
-                className="focus-ring inline-flex items-center gap-2 rounded-xl bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 px-4 py-2 text-xs font-semibold hover:opacity-90 transition disabled:opacity-50"
+                icon={<RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />}
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>Sync Latest Gmail</span>
-              </button>
+                Sync Latest Gmail
+              </Button>
             </div>
-          </div>
+          </Card>
         ) : (
           <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] shadow-soft divide-y divide-black/[0.04] dark:divide-white/[0.06] overflow-hidden">
             {filteredEmails.map((item) => {
@@ -444,7 +529,7 @@ export function InboxPage() {
                 <div
                   key={item.id}
                   onClick={() => handleSelectEmail(item)}
-                  className={`group flex items-start gap-3.5 p-4 sm:p-5 transition cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.03] ${
+                  className={`group row-interactive flex items-start gap-3.5 p-4 sm:p-5 cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.03] ${
                     !item.isViewed ? 'bg-[#B266E6]/[0.02] dark:bg-[#B266E6]/[0.03]' : ''
                   }`}
                 >
@@ -468,7 +553,7 @@ export function InboxPage() {
                       >
                         {sender}
                       </span>
-                      <span className="text-[11px] text-stone-400 dark:text-stone-500 shrink-0">
+                      <span className="text-[10px] text-stone-400 dark:text-stone-500 shrink-0">
                         {item.parsedDate?.time || ''}
                       </span>
                     </div>
@@ -483,26 +568,18 @@ export function InboxPage() {
                       {item.subject || 'No Subject'}
                     </div>
 
-                    <p className="text-[11px] text-stone-500 dark:text-stone-400 line-clamp-1 mt-0.5">
+                    <p className="text-[10px] text-stone-500 dark:text-stone-400 line-clamp-1 mt-0.5">
                       {item.snippet || 'No preview available.'}
                     </p>
 
                     {/* Custom Colored Tags & Attachments */}
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
                       {item.categories?.map((cat) => {
-                        const colorObj = getCategoryColor(cat);
+                        const col = getCategoryColor(cat);
                         return (
-                          <span
-                            key={cat}
-                            className="rounded-full border px-2.5 py-0.5 text-[10px] font-semibold shadow-2xs"
-                            style={{
-                              backgroundColor: colorObj.bg,
-                              color: colorObj.text,
-                              borderColor: colorObj.border,
-                            }}
-                          >
+                          <Badge key={cat} customColor={col}>
                             {cat}
-                          </span>
+                          </Badge>
                         );
                       })}
 

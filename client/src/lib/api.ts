@@ -186,12 +186,19 @@ export const api = {
   },
 
   // --- Emails ---
-  async fetchLiveGmail(mailboxEmail?: string, numberOfEmails: number = 15): Promise<InboundEmailItem[]> {
+  async fetchLiveGmail(mailboxEmail?: string, numberOfEmails: number = 50): Promise<InboundEmailItem[]> {
     const res = await apiClient.post('/email/fetch', {}, {
       params: { numberOfEmails },
       headers: mailboxEmail ? { 'x-mailbox-email': mailboxEmail } : undefined,
     });
     return res.data.emails || [];
+  },
+
+  async recategorizeEmails(mailboxEmail?: string): Promise<{ success: boolean; count: number; totalChecked?: number }> {
+    const res = await apiClient.post('/email/recategorize', {}, {
+      headers: mailboxEmail ? { 'x-mailbox-email': mailboxEmail } : undefined,
+    });
+    return res.data;
   },
 
   async fetchEmailsByDate(date: number | string, month: number | string, year: number | string, mailboxEmail?: string): Promise<InboundEmailItem[]> {

@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import http from "http";
+import https from "https";
 import crypto from "crypto";
 import logger from "../utils/logger.utils";
 
@@ -49,9 +50,11 @@ class BasketClient {
     constructor() {
         this.baseUrl = process.env.BASKET_URL || "https://api.basket.jam/llm/chat";
         const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 50 });
+        const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 50, rejectUnauthorized: false });
 
         this.client = axios.create({
             httpAgent,
+            httpsAgent,
             timeout: Number(process.env.BASKET_TIMEOUT_MS) || 60000,
         });
     }

@@ -14,11 +14,12 @@ import {
   Quote,
   ShieldCheck,
   Trash2,
-  Wand2,
 } from 'lucide-react';
 import { usePlumStore } from '../../store/usePlumStore';
 import { api } from '../../lib/api';
 import { useToast } from '../ui/ToastProvider';
+import { Button } from '../ui/Button';
+import { playBack, playEnter } from '../../lib/sound';
 
 export function ComposerModal() {
   const { isComposerOpen, composerData, closeComposer, mailboxes, activeMailbox, user } = usePlumStore();
@@ -34,7 +35,6 @@ export function ComposerModal() {
   const [category, setCategory] = useState('General');
   const [isSending, setIsSending] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
-  const [showAiToolbar, setShowAiToolbar] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
 
@@ -48,14 +48,37 @@ export function ComposerModal() {
       setSubject(composerData?.subject || '');
       setBody(composerData?.body || '');
       setCategory(composerData?.category || 'General');
-      setShowAiToolbar(false);
       setAiPrompt('');
     }
   }, [isComposerOpen, composerData, activeMailbox, mailboxes]);
 
+  // Escape key handler & body scroll lock
+  useEffect(() => {
+    if (!isComposerOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        playBack();
+        closeComposer();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isComposerOpen, closeComposer]);
+
   if (!isComposerOpen) return null;
 
   const currentMailboxObj = mailboxes.find((m) => m.email === fromMailbox);
+
+  const handleClose = () => {
+    playBack();
+    closeComposer();
+  };
 
   const handleSend = async () => {
     const recipients = toInput
@@ -79,6 +102,7 @@ export function ComposerModal() {
       .filter((e) => e.length > 0 && e.includes('@'));
 
     setIsSending(true);
+    playEnter();
     try {
       await api.sendEmail(
         {
@@ -111,6 +135,7 @@ export function ComposerModal() {
       .filter(Boolean);
 
     setIsSavingDraft(true);
+    playEnter();
     try {
       await api.saveDraft({
         from: fromMailbox,
@@ -136,6 +161,7 @@ export function ComposerModal() {
     }
 
     setIsAiGenerating(true);
+    playEnter();
     try {
       const draft = await api.generateAiDraft({
         prompt: aiPrompt.trim(),
@@ -168,20 +194,29 @@ export function ComposerModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5">
+      {/* Scrim backdrop (Section 2.9: 150ms ease-out) */}
+      <div
+        className="fixed inset-0 bg-stone-900/45 dark:bg-black/60 backdrop-blur-sm transition-opacity animate-fade-in"
+        onClick={handleClose}
+        aria-hidden="true"
+      />
+
+      {/* Modal Container (Section 2.9 & 5.8: 32px / rounded-[2rem] radius, 180ms cubic-bezier(0.16, 1, 0.3, 1)) */}
       <div
         role="dialog"
         aria-modal="true"
-        className="relative flex flex-col w-full max-w-3xl h-[88vh] max-h-[820px] rounded-3xl border border-black/[0.08] dark:border-white/[0.1] bg-[#F8F9F5] dark:bg-[#121310] shadow-lift overflow-hidden text-stone-900 dark:text-[#F3F4F1] transition-colors"
+        aria-labelledby="composer-modal-title"
+        className="relative z-10 flex flex-col w-full max-w-3xl h-[88vh] max-h-[820px] rounded-[2rem] glass-panel border border-black/[0.08] dark:border-white/[0.1] bg-[#F8F9F5] dark:bg-[#121310] shadow-lift overflow-hidden text-stone-900 dark:text-[#F3F4F1] transition-colors animate-scale-in"
       >
         {/* Top Header Bar */}
         <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] px-6 py-3.5 bg-white/80 dark:bg-[#181915]/80 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#B266E6]/10 text-[#5C207E] dark:text-[#DBBFFF]">
+            <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
               <Send className="h-3.5 w-3.5" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-stone-900 dark:text-white">
+              <h2 id="composer-modal-title" className="text-sm font-bold text-stone-900 dark:text-white">
                 New Message
               </h2>
             </div>
@@ -190,9 +225,9 @@ export function ComposerModal() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={closeComposer}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition"
-              title="Close (Esc)"
+              onClick={handleClose}
+              aria-label="Close composer"
+              className="focus-ring flex h-8 w-8 items-center justify-center rounded-full text-stone-400 hover:text-stone-700 dark:text-stone-500 dark:hover:text-stone-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition"
             >
               <X className="h-4 w-4" />
             </button>
@@ -202,7 +237,7 @@ export function ComposerModal() {
         {/* Sender Strip */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/[0.05] dark:border-white/[0.06] px-6 py-2.5 bg-white/50 dark:bg-[#181915]/50 text-xs">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
               From:
             </span>
             <div className="relative inline-flex items-center">
@@ -218,7 +253,7 @@ export function ComposerModal() {
                 ))}
               </select>
               {/* Sender Avatar Icon */}
-              <div className="pointer-events-none absolute left-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#B266E6]/20 text-[#5C207E] dark:text-[#DBBFFF] font-bold text-[9px] overflow-hidden">
+              <div className="pointer-events-none absolute left-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#B266E6]/20 text-[#7E36B2] dark:text-[#DBBFFF] font-bold text-[9px] overflow-hidden">
                 {currentMailboxObj?.picture ? (
                   <img src={currentMailboxObj.picture} alt="" className="h-full w-full object-cover" />
                 ) : (
@@ -229,7 +264,7 @@ export function ComposerModal() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+          <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
             <ShieldCheck className="h-3.5 w-3.5" />
             <span>Google OAuth Authenticated</span>
           </div>
@@ -253,7 +288,7 @@ export function ComposerModal() {
               <button
                 type="button"
                 onClick={() => setShowCcBcc((prev) => !prev)}
-                className="text-[11px] font-semibold text-[#B266E6] hover:text-[#8F40C7] transition shrink-0"
+                className="text-[10px] font-semibold text-[#7E36B2] dark:text-[#DBBFFF] hover:underline transition shrink-0"
               >
                 {showCcBcc ? 'Hide Cc/Bcc' : 'Cc / Bcc'}
               </button>
@@ -305,13 +340,13 @@ export function ComposerModal() {
               </div>
 
               <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 pl-12 sm:pl-0">
-                <span className="text-[11px] font-semibold text-stone-400">Tag:</span>
+                <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Tag:</span>
                 <input
                   type="text"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="Category"
-                  className="rounded-lg border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.02] dark:bg-white/[0.04] px-2 py-1 text-xs font-semibold text-[#5C207E] dark:text-[#DBBFFF] max-w-[110px]"
+                  className="rounded-lg border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.02] dark:bg-white/[0.04] px-2 py-1 text-xs font-semibold text-[#7E36B2] dark:text-[#DBBFFF] max-w-[110px]"
                 />
               </div>
             </div>
@@ -319,11 +354,11 @@ export function ComposerModal() {
 
           {/* AI Writing Assistant Input Bar */}
           <div className="rounded-2xl border border-[#B266E6]/30 bg-gradient-to-r from-[#B266E6]/[0.06] via-transparent to-[#89D66D]/[0.04] p-3 shadow-soft space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#5C207E] dark:text-[#DBBFFF]">
+            <div className="flex items-center gap-2 text-xs font-bold text-[#7E36B2] dark:text-[#DBBFFF]">
               <Sparkles className="h-4 w-4 text-[#B266E6]" />
               <span>Basket AI Writing Assistant</span>
               <span className="text-[10px] font-normal text-stone-500">
-                (Context-aware: includes recipient, subject & current draft)
+                (Context-aware: recipient, subject & current draft)
               </span>
             </div>
 
@@ -341,29 +376,21 @@ export function ComposerModal() {
                 disabled={isAiGenerating}
                 placeholder={
                   body.trim()
-                    ? "Ask AI to refine, expand, shorten, or follow up on this draft..."
-                    : "Describe the email you want to write (e.g. 'Formal leave request for Monday', 'Follow up on invoice')..."
+                    ? "Ask AI to refine, expand, polish tone, or follow up on this draft..."
+                    : "Describe the email to write (e.g. 'Formal leave request for Monday', 'Follow up on project')..."
                 }
                 className="flex-1 rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-white dark:bg-stone-900/90 px-3.5 py-2 text-xs text-stone-900 dark:text-white placeholder-stone-400 shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#B266E6]"
               />
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={handleGenerateAiEmail}
                 disabled={isAiGenerating || !aiPrompt.trim()}
-                className="focus-ring inline-flex items-center gap-1.5 rounded-xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-4 py-2 text-xs font-bold shadow-soft transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                isLoading={isAiGenerating}
+                icon={<Sparkles className="h-3.5 w-3.5" />}
               >
-                {isAiGenerating ? (
-                  <>
-                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>Writing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>{body.trim() ? 'Refine Email' : 'Write Email'}</span>
-                  </>
-                )}
-              </button>
+                {body.trim() ? 'Refine Email' : 'Write Email'}
+              </Button>
             </div>
           </div>
 
@@ -425,33 +452,35 @@ export function ComposerModal() {
 
         {/* Modal Action Footer */}
         <div className="flex items-center justify-between border-t border-black/[0.06] dark:border-white/[0.08] px-6 py-3.5 bg-white/90 dark:bg-[#181915]/90 backdrop-blur-md">
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={handleSaveDraft}
             disabled={isSavingDraft}
-            className="focus-ring inline-flex items-center gap-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-800 px-3.5 py-2 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] shadow-2xs transition disabled:opacity-50"
+            isLoading={isSavingDraft}
+            icon={<Save className="h-3.5 w-3.5 text-stone-400" />}
           >
-            <Save className="h-3.5 w-3.5 text-stone-400" />
-            <span>{isSavingDraft ? 'Saving...' : 'Save Draft'}</span>
-          </button>
+            Save Draft
+          </Button>
 
           <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={closeComposer}
-              className="rounded-xl px-3.5 py-2 text-xs font-semibold text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 transition"
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClose}
             >
               Discard
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
               onClick={handleSend}
               disabled={isSending}
-              className="focus-ring inline-flex items-center gap-2 rounded-xl bg-[#B266E6] hover:bg-[#8F40C7] text-white px-5 py-2 text-xs font-bold shadow-soft transition active:scale-95 disabled:opacity-50"
+              isLoading={isSending}
+              icon={<Send className="h-3.5 w-3.5" />}
             >
-              <Send className={`h-3.5 w-3.5 ${isSending ? 'animate-spin' : ''}`} />
-              <span>{isSending ? 'Sending...' : 'Send Message'}</span>
-            </button>
+              Send Message
+            </Button>
           </div>
         </div>
       </div>

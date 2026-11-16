@@ -4,6 +4,28 @@ import https from "https";
 import crypto from "crypto";
 import logger from "../utils/logger.utils";
 
+export interface BasketCompletionOptions {
+    prompt: string;
+    application?: string;
+    system_prompt?: string;
+    context?: Array<{ content: string; metadata?: Record<string, any> }>;
+    grammar?: string | null;
+    retrieve_notes?: boolean;
+    retrieve_chat?: boolean;
+    chat_id?: string | null;
+    temperature?: number;
+    stream?: boolean;
+}
+
+export interface BasketCompletionResponse {
+    status: string;
+    content: string;
+    application?: string;
+    model?: string;
+    usage?: any;
+    raw?: any;
+}
+
 export interface BasketMessage {
     role: "system" | "user" | "assistant" | "tool";
     content: string;
@@ -127,6 +149,47 @@ class BasketClient {
             const detail = err?.response?.data?.detail || err?.message || "Embedding request failed";
             logger.error(`[BasketClient] Embedding error requestId=${requestId} status=${status} detail=${detail}`);
             throw new BasketError(`Basket embedding failed: ${detail}`, status, requestId);
+        }
+    }
+
+    /**
+     * Fast /completion endpoint for classification, extraction, and generation.
+     */
+    async completion(options: BasketCompletionOptions): Promise<BasketCompletionResponse> {
+        const requestId = crypto.randomUUID();
+        const url = process.env.BASKET_COMPLETION_URL || "https://api.basket.jam/completion";
+        const headers = {
+            "Content-Type": "application/json",
+            "X-Basket-Application": options.application || "plum",
+            "X-Request-ID": requestId,
+        };
+
+        const payload: Record<string, any> = {
+            prompt: options.prompt,
+            application: options.application || "plum",
+            system_prompt: options.system_prompt || "Output strictly JSON matching the required schema.",
+            context: options.context || [],
+            grammar: options.grammar || null,
+            retrieve_notes: options.retrieve_notes ?? false,
+            retrieve_chat: options.retrieve_chat ?? false,
+            chat_id: options.chat_id || null,
+            temperature: options.temperature ?? 0.2,
+            stream: options.stream ?? false,
+        };
+
+        logger.info(`[BasketClient] POST ${url} prompt="${options.prompt.slice(0, 50)}..." grammar=${Boolean(options.grammar)}`);
+
+        try {
+            const response = await this.client.post(url, payload, {
+                headers,
+                timeout: Number(process.env.BASKET_TIMEOUT_MS) || 60000,
+            });
+            return response.data;
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Completion failed";
+            logger.error(`[BasketClient] Completion error status=${status} detail=${detail}`);
+            throw new BasketError(`Basket /completion failed: ${detail}`, status, requestId);
         }
     }
 

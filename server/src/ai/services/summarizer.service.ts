@@ -33,20 +33,27 @@ export async function summarizeEmails(emails: InboundEmailType[]): Promise<Email
         };
     }
 
-    const emailTexts = emails.slice(0, 15).map((email, idx) => {
-        return `[Email ${idx + 1}] From: ${email.senderName || ""} <${email.senderEmail || ""}>\nSubject: ${email.subject || "No Subject"}\nBody:\n${(email.bodyText || email.snippet || "").slice(0, 800)}`;
-    }).join("\n\n---\n\n");
-
-    const prompt = `Please summarize these emails:\n\n${emailTexts}`;
+    const contextItems = emails.slice(0, 15).map((email, idx) => ({
+        content: `[Email ${idx + 1}] From: ${email.senderName || ""} <${email.senderEmail || ""}>\nSubject: ${email.subject || "No Subject"}\nBody:\n${(email.bodyText || email.snippet || "").slice(0, 800)}`,
+        metadata: {
+            subject: email.subject,
+            sender: email.senderEmail,
+            index: idx + 1,
+        },
+    }));
 
     try {
-        const fullSummary = await basketClient.complete({
-            messages: [
-                { role: "system", content: SYSTEM_SUMMARY },
-                { role: "user", content: prompt },
-            ],
+        const res = await basketClient.completion({
+            prompt: "Please synthesize and summarize these emails with Highlights, Insights, and Actions.",
+            application: "plum",
+            system_prompt: SYSTEM_SUMMARY,
+            context: contextItems,
+            retrieve_notes: false,
+            retrieve_chat: false,
             temperature: 0.2,
         });
+
+        const fullSummary = res.content || "";
 
         return {
             summary: fullSummary,

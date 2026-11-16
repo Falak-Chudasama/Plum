@@ -327,9 +327,9 @@ export function InboxPage() {
             disabled={isSyncing}
             isLoading={isSyncing}
             icon={<RefreshCw className={`h-3.5 w-3.5 text-[#7E36B2] dark:text-[#DBBFFF] ${isSyncing ? 'animate-spin' : ''}`} />}
-            title="Fetch up to 50 latest emails directly from Gmail"
+            title="Fetch latest emails directly from Gmail"
           >
-            {isSyncing ? 'Syncing...' : 'Sync Gmail (50)'}
+            {isSyncing ? 'Syncing...' : 'Sync Gmail'}
           </Button>
         </div>
       }
@@ -374,9 +374,6 @@ export function InboxPage() {
                       Today
                     </span>
                   )}
-                  <span className="text-[10px] font-mono text-stone-400 dark:text-stone-500 bg-black/[0.04] dark:bg-white/[0.06] px-1.5 py-0.5 rounded-md hidden sm:inline-block">
-                    Shift + ← / →
-                  </span>
                 </div>
               </div>
             </div>

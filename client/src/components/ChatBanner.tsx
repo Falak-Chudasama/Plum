@@ -12,7 +12,7 @@ function ChatBanner(getToTop: boolean) {
         <div className={`h-fit w-full place-items-center p-2 m-1 select-none duration-100 ${getToTop ? 'translate-y-[10vh]' : '-translate-y-[10vh]'}`}>
             <div className="flex items-center justify-center gap-3 font-cabin text-6xl scale-115">
                 <span>
-                    <img src="../plum-logo.png" alt="plum logo" className="h-15 w-auto" />
+                    <img src="https://basket.jam/icons/plum-icon.svg" alt="plum logo" className="h-15 w-auto" />
                 </span>
                 <span>
                     {randomGreeting}

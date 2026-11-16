@@ -41,8 +41,20 @@ const getMinuteDifference = (dateStr: string, timeStr: string): number => {
     return diffMinutes;
 };
 
+export const formatDateTime = (date: Date = new Date()): string => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    const seconds = pad(date.getSeconds());
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
 const utils = {
     getToday,
     getMinuteDifference,
+    formatDateTime,
 };
 export default utils;

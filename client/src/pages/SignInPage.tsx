@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
-import plumLogo from '../assets/plum-icon.svg';
+const plumLogo = 'https://basket.jam/icons/plum-icon.svg';
 import constants from '../constants/constants';
 import { api } from '../lib/api';
 import { usePlumStore } from '../store/usePlumStore';

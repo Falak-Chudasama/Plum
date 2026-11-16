@@ -19,5 +19,6 @@ emailRouter.patch('/set-is-viewed', authenticateUser, emailOps.updateIsViewed);
 emailRouter.post('/fetch-outbound-by-date', authenticateUser, emailOps.fetchOutboundEmailsDate);
 emailRouter.patch('/set-outbound-is-viewed', authenticateUser, emailOps.updateOutboundIsViewed);
 emailRouter.post('/recategorize', authenticateUser, emailOps.recategorizeEmails);
+emailRouter.post('/extract', optionalAuthenticateUser, emailOps.extractFromEmail);
 
 export default emailRouter;

@@ -97,7 +97,6 @@ export function ChatPage() {
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [activeRagNotes, setActiveRagNotes] = useState<any[]>([]);
 
-  const socketRef = useRef<WebSocket | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -110,9 +109,7 @@ export function ChatPage() {
   // Load chat session list
   const reloadChats = async () => {
     try {
-      const email = activeMailbox || user?.email;
-      if (!email) return;
-      const data = await api.getChatsByEmail(email);
+      const data = await api.getChats();
       setChats(data || []);
     } catch (err) {
       // non-fatal
@@ -139,110 +136,6 @@ export function ChatPage() {
     loadNotes();
   }, [activeMailbox, user?.email]);
 
-  // WebSocket lifecycle
-  useEffect(() => {
-    const email = activeMailbox || user?.email;
-    if (!email) return;
-
-    const wsUrl = `wss://api.plum.jam/chat?email=${encodeURIComponent(email)}`;
-    let ws: WebSocket;
-
-    try {
-      ws = new WebSocket(wsUrl);
-      socketRef.current = ws;
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          handleStreamPayload(data);
-        } catch (e) {
-          console.error('Error parsing WS message:', e);
-        }
-      };
-
-      ws.onerror = () => {
-        // Fallback to HTTP SSE quietly
-      };
-    } catch {
-      // ignore
-    }
-
-    return () => {
-      if (ws) {
-        ws.close();
-      }
-    };
-  }, [activeMailbox, user?.email]);
-
-  const handleStreamPayload = (data: any) => {
-    if (data.type === 'CHUNK') {
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last && last.role === 'assistant') {
-          return [
-            ...prev.slice(0, -1),
-            { ...last, content: (last.content || '') + (data.response || '') },
-          ];
-        } else {
-          return [
-            ...prev,
-            {
-              id: `stream-${Date.now()}`,
-              role: 'assistant',
-              content: data.response || '',
-              ragNotes: activeRagNotes.length > 0 ? [...activeRagNotes] : undefined,
-            },
-          ];
-        }
-      });
-    } else if (data.type === 'RESPONSE_COMPLETE') {
-      setIsGenerating(false);
-      setStatusMessage(null);
-      setActiveRagNotes([]);
-      if (data.chatId) {
-        setChatId(data.chatId);
-        reloadChats();
-      }
-    } else if (data.type === 'SYSTEM') {
-      if (data.subtype === 'RAG_CONTEXT' && Array.isArray(data.notes)) {
-        setActiveRagNotes(data.notes);
-      } else if (data.subtype === 'EMAIL' || data.subtype === 'CRAFTED_MAIL') {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `crafted-${Date.now()}`,
-            role: 'system',
-            content: '',
-            craftedMail: data.email || data.mail,
-          },
-        ]);
-      } else if (data.subtype === 'QUERY') {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `query-${Date.now()}`,
-            role: 'system',
-            content: '',
-            query: {
-              query: data.query,
-              result: data.result,
-              resultCount: data.resultCount,
-              isSuccess: data.isSuccess,
-            },
-          },
-        ]);
-      } else if (data.subtype === 'TITLE' && data.title?.title) {
-        reloadChats();
-      }
-    } else if (data.type === 'INFO') {
-      setStatusMessage(data.showMessage || data.message || null);
-    } else if (data.type === 'ERROR') {
-      setIsGenerating(false);
-      setStatusMessage(null);
-      toast.error(data.error || 'Chat generation error');
-    }
-  };
-
   const loadChat = async (id: string) => {
     playScroll();
     setChatId(id);
@@ -253,58 +146,62 @@ export function ChatPage() {
       if (!chat) return;
 
       const loadedMessages: Message[] = [];
-      const prompts = chat.userPrompts || [];
-      const responses = chat.responses || [];
-      const maxLen = Math.max(prompts.length, responses.length);
 
-      for (let i = 0; i < maxLen; i++) {
-        if (prompts[i]) {
+      // Check standard 3-tier messages array first
+      if (Array.isArray(chat.messages) && chat.messages.length > 0) {
+        chat.messages.forEach((m: any, idx: number) => {
           loadedMessages.push({
-            id: `prompt-${i}`,
-            role: 'user',
-            content: prompts[i].prompt,
+            id: `msg-${idx}-${Date.now()}`,
+            role: m.role || 'user',
+            content: m.content || '',
+            timestamp: m.created_at,
           });
-        }
-        if (responses[i]) {
-          const resp = responses[i];
-          if (resp.craftedMail) {
+        });
+      } else {
+        // Fallback to legacy userPrompts / responses
+        const prompts = chat.userPrompts || [];
+        const responses = chat.responses || [];
+        const maxLen = Math.max(prompts.length, responses.length);
+
+        for (let i = 0; i < maxLen; i++) {
+          if (prompts[i]) {
             loadedMessages.push({
-              id: `crafted-${i}`,
-              role: 'system',
-              content: '',
-              craftedMail: resp.craftedMail,
+              id: `prompt-${i}`,
+              role: 'user',
+              content: prompts[i].prompt,
             });
           }
-          if (resp.query) {
-            loadedMessages.push({
-              id: `query-${i}`,
-              role: 'system',
-              content: '',
-              query: resp.query,
-            });
-          }
-          if (resp.response) {
-            loadedMessages.push({
-              id: `resp-${i}`,
-              role: 'assistant',
-              content: resp.response,
-              thought: resp.thought && resp.thought !== '<no_thoughts>' ? resp.thought : undefined,
-            });
+          if (responses[i]) {
+            const resp = responses[i];
+            if (resp.craftedMail) {
+              loadedMessages.push({
+                id: `crafted-${i}`,
+                role: 'system',
+                content: '',
+                craftedMail: resp.craftedMail,
+              });
+            }
+            if (resp.query) {
+              loadedMessages.push({
+                id: `query-${i}`,
+                role: 'system',
+                content: '',
+                query: resp.query,
+              });
+            }
+            if (resp.response) {
+              loadedMessages.push({
+                id: `resp-${i}`,
+                role: 'assistant',
+                content: resp.response,
+                thought: resp.thought && resp.thought !== '<no_thoughts>' ? resp.thought : undefined,
+              });
+            }
           }
         }
       }
 
       setMessages(loadedMessages);
-
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(
-          JSON.stringify({
-            type: 'COMMAND',
-            command: 'SWITCH_CHAT',
-            chatId: id,
-          })
-        );
-      }
     } catch {
       toast.error('Failed to load conversation');
     }
@@ -316,14 +213,6 @@ export function ChatPage() {
     setMessages([]);
     setStatusMessage(null);
     setIsMenuOpen(false);
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: 'COMMAND',
-          command: 'START_NEW_CHAT',
-        })
-      );
-    }
   };
 
   const handleSendMessage = async (textToSend?: string) => {
@@ -343,35 +232,125 @@ export function ChatPage() {
     setIsGenerating(true);
     setStatusMessage('Thinking with Basket AI...');
 
-    const chatCount = messages.filter((m) => m.role === 'user').length;
-    const effectiveEmail = activeMailbox || user?.email;
     const currentChatId = activeChatIdRef.current ?? activeChatId;
-
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: 'PROMPT',
-          prompt: text,
-          email: effectiveEmail,
-          chatId: currentChatId,
-          chatCount,
-        })
-      );
-      return;
-    }
 
     try {
       abortControllerRef.current = new AbortController();
-      await api.streamChatPrompt({
-        prompt: text,
-        chatId: currentChatId,
-        chatCount,
-        email: effectiveEmail,
-        onMessage: handleStreamPayload,
+
+      const response = await fetch('https://api.basket.jam/chat/text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Basket-Application': 'plum',
+        },
+        body: JSON.stringify({
+          text,
+          application: 'plum',
+          chat_id: currentChatId || null,
+          retrieve_chat: true,
+          retrieve_notes: true,
+          synthesize_speech: false,
+          llm: {
+            system_prompt: 'You are Plum, the intelligent personal calendar and email assistant.',
+          },
+        }),
         signal: abortControllerRef.current.signal,
       });
+
+      if (!response.ok) {
+        let errMsg = `Basket error (${response.status})`;
+        try {
+          const errJson = await response.json();
+          errMsg = errJson.detail || errJson.message || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No readable stream available');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let activeId = currentChatId;
+      const assistantMessageId = `asst-${Date.now()}`;
+
+      // Insert placeholder assistant message
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+      setStatusMessage(null);
+
+      let currentEvent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) {
+            currentEvent = '';
+            continue;
+          }
+
+          if (trimmed.startsWith('event: ')) {
+            currentEvent = trimmed.slice(7).trim();
+            continue;
+          }
+
+          if (trimmed.startsWith('data: ')) {
+            const jsonStr = trimmed.slice(6).trim();
+            if (!jsonStr) continue;
+
+            try {
+              const data = JSON.parse(jsonStr);
+
+              // Update active chat ID if new session initialized
+              if (data.chat_id && !activeId) {
+                activeId = data.chat_id;
+                setChatId(data.chat_id);
+                reloadChats();
+              }
+
+              if (currentEvent === 'delta') {
+                const token = data.content !== undefined ? data.content : (data.data || '');
+                if (token) {
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantMessageId
+                        ? { ...msg, content: msg.content + token }
+                        : msg
+                    )
+                  );
+                }
+              } else if (currentEvent === 'done') {
+                if (data.chat_id && activeChatIdRef.current !== data.chat_id) {
+                  setChatId(data.chat_id);
+                }
+                reloadChats();
+              } else if (data.type === 'error') {
+                toast.error(data.message || 'Basket error');
+              }
+            } catch (err) {
+              console.warn('Failed to parse SSE line:', jsonStr, err);
+            }
+          }
+        }
+      }
+
       setIsGenerating(false);
       setStatusMessage(null);
+      reloadChats();
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         toast.error(err.message || 'Failed to generate response with Basket AI');
@@ -386,14 +365,6 @@ export function ChatPage() {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
-    }
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: 'COMMAND',
-          command: 'STOP_RESPONSE',
-        })
-      );
     }
     setIsGenerating(false);
     setStatusMessage(null);
@@ -439,7 +410,9 @@ export function ChatPage() {
     };
 
     filtered.forEach((chat) => {
-      const chatTime = new Date(chat.createdAt || chat.updatedAt).getTime();
+      const dateStr = chat.updated_at || chat.created_at || chat.updatedAt || chat.createdAt;
+      const parsedTime = dateStr ? new Date(dateStr).getTime() : Date.now();
+      const chatTime = isNaN(parsedTime) ? Date.now() : parsedTime;
       if (chatTime >= todayStart) {
         groups.Today.push(chat);
       } else if (chatTime >= yesterdayStart) {

@@ -116,12 +116,21 @@ export interface ChatMessage {
 
 export interface ChatSession {
   _id: string;
+  session_id?: string;
   title: string;
-  email: string;
+  application?: string;
+  email?: string;
   lastMessageAt?: string;
-  messageCount: number;
-  createdAt: string;
-  updatedAt: string;
+  messageCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
+  messages?: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    created_at?: string;
+  }>;
   userPrompts?: any[];
   responses?: any[];
 }
@@ -281,55 +290,63 @@ export const api = {
     return res.data;
   },
 
-  // --- Chats ---
-  async getChatList(email: string, limit: number = 30): Promise<ChatSession[]> {
-    const res = await apiClient.get('/chat/getList', {
-      params: { email, limit },
-    });
-    const data = res.data?.result?.chats || res.data?.chats || res.data?.result || res.data;
-    return Array.isArray(data) ? data : [];
+  // --- Chats (Basket 3-Tier Multi-Chat) ---
+  async getChats(): Promise<ChatSession[]> {
+    const res = await apiClient.get('/api/chats');
+    return Array.isArray(res.data) ? res.data : [];
+  },
+
+  async getChatsByEmail(_email?: string): Promise<ChatSession[]> {
+    return this.getChats();
+  },
+
+  async getChatList(_email?: string, _limit: number = 30): Promise<ChatSession[]> {
+    return this.getChats();
   },
 
   async getChatById(id: string): Promise<any> {
-    const res = await apiClient.get(`/chat/get/${id}`);
-    return res.data?.result || res.data?.chat || res.data;
-  },
-
-  async deleteChat(id: string): Promise<any> {
-    const res = await apiClient.delete('/chat/delete', {
-      params: { id },
-    });
+    const res = await apiClient.get(`/api/chats/${id}`);
     return res.data;
   },
 
-  async streamChatPrompt(params: {
+  async deleteChat(id: string): Promise<any> {
+    const res = await apiClient.delete(`/api/chats/${id}`);
+    return res.data;
+  },
+
+  async streamChatText(params: {
     prompt: string;
     chatId?: string | null;
-    chatCount?: number;
-    email?: string;
-    onMessage: (data: any) => void;
+    onDelta: (token: string, chatId?: string) => void;
+    onDone?: (chatId?: string) => void;
+    onError?: (error: any) => void;
     signal?: AbortSignal;
-  }): Promise<void> {
-    const response = await fetch(`${API_BASE}/chat/prompt`, {
+  }): Promise<{ chatId: string | null; fullText: string }> {
+    const response = await fetch('https://api.basket.jam/chat/text', {
       method: 'POST',
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        'X-Basket-Application': 'plum',
       },
       body: JSON.stringify({
-        prompt: params.prompt,
-        chatId: params.chatId || null,
-        chatCount: params.chatCount || 0,
-        email: params.email,
+        text: params.prompt,
+        application: 'plum',
+        chat_id: params.chatId || null,
+        retrieve_chat: true,
+        retrieve_notes: true,
+        synthesize_speech: false,
+        llm: {
+          system_prompt: 'You are Plum, the intelligent personal calendar and email assistant.',
+        },
       }),
       signal: params.signal,
     });
 
     if (!response.ok) {
-      let errMsg = `Server responded with ${response.status}`;
+      let errMsg = `Basket error (${response.status})`;
       try {
         const errJson = await response.json();
-        errMsg = errJson.error || errJson.message || errMsg;
+        errMsg = errJson.detail || errJson.message || errMsg;
       } catch (_) {}
       throw new Error(errMsg);
     }
@@ -339,6 +356,9 @@ export const api = {
 
     const decoder = new TextDecoder();
     let buffer = '';
+    let activeChatId: string | null = params.chatId || null;
+    let fullText = '';
+    let currentEvent = '';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -350,19 +370,108 @@ export const api = {
 
       for (const line of lines) {
         const trimmed = line.trim();
+        if (!trimmed) {
+          currentEvent = '';
+          continue;
+        }
+
+        if (trimmed.startsWith('event: ')) {
+          currentEvent = trimmed.slice(7).trim();
+          continue;
+        }
+
         if (trimmed.startsWith('data: ')) {
           const jsonStr = trimmed.slice(6).trim();
-          if (jsonStr) {
-            try {
-              const data = JSON.parse(jsonStr);
-              params.onMessage(data);
-            } catch (err) {
-              console.warn('Failed to parse SSE line:', jsonStr, err);
+          if (!jsonStr) continue;
+
+          try {
+            const data = JSON.parse(jsonStr);
+
+            if (data.chat_id && !activeChatId) {
+              activeChatId = data.chat_id;
             }
+
+            if (currentEvent === 'delta') {
+              const token = data.content !== undefined ? data.content : (data.data || '');
+              fullText += token;
+              params.onDelta(token, data.chat_id || activeChatId);
+            } else if (currentEvent === 'done') {
+              if (params.onDone) {
+                params.onDone(data.chat_id || activeChatId);
+              }
+            } else if (data.type === 'error') {
+              if (params.onError) {
+                params.onError(data.message || 'Basket error');
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to parse SSE line:', jsonStr, e);
           }
         }
       }
     }
+
+    return { chatId: activeChatId, fullText };
+  },
+
+  // Fast /completion for categorization, extraction, and non-chat intelligence
+  async completion(options: {
+    prompt: string;
+    system_prompt?: string;
+    context?: Array<{ content: string; metadata?: any }>;
+    grammar?: string | null;
+    retrieve_notes?: boolean;
+    retrieve_chat?: boolean;
+  }): Promise<any> {
+    const res = await fetch('https://api.basket.jam/completion', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Basket-Application': 'plum',
+      },
+      body: JSON.stringify({
+        prompt: options.prompt,
+        application: 'plum',
+        system_prompt: options.system_prompt || 'Output strictly JSON matching the required schema.',
+        context: options.context || [],
+        grammar: options.grammar || null,
+        retrieve_notes: options.retrieve_notes ?? false,
+        retrieve_chat: options.retrieve_chat ?? false,
+      }),
+    });
+    if (!res.ok) {
+      let errMsg = `Basket completion failed: ${res.statusText}`;
+      try {
+        const errJson = await res.json();
+        errMsg = errJson.detail || errJson.message || errMsg;
+      } catch (_) {}
+      throw new Error(errMsg);
+    }
+    return await res.json();
+  },
+
+  async streamChatPrompt(params: {
+    prompt: string;
+    chatId?: string | null;
+    chatCount?: number;
+    email?: string;
+    onMessage: (data: any) => void;
+    signal?: AbortSignal;
+  }): Promise<void> {
+    return this.streamChatText({
+      prompt: params.prompt,
+      chatId: params.chatId,
+      onDelta: (content, chatId) => {
+        params.onMessage({ type: 'CHUNK', response: content, chatId });
+      },
+      onDone: (chatId) => {
+        params.onMessage({ type: 'RESPONSE_COMPLETE', chatId });
+      },
+      onError: (err) => {
+        params.onMessage({ type: 'ERROR', error: String(err) });
+      },
+      signal: params.signal,
+    }).then(() => {});
   },
 
   // --- Context Notes & RAG ---

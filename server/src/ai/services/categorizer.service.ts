@@ -115,25 +115,26 @@ export async function categorizeEmail(email: InboundEmailType, userEmail: string
                 : "",
         ].filter(Boolean).join("\n\n");
 
-        const prompt = `Available Categories:
-${categoryGuidelines}
-- Other: Default fallback category for miscellaneous messages that fit none of the categories above.
-
-Email Content to Classify:
-${emailContent}
-
-Return ONLY the single category name:`;
-
-        const rawResponse = await basketClient.complete({
-            messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                { role: "user", content: prompt },
+        const completionRes = await basketClient.completion({
+            prompt: `Classify this email into strictly ONE allowed category from the available categories list. Return ONLY the category name.`,
+            application: "plum",
+            system_prompt: `${SYSTEM_PROMPT}\n\nAvailable Categories:\n${categoryGuidelines}\n- Other: Default fallback category.`,
+            context: [
+                {
+                    content: emailContent,
+                    metadata: {
+                        subject: email.subject,
+                        sender: email.senderEmail,
+                    },
+                },
             ],
             grammar,
+            retrieve_notes: false,
+            retrieve_chat: false,
             temperature: 0.0,
-            max_tokens: 30,
         });
 
+        const rawResponse = completionRes.content || "";
         const validated = validateCategory(rawResponse, categories);
         return validated;
     } catch (err: any) {

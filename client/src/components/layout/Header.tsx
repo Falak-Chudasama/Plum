@@ -17,7 +17,8 @@ import {
 import { useTheme } from '../ui/ThemeProvider';
 import { usePlumStore } from '../../store/usePlumStore';
 import { playEnter, playScroll } from '../../lib/sound';
-import plumLogo from '../../assets/plum-icon.svg';
+
+const plumLogo = 'https://basket.jam/icons/plum-icon.svg';
 
 const NAV_ITEMS = [
   { to: '/inbox', label: 'Inbox', icon: Inbox },

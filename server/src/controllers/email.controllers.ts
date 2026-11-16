@@ -11,6 +11,7 @@ import { categorizeEmails } from "../ai/services/categorizer.service";
 import { craftEmail } from "../ai/services/emailCrafter.service";
 import { retrieveRelevantContextNotes } from "../ai/services/contextNoteRag.service";
 import { resolveUserIdentity } from "../utils/userResolver.utils";
+import basketClient from "../ai/basket.client";
 
 const filePath: string = '/src/controllers/email.controllers.ts'
 
@@ -774,6 +775,37 @@ const recategorizeEmails = async (req: Request, res: Response) => {
     }
 };
 
+const extractFromEmail = async (req: Request, res: Response) => {
+    try {
+        const { prompt, content, metadata, system_prompt, grammar } = req.body;
+        const result = await basketClient.completion({
+            prompt: prompt || "Extract date and participants from this meeting request",
+            application: "plum",
+            system_prompt: system_prompt || "Output strictly JSON matching the required schema.",
+            context: [
+                {
+                    content: content || "",
+                    metadata: metadata || { source: "email_preview" },
+                },
+            ],
+            grammar: grammar || null,
+            retrieve_notes: false,
+            retrieve_chat: false,
+        });
+
+        return res.status(200).json({
+            success: true,
+            result,
+        });
+    } catch (err: any) {
+        handleErrorUtil(filePath, "extractFromEmail", err, "Extracting from email via fast /completion");
+        return res.status(500).json({
+            success: false,
+            error: err.message || "Failed to extract via Basket /completion",
+        });
+    }
+};
+
 const emailOps = {
     sendEmail,
     fetchEmails,
@@ -791,6 +823,7 @@ const emailOps = {
     saveInboundEmails,
     generateAiDraft,
     recategorizeEmails,
+    extractFromEmail,
 };
 
 export default emailOps;

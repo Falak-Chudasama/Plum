@@ -6,6 +6,9 @@ import SettingsModel from "./settings.models";
 import SummaryModel from "./summary";
 import Mailbox from "./mailbox.models";
 import ContextNote from "./contextNote.models";
+import Note from "./note.models";
+import Command from "./command.models";
+import Chats from "./chat";
 
 const models = {
     User,
@@ -15,7 +18,10 @@ const models = {
     CategoryModel,
     SettingsModel,
     SummaryModel,
-    ContextNote
+    ContextNote,
+    Note,
+    Command,
+    Chats,
 };
 
 export default models;

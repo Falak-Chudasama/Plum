@@ -70,15 +70,17 @@ export async function craftEmail(
 
     const userMessage = parts.join("\n\n");
 
-    const rawResponse = await basketClient.complete({
-        messages: [
-            { role: "system", content: CRAFT_MAIL_SYSTEM_PROMPT },
-            { role: "user", content: userMessage },
-        ],
+    const res = await basketClient.completion({
+        prompt: `Compose an email based on the following instruction and context:\n\n${userMessage}`,
+        application: "plum",
+        system_prompt: CRAFT_MAIL_SYSTEM_PROMPT,
         grammar: EMAIL_COMPOSITION_GRAMMAR,
+        retrieve_notes: true,
+        retrieve_chat: false,
         temperature: 0.2,
-        max_tokens: 1500,
     });
+
+    const rawResponse = res.content || "";
 
     const crafted = validateAndSanitizeCraftedEmail(rawResponse, authEmail);
     logger.info(`[EmailCrafterService] Successfully crafted email subject="${crafted.subject}" to=[${crafted.to.join(", ")}]`);

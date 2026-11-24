@@ -13,20 +13,17 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 const STORAGE_KEY = 'plum_theme'
 
+/**
+ * Returns 'dark' for evening/night (>= 19:00 / 7 PM or < 06:00 / 6 AM)
+ * and 'light' for daytime (06:00 to 18:59).
+ */
+export function getTimeBasedTheme(): Theme {
+  const hour = new Date().getHours()
+  return (hour >= 19 || hour < 6) ? 'dark' : 'light'
+}
+
 function getInitialTheme(): Theme {
-  if (typeof window === 'undefined') return 'light'
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved === 'light' || saved === 'dark') {
-      return saved
-    }
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark'
-    }
-  } catch {
-    // fallback if localStorage is disabled
-  }
-  return 'light'
+  return getTimeBasedTheme()
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

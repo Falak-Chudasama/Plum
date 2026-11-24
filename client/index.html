@@ -11,12 +11,16 @@
     <script>
       (function() {
         try {
-          var saved = localStorage.getItem('plum_theme');
-          var isDark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var hour = new Date().getHours();
+          var isDark = (hour >= 19 || hour < 6);
           if (isDark) {
             document.documentElement.classList.add('dark');
             var meta = document.querySelector('meta[name="theme-color"]');
             if (meta) meta.setAttribute('content', '#121310');
+          } else {
+            document.documentElement.classList.remove('dark');
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', '#F8F9F5');
           }
         } catch (e) {}
       })();

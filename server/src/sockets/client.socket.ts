@@ -159,6 +159,7 @@ clientWss.on("connection", async (socket: AuthenticatedWebSocket, req: http.Inco
                     chatCount,
                     user: {
                         email: effectiveEmail,
+                        mailboxEmail: message.mailboxEmail || undefined,
                         name: socket.userName,
                         lastName: socket.userLastName,
                     },

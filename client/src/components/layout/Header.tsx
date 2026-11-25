@@ -244,10 +244,7 @@ export function Header() {
                 <div className="glass-panel absolute right-0 mt-2.5 w-80 rounded-2xl p-2.5 shadow-lift border border-black/[0.08] dark:border-white/[0.1] bg-white/95 dark:bg-[#181915]/95 backdrop-blur-xl z-50 animate-scale-in">
                   {/* User Workspace Header */}
                   <div className="rounded-xl bg-black/[0.02] dark:bg-white/[0.03] p-3 border border-black/[0.04] dark:border-white/[0.05]">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
-                      Plum Workspace User
-                    </div>
-                    <div className="mt-0.5 text-xs font-bold text-stone-900 dark:text-white truncate">
+                    <div className="text-xs font-bold text-stone-900 dark:text-white truncate">
                       {user?.name ? `${user.name} ${user.lastName || ''}`.trim() : user?.email}
                     </div>
                     <div className="text-[10px] text-stone-500 dark:text-stone-400 truncate">
@@ -256,7 +253,7 @@ export function Header() {
                   </div>
 
                   <div className="px-2 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
-                    Connected Gmail Mailboxes
+                    Mailboxes
                   </div>
 
                   <div className="space-y-1">

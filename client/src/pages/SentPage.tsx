@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Send, Calendar, Search, Tag, ChevronLeft, ChevronRight, PenSquare, Clock, ArrowRight } from 'lucide-react';
+import { Send, Search, PenSquare } from 'lucide-react';
 import { PageShell } from '../components/layout/PageShell';
 import { usePlumStore } from '../store/usePlumStore';
 import { api } from '../lib/api';
@@ -8,7 +8,7 @@ import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/TextField';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
-import { playEnter, playScroll } from '../lib/sound';
+import { playEnter } from '../lib/sound';
 
 export function SentPage() {
   const { activeMailbox, openComposer } = usePlumStore();
@@ -17,7 +17,7 @@ export function SentPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const today = new Date();
-  const [selectedDate, setSelectedDate] = useState({
+  const [selectedDate] = useState({
     day: today.getDate(),
     month: today.toLocaleString('default', { month: 'short' }),
     year: today.getFullYear(),
@@ -68,8 +68,7 @@ export function SentPage() {
 
   return (
     <PageShell
-      title="Sent Messages"
-      subtitle={`Sent correspondence from: ${activeMailbox || 'No account selected'}`}
+      title="Sent"
       action={
         <Button
           variant="primary"
@@ -77,62 +76,57 @@ export function SentPage() {
           onClick={handleCompose}
           icon={<PenSquare className="h-3.5 w-3.5" />}
         >
-          New Message
+          Compose
         </Button>
       }
     >
-      <div className="space-y-4">
-        {/* Search */}
-        <div className="max-w-md">
+      <div className="space-y-3.5">
+        <div className="max-w-sm">
           <TextField
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onClear={() => setSearchQuery('')}
-            placeholder="Search sent recipient, subject, or message..."
+            placeholder="Search sent..."
             icon={<Search />}
+            className="!min-h-[40px] !py-2"
           />
         </div>
 
         {/* Email List */}
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-20 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] bg-white/60 dark:bg-[#181915]/60 animate-pulse p-4 flex items-center gap-4"
+                className="h-18 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] bg-white/60 dark:bg-[#181915]/60 animate-pulse p-4 flex items-center gap-3.5"
               >
-                <div className="h-10 w-10 rounded-full bg-stone-200 dark:bg-stone-800 shrink-0" />
+                <div className="h-9 w-9 rounded-full bg-stone-200 dark:bg-stone-800 shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-3.5 w-1/4 rounded bg-stone-200 dark:bg-stone-800" />
-                  <div className="h-3 w-3/4 rounded bg-stone-200 dark:bg-stone-800" />
+                  <div className="h-3 w-1/4 rounded bg-stone-200 dark:bg-stone-800" />
+                  <div className="h-2.5 w-2/3 rounded bg-stone-200 dark:bg-stone-800" />
                 </div>
               </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <Card radius="3xl" elevation="soft" className="p-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
-              <Send className="h-6 w-6" />
+          <Card radius="3xl" elevation="soft" className="p-10 text-center">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
+              <Send className="h-5 w-5" />
             </div>
             <h3 className="mt-3 text-sm font-bold text-stone-900 dark:text-white">
-              No sent messages
+              {searchQuery ? 'No matching sent messages' : 'No sent messages today'}
             </h3>
-            <p className="mx-auto mt-1 max-w-sm text-xs text-stone-500 dark:text-stone-400">
-              {searchQuery
-                ? `No sent messages match "${searchQuery}".`
-                : `No outbound messages sent today from ${activeMailbox}.`}
-            </p>
             <div className="mt-4 flex justify-center">
               <Button variant="secondary" size="sm" onClick={handleCompose} icon={<PenSquare className="h-3.5 w-3.5" />}>
-                Compose Email
+                New Message
               </Button>
             </div>
           </Card>
         ) : (
           <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] shadow-soft divide-y divide-black/[0.04] dark:divide-white/[0.06] overflow-hidden">
-            {filtered.map((item) => (
+            {filtered.map((item, idx) => (
               <div
-                key={item.id}
+                key={item._id || idx}
                 className="row-interactive flex items-start gap-3.5 p-4 sm:p-5 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF] text-xs font-bold">

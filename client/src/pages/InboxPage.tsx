@@ -5,7 +5,6 @@ import {
   Search,
   Calendar,
   Paperclip,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
@@ -25,7 +24,7 @@ import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/TextField';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
-import { playEnter, playScroll, playBack } from '../lib/sound';
+import { playEnter, playScroll } from '../lib/sound';
 
 export function InboxPage() {
   const { activeMailbox, mailboxes, user } = usePlumStore();
@@ -306,7 +305,6 @@ export function InboxPage() {
   return (
     <PageShell
       title="Inbox"
-      subtitle={`Browsing mailbox: ${activeMailbox || 'No account selected'}`}
       action={
         <div className="flex items-center gap-2">
           <Button
@@ -316,9 +314,9 @@ export function InboxPage() {
             disabled={isRecategorizing || isSyncing}
             isLoading={isRecategorizing}
             icon={<Sparkles className="h-3.5 w-3.5 text-[#7E36B2] dark:text-[#DBBFFF]" />}
-            title="Re-run AI categorization pipeline via Basket on uncategorized emails"
+            title="Auto-categorize emails"
           >
-            AI Categorize
+            Categorize
           </Button>
           <Button
             variant="secondary"
@@ -327,110 +325,99 @@ export function InboxPage() {
             disabled={isSyncing}
             isLoading={isSyncing}
             icon={<RefreshCw className={`h-3.5 w-3.5 text-[#7E36B2] dark:text-[#DBBFFF] ${isSyncing ? 'animate-spin' : ''}`} />}
-            title="Fetch latest emails directly from Gmail"
+            title="Sync Gmail"
           >
-            {isSyncing ? 'Syncing...' : 'Sync Gmail'}
+            {isSyncing ? 'Syncing...' : 'Sync'}
           </Button>
         </div>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         {/* Token Expiration Banner */}
         {isMailboxExpired && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-xs text-amber-800 dark:text-amber-300">
-            <div className="flex items-center gap-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 px-4 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+            <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
               <span>
-                <strong>Authorization Required:</strong> Google tokens for <strong>{activeMailbox}</strong> have expired. Live sync and email sending require renewal.
+                Google token expired for <strong>{activeMailbox}</strong>.
               </span>
             </div>
             <Link to="/accounts" onClick={() => playEnter()}>
               <Button variant="primary" size="sm" icon={<KeyRound className="h-3.5 w-3.5" />}>
-                Renew in Accounts
+                Renew
               </Button>
             </Link>
           </div>
         )}
 
-        {/* Prominent Date Navigation Bar (Section 4.1 Host Grotesk quiet utility) */}
-        <Card radius="3xl" elevation="soft" className="p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF] shadow-2xs shrink-0">
-                <Calendar className="h-6 w-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-base sm:text-xl font-bold tracking-tight text-stone-900 dark:text-white">
-                    {currentDate.toLocaleDateString('default', {
-                      weekday: 'long',
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}
-                  </span>
-                  {isToday && (
-                    <span className="rounded-full bg-[#7E36B2] text-white px-2.5 py-0.5 text-[10px] font-bold shadow-xs">
-                      Today
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-end sm:self-auto">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handlePrevDay}
-                icon={<ChevronLeft className="h-4 w-4" />}
-                title="Previous Day (Shift + Left Arrow)"
-              >
-                Previous
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleNextDay}
-                disabled={isToday}
-                iconTrailing={<ChevronRight className="h-4 w-4" />}
-                title={isToday ? "Cannot advance beyond today" : "Next Day (Shift + Right Arrow)"}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </Card>
-
-        {/* Controls Bar: Search Input with 48dp Touch Area */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-md">
+        {/* Unified Controls Row: Search + Compact Date Pill */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="relative flex-1 max-w-sm">
             <TextField
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              placeholder="Search sender, subject, or content..."
+              placeholder="Search inbox..."
               icon={<Search />}
+              className="!min-h-[40px] !py-2"
             />
+          </div>
+
+          <div className="glass-card inline-flex items-center justify-between sm:justify-start gap-1 rounded-full border border-black/[0.07] dark:border-white/[0.09] px-1.5 py-1 shadow-2xs self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={handlePrevDay}
+              className="focus-ring btn-interactive flex h-7 w-7 items-center justify-center rounded-full text-stone-600 dark:text-stone-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
+              title="Previous Day (Shift + Left)"
+              aria-label="Previous Day"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            <div className="flex items-center gap-1.5 px-2 text-xs font-semibold text-stone-800 dark:text-stone-200 select-none">
+              <Calendar className="h-3.5 w-3.5 text-[#7E36B2] dark:text-[#DBBFFF]" />
+              <span>
+                {currentDate.toLocaleDateString('default', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </span>
+              {isToday && (
+                <span className="rounded-full bg-[#7E36B2] text-white px-2 py-0.5 text-[10px] font-bold">
+                  Today
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleNextDay}
+              disabled={isToday}
+              className="focus-ring btn-interactive flex h-7 w-7 items-center justify-center rounded-full text-stone-600 dark:text-stone-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed"
+              title={isToday ? 'Today' : 'Next Day (Shift + Right)'}
+              aria-label="Next Day"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
 
-        {/* Category Filter Pills & Custom Categories Management Button */}
+        {/* Category Filter Pills & Manage Tags */}
         <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-clean">
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => handleCategorySelect('ALL')}
-              className={`focus-ring shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+              className={`focus-ring shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition ${
                 selectedCategory === 'ALL'
                   ? 'bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 shadow-xs'
                   : 'border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-[#181915] text-stone-600 dark:text-stone-300 hover:bg-black/[0.04]'
               }`}
             >
-              All Emails ({emails.length})
+              All ({emails.length})
             </button>
 
-            {/* Custom User Categories */}
             {categories.map((cat) => {
               const isSelected = selectedCategory.toLowerCase() === cat.category.toLowerCase();
               const catColor = getCategoryColor(cat.category);
@@ -440,7 +427,7 @@ export function InboxPage() {
                   key={cat._id || cat.category}
                   type="button"
                   onClick={() => handleCategorySelect(cat.category)}
-                  className={`focus-ring shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold border transition shadow-2xs ${
+                  className={`focus-ring shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border transition ${
                     isSelected ? 'shadow-xs' : ''
                   }`}
                   style={{
@@ -450,7 +437,7 @@ export function InboxPage() {
                   }}
                 >
                   <span
-                    className="h-2 w-2 rounded-full"
+                    className="h-1.5 w-1.5 rounded-full shrink-0"
                     style={{ backgroundColor: isSelected ? '#FFFFFF' : catColor }}
                   />
                   <span>{cat.category}</span>
@@ -459,7 +446,6 @@ export function InboxPage() {
             })}
           </div>
 
-          {/* Manage Categories Action Button */}
           <Button
             variant="ghost"
             size="sm"
@@ -468,43 +454,38 @@ export function InboxPage() {
               setIsCategoryModalOpen(true);
             }}
             icon={<Plus className="h-3.5 w-3.5" />}
-            className="text-[#7E36B2] dark:text-[#DBBFFF] hover:bg-[#B266E6]/10 shrink-0 font-bold"
-            title="Create, edit or delete custom categories and customize tag colors"
+            className="text-[#7E36B2] dark:text-[#DBBFFF] hover:bg-[#B266E6]/10 shrink-0 font-semibold !py-1 !px-2.5 !min-h-[30px]"
+            title="Manage categories"
           >
-            Customize Tags
+            Tags
           </Button>
         </div>
 
         {/* Email List */}
         {isLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
+          <div className="space-y-2.5">
+            {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
-                className="h-20 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] bg-white/60 dark:bg-[#181915]/60 animate-pulse p-4 flex items-center gap-4"
+                className="h-18 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] bg-white/60 dark:bg-[#181915]/60 animate-pulse p-4 flex items-center gap-3.5"
               >
-                <div className="h-10 w-10 rounded-full bg-stone-200 dark:bg-stone-800 shrink-0" />
+                <div className="h-9 w-9 rounded-full bg-stone-200 dark:bg-stone-800 shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-3.5 w-1/4 rounded bg-stone-200 dark:bg-stone-800" />
-                  <div className="h-3 w-3/4 rounded bg-stone-200 dark:bg-stone-800" />
+                  <div className="h-3 w-1/4 rounded bg-stone-200 dark:bg-stone-800" />
+                  <div className="h-2.5 w-2/3 rounded bg-stone-200 dark:bg-stone-800" />
                 </div>
               </div>
             ))}
           </div>
         ) : filteredEmails.length === 0 ? (
-          <Card radius="3xl" elevation="soft" className="p-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
-              <Inbox className="h-6 w-6" />
+          <Card radius="3xl" elevation="soft" className="p-10 text-center">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
+              <Inbox className="h-5 w-5" />
             </div>
             <h3 className="mt-3 text-sm font-bold text-stone-900 dark:text-white">
-              No emails found
+              {searchQuery ? 'No matching emails' : 'No emails for this date'}
             </h3>
-            <p className="mx-auto mt-1 max-w-sm text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
-              {searchQuery
-                ? `No emails match "${searchQuery}". Try adjusting your keywords or category filter.`
-                : `No correspondence saved for ${currentDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })} in ${activeMailbox}.`}
-            </p>
-            <div className="mt-4 flex items-center justify-center gap-2">
+            <div className="mt-4 flex items-center justify-center">
               <Button
                 variant="secondary"
                 size="sm"
@@ -512,7 +493,7 @@ export function InboxPage() {
                 disabled={isSyncing}
                 icon={<RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />}
               >
-                Sync Latest Gmail
+                Sync Gmail
               </Button>
             </div>
           </Card>

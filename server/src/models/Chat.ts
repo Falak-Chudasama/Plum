@@ -1,9 +1,28 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { formatDateTime } from '../utils/utils';
 
+export interface IChatToolEvent {
+    tool: string;
+    label: string;
+    summary?: string;
+    success: boolean;
+}
+
+export interface IChatRagNote {
+    id: string;
+    title: string;
+    content?: string;
+    denseScore?: number;
+    bm25Score?: number;
+}
+
 export interface IChatMessage {
     role: 'user' | 'assistant' | 'system';
     content: string;
+    craftedMail?: Record<string, any>;
+    toolEvents?: IChatToolEvent[];
+    ragNotes?: IChatRagNote[];
+    thought?: string;
     created_at?: string;
 }
 
@@ -12,9 +31,14 @@ export interface IChat extends Document {
     title: string;
     application: string;
     messages: IChatMessage[];
+    userPrompts?: any[];
+    responses?: any[];
+    messageCount?: number;
+    lastMessageAt?: Date;
     created_at: string;
     updated_at: string;
     email?: string;
+    mailboxEmail?: string;
 }
 
 export const ChatMessageSchema = new Schema<IChatMessage>(
@@ -27,8 +51,23 @@ export const ChatMessageSchema = new Schema<IChatMessage>(
         },
         content: {
             type: String,
-            required: true,
             default: '',
+        },
+        craftedMail: {
+            type: Schema.Types.Mixed,
+            default: undefined,
+        },
+        toolEvents: {
+            type: [Schema.Types.Mixed],
+            default: undefined,
+        },
+        ragNotes: {
+            type: [Schema.Types.Mixed],
+            default: undefined,
+        },
+        thought: {
+            type: String,
+            default: undefined,
         },
         created_at: {
             type: String,
@@ -43,11 +82,12 @@ export const ChatSchema = new Schema<IChat>(
         session_id: {
             type: String,
             required: true,
+            default: () => new mongoose.Types.ObjectId().toString(),
             index: true,
         },
         title: {
             type: String,
-            default: 'New Conversation',
+            default: 'New Chat',
             trim: true,
         },
         application: {
@@ -59,6 +99,22 @@ export const ChatSchema = new Schema<IChat>(
         messages: {
             type: [ChatMessageSchema],
             default: [],
+        },
+        userPrompts: {
+            type: [Schema.Types.Mixed],
+            default: undefined,
+        },
+        responses: {
+            type: [Schema.Types.Mixed],
+            default: undefined,
+        },
+        messageCount: {
+            type: Number,
+            default: 0,
+        },
+        lastMessageAt: {
+            type: Date,
+            default: undefined,
         },
         created_at: {
             type: String,
@@ -73,6 +129,11 @@ export const ChatSchema = new Schema<IChat>(
             sparse: true,
             index: true,
         },
+        mailboxEmail: {
+            type: String,
+            sparse: true,
+            index: true,
+        },
     },
     {
         collection: 'chats',
@@ -81,6 +142,7 @@ export const ChatSchema = new Schema<IChat>(
 );
 
 ChatSchema.index({ application: 1, updated_at: -1 });
+ChatSchema.index({ application: 1, email: 1, updated_at: -1 });
 
 const Chats = mongoose.models.Chat || mongoose.model<IChat>('Chat', ChatSchema, 'chats');
 

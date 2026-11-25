@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, PenSquare, Clock, ArrowRight, Tag } from 'lucide-react';
+import { FileText, PenSquare, Clock, ArrowRight } from 'lucide-react';
 import { PageShell } from '../components/layout/PageShell';
 import { usePlumStore } from '../store/usePlumStore';
 import { api } from '../lib/api';
@@ -60,7 +60,6 @@ export function DraftsPage() {
   return (
     <PageShell
       title="Drafts"
-      subtitle={`Saved drafts for mailbox: ${activeMailbox || 'No account selected'}`}
       action={
         <Button
           variant="primary"
@@ -72,46 +71,43 @@ export function DraftsPage() {
         </Button>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-20 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] bg-white/60 dark:bg-[#181915]/60 animate-pulse p-4 flex items-center gap-4"
+                className="h-18 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] bg-white/60 dark:bg-[#181915]/60 animate-pulse p-4 flex items-center gap-3.5"
               >
-                <div className="h-10 w-10 rounded-full bg-stone-200 dark:bg-stone-800 shrink-0" />
+                <div className="h-9 w-9 rounded-full bg-stone-200 dark:bg-stone-800 shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-3.5 w-1/4 rounded bg-stone-200 dark:bg-stone-800" />
-                  <div className="h-3 w-3/4 rounded bg-stone-200 dark:bg-stone-800" />
+                  <div className="h-3 w-1/4 rounded bg-stone-200 dark:bg-stone-800" />
+                  <div className="h-2.5 w-2/3 rounded bg-stone-200 dark:bg-stone-800" />
                 </div>
               </div>
             ))}
           </div>
         ) : drafts.length === 0 ? (
-          <Card radius="3xl" elevation="soft" className="p-12 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
-              <FileText className="h-6 w-6" />
+          <Card radius="3xl" elevation="soft" className="p-10 text-center">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
+              <FileText className="h-5 w-5" />
             </div>
             <h3 className="mt-3 text-sm font-bold text-stone-900 dark:text-white">
-              No drafts in progress
+              No saved drafts
             </h3>
-            <p className="mx-auto mt-1 max-w-sm text-xs text-stone-500 dark:text-stone-400">
-              When you craft an email and save it for later, it will be preserved here across your sessions.
-            </p>
             <div className="mt-4 flex justify-center">
               <Button variant="secondary" size="sm" onClick={handleNewDraft} icon={<PenSquare className="h-3.5 w-3.5" />}>
-                Start New Draft
+                Start Draft
               </Button>
             </div>
           </Card>
         ) : (
           <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] shadow-soft divide-y divide-black/[0.04] dark:divide-white/[0.06] overflow-hidden">
-            {drafts.map((draft) => (
+            {drafts.map((draft, idx) => (
               <div
-                key={draft.id}
+                key={draft._id || (draft as any).id || idx}
                 onClick={() => handleEditDraft(draft)}
-                className="group row-interactive flex items-start justify-between gap-4 p-4 sm:p-5 cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
+                className="group row-interactive flex items-center justify-between gap-4 p-4 sm:p-5 cursor-pointer hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
               >
                 <div className="flex items-start gap-3.5 min-w-0 flex-1">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 text-xs font-bold">
@@ -121,7 +117,7 @@ export function DraftsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-bold text-stone-900 dark:text-white truncate">
-                        To: {draft.to?.length ? draft.to.join(', ') : '(No recipient specified)'}
+                        To: {draft.to?.length ? draft.to.join(', ') : 'No recipient'}
                       </span>
                       <span className="text-[10px] text-stone-400 dark:text-stone-500 shrink-0 flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -134,7 +130,7 @@ export function DraftsPage() {
                     </div>
 
                     <p className="text-[10px] text-stone-500 dark:text-stone-400 line-clamp-1 mt-0.5">
-                      {draft.body || 'Empty message body...'}
+                      {draft.body || 'Empty draft'}
                     </p>
 
                     {draft.category && (
@@ -147,11 +143,7 @@ export function DraftsPage() {
                   </div>
                 </div>
 
-                <div className="self-center shrink-0">
-                  <Button variant="secondary" size="sm" iconTrailing={<ArrowRight className="h-3.5 w-3.5" />}>
-                    Resume
-                  </Button>
-                </div>
+                <ArrowRight className="h-4 w-4 text-stone-400 group-hover:text-[#7E36B2] dark:group-hover:text-[#DBBFFF] group-hover:translate-x-0.5 transition shrink-0" />
               </div>
             ))}
           </div>

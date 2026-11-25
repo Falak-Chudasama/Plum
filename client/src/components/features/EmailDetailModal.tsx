@@ -4,15 +4,8 @@ import {
   Reply,
   Forward,
   Paperclip,
-  Calendar,
-  User,
-  Tag,
-  Sparkles,
-  CheckCircle2,
-  Inbox,
   ArrowRight,
   Clock,
-  Send,
 } from 'lucide-react';
 import type { InboundEmailItem, CategoryItem } from '../../lib/api';
 import { usePlumStore } from '../../store/usePlumStore';
@@ -91,7 +84,7 @@ export function EmailDetailModal({ email, categories = [], onClose }: EmailDetai
 
   const formattedDate = email.parsedDate
     ? `${email.parsedDate.weekday}, ${email.parsedDate.day} ${email.parsedDate.month} ${email.parsedDate.year} at ${email.parsedDate.time}`
-    : email.receivedDate || '';
+    : email.createdAt || '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
@@ -110,17 +103,13 @@ export function EmailDetailModal({ email, categories = [], onClose }: EmailDetai
         className="relative z-10 flex flex-col w-full max-w-4xl max-h-[92vh] rounded-[2rem] glass-panel shadow-lift overflow-hidden border border-black/[0.08] dark:border-white/[0.1] bg-white/95 dark:bg-[#181915]/95 backdrop-blur-xl animate-scale-in"
       >
         {/* Top Action Bar */}
-        <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] px-6 py-3.5 bg-stone-50/60 dark:bg-stone-900/40">
+        <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] px-6 py-3 bg-stone-50/60 dark:bg-stone-900/40">
           {/* Categories Pill Strip */}
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="flex items-center gap-1 text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-              <Inbox className="h-3 w-3" />
-              Inbound
-            </span>
+          <div className="flex items-center gap-1.5 min-w-0">
             {email.categories && email.categories.length > 0 && (
-              <div className="flex items-center gap-1.5 ml-2">
+              <div className="flex items-center gap-1.5">
                 {email.categories.map((cat) => (
-                  <Badge key={cat} customColor={getCategoryColor(cat)}>
+                  <Badge key={cat} customColor={getCategoryColor(cat)} className="shrink-0">
                     {cat}
                   </Badge>
                 ))}
@@ -204,9 +193,6 @@ export function EmailDetailModal({ email, categories = [], onClose }: EmailDetai
                   <span className="font-bold text-sm text-stone-900 dark:text-white truncate">
                     {email.senderName || email.senderEmail}
                   </span>
-                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                    Verified Sender
-                  </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-stone-500 dark:text-stone-400 mt-0.5">
                   <span className="font-mono">{email.senderEmail}</span>
@@ -266,36 +252,30 @@ export function EmailDetailModal({ email, categories = [], onClose }: EmailDetai
           )}
         </div>
 
-        {/* Quick AI Response Footer Dock */}
-        <div className="border-t border-black/[0.06] dark:border-white/[0.08] px-6 py-3.5 bg-stone-50/60 dark:bg-stone-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#7E36B2] dark:text-[#DBBFFF]">
-              <Sparkles className="h-3 w-3 text-[#B266E6]" />
-              Quick AI Reply:
-            </span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleReply('confirm')}
-                className="rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-800 px-3 py-1 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-[#B266E6]/10 hover:border-[#B266E6]/30 hover:text-[#7E36B2] dark:hover:text-[#DBBFFF] transition shadow-2xs"
-              >
-                Acknowledge & Confirm
-              </button>
-              <button
-                type="button"
-                onClick={() => handleReply('details')}
-                className="rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-800 px-3 py-1 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-[#B266E6]/10 hover:border-[#B266E6]/30 hover:text-[#7E36B2] dark:hover:text-[#DBBFFF] transition shadow-2xs"
-              >
-                Request Details
-              </button>
-              <button
-                type="button"
-                onClick={() => handleReply('decline')}
-                className="rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-800 px-3 py-1 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-600 transition shadow-2xs"
-              >
-                Politely Decline
-              </button>
-            </div>
+        {/* Quick Reply Dock */}
+        <div className="border-t border-black/[0.06] dark:border-white/[0.08] px-6 py-3 bg-stone-50/60 dark:bg-stone-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleReply('confirm')}
+              className="rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-800 px-3 py-1 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-[#B266E6]/10 hover:border-[#B266E6]/30 hover:text-[#7E36B2] dark:hover:text-[#DBBFFF] transition shadow-2xs"
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              onClick={() => handleReply('details')}
+              className="rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-800 px-3 py-1 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-[#B266E6]/10 hover:border-[#B266E6]/30 hover:text-[#7E36B2] dark:hover:text-[#DBBFFF] transition shadow-2xs"
+            >
+              Request details
+            </button>
+            <button
+              type="button"
+              onClick={() => handleReply('decline')}
+              className="rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-stone-800 px-3 py-1 text-xs font-semibold text-stone-700 dark:text-stone-300 hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-600 transition shadow-2xs"
+            >
+              Decline
+            </button>
           </div>
 
           <button
@@ -303,7 +283,7 @@ export function EmailDetailModal({ email, categories = [], onClose }: EmailDetai
             onClick={() => handleReply()}
             className="self-end sm:self-auto inline-flex items-center gap-1.5 text-xs font-bold text-[#7E36B2] dark:text-[#DBBFFF] hover:underline"
           >
-            <span>Open Full Composer</span>
+            <span>Open Composer</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>

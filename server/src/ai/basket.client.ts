@@ -29,20 +29,33 @@ export interface BasketCompletionResponse {
 export interface BasketMessage {
     role: "system" | "user" | "assistant" | "tool";
     content: string;
+    tool_calls?: any[];
+    tool_call_id?: string;
+}
+
+export interface BasketToolCallResult {
+    id?: string;
+    name: string;
+    arguments: string;
 }
 
 export interface BasketChatOptions {
     messages: BasketMessage[];
     system_prompt?: string;
     grammar?: string;
+    tools?: any[];
+    tool_choice?: "required" | "auto" | "none";
+    abstract_tool_use?: boolean;
     temperature?: number;
     top_p?: number;
     max_tokens?: number;
+    repeat_penalty?: number;
     model?: string;
     stream?: boolean;
     abstracted?: boolean;
     requestId?: string;
     timeoutMs?: number;
+    signal?: AbortSignal;
 }
 
 export interface BasketStreamCallbacks {
@@ -103,6 +116,15 @@ class BasketClient {
         if (options.grammar) {
             payload.grammar = options.grammar;
         }
+        if (options.tools) {
+            payload.tools = options.tools;
+        }
+        if (options.tool_choice) {
+            payload.tool_choice = options.tool_choice;
+        }
+        if (typeof options.abstract_tool_use === "boolean") {
+            payload.abstract_tool_use = options.abstract_tool_use;
+        }
         if (typeof options.temperature === "number") {
             payload.temperature = options.temperature;
         }
@@ -111,6 +133,9 @@ class BasketClient {
         }
         if (options.max_tokens) {
             payload.max_tokens = options.max_tokens;
+        }
+        if (typeof options.repeat_penalty === "number") {
+            payload.repeat_penalty = options.repeat_penalty;
         }
         if (options.model) {
             payload.model = options.model;
@@ -206,6 +231,7 @@ class BasketClient {
         try {
             const response = await this.client.post(this.baseUrl, payload, {
                 headers,
+                signal: options.signal,
                 timeout: options.timeoutMs || Number(process.env.BASKET_TIMEOUT_MS) || 60000,
             });
 
@@ -232,6 +258,68 @@ class BasketClient {
     }
 
     /**
+     * Tool-calling request via Basket GBNF-constrained tool engine.
+     * Requires abstracted=false and abstract_tool_use=true so Basket returns { id, name, arguments }.
+     */
+    async callTool(options: {
+        messages: BasketMessage[];
+        tools: any[];
+        system_prompt?: string;
+        temperature?: number;
+        max_tokens?: number;
+        repeat_penalty?: number;
+        model?: string;
+        timeoutMs?: number;
+        signal?: AbortSignal;
+    }): Promise<BasketToolCallResult | null> {
+        const requestId = crypto.randomUUID();
+        const payload = this.buildPayload(
+            {
+                messages: options.messages,
+                system_prompt: options.system_prompt,
+                tools: options.tools,
+                tool_choice: "required",
+                abstracted: false,
+                abstract_tool_use: true,
+                temperature: options.temperature ?? 0,
+                max_tokens: options.max_tokens ?? 512,
+                repeat_penalty: options.repeat_penalty ?? 1.15,
+                model: options.model,
+            },
+            false
+        );
+        const headers = this.buildHeaders(requestId, false);
+
+        logger.info(`[BasketClient] TOOL POST ${this.baseUrl} requestId=${requestId} tools=${options.tools.length}`);
+
+        try {
+            const response = await this.client.post(this.baseUrl, payload, {
+                headers,
+                signal: options.signal,
+                timeout: options.timeoutMs || Number(process.env.BASKET_TIMEOUT_MS) || 60000,
+            });
+
+            const data = response.data;
+            if (data && typeof data === "object" && data.name) {
+                return {
+                    id: data.id,
+                    name: String(data.name),
+                    arguments: typeof data.arguments === "string" ? data.arguments : JSON.stringify(data.arguments || {}),
+                };
+            }
+            return null;
+        } catch (err: any) {
+            if (err?.name === "CanceledError" || err?.code === "ERR_CANCELED") {
+                throw err;
+            }
+            const status = err?.response?.status;
+            const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Tool call failed";
+            logger.error(`[BasketClient] Tool call error requestId=${requestId} status=${status} detail=${detail}`);
+            throw new BasketError(`Basket tool inference failed (${status || "unreachable"}): ${detail}`, status, requestId);
+        }
+    }
+
+    /**
      * Streaming completion from Basket.
      */
     async stream(options: BasketChatOptions, callbacks: BasketStreamCallbacks): Promise<string> {
@@ -247,11 +335,18 @@ class BasketClient {
             const response = await this.client.post(this.baseUrl, payload, {
                 headers,
                 responseType: "stream",
+                signal: options.signal,
                 timeout: options.timeoutMs || Number(process.env.BASKET_TIMEOUT_MS) || 120000,
             });
 
             return await new Promise<string>((resolve, reject) => {
                 const stream = response.data;
+                const onAbort = () => {
+                    try {
+                        stream.destroy(new Error("Aborted"));
+                    } catch (_) {}
+                };
+                options.signal?.addEventListener("abort", onAbort, { once: true });
                 const contentType = String(response.headers?.["content-type"] || "");
                 let sseBuffer = "";
 

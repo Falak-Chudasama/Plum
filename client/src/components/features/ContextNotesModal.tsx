@@ -5,12 +5,8 @@ import {
   Trash2,
   Edit3,
   Search,
-  Sparkles,
-  Tag,
   Check,
   Brain,
-  Clock,
-  BookOpen,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { ContextNoteItem } from '../../lib/api';
@@ -179,24 +175,15 @@ export function ContextNotesModal({
           className="relative z-10 flex flex-col w-full max-w-2xl max-h-[88vh] rounded-[2rem] glass-panel border border-black/[0.08] dark:border-white/[0.1] bg-[#F8F9F5] dark:bg-[#121310] shadow-lift overflow-hidden text-stone-900 dark:text-[#F3F4F1] font-sans animate-scale-in"
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] px-6 py-4 bg-white/80 dark:bg-[#181915]/80 backdrop-blur-md">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF] shadow-2xs">
-                <Brain className="h-5 w-5 text-[#B266E6]" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 id="notes-modal-title" className="text-base font-bold text-stone-900 dark:text-white">
-                    Context Notes
-                  </h2>
-                  <span className="rounded-full bg-[#B266E6]/15 text-[#7E36B2] dark:text-[#DBBFFF] px-2 py-0.5 text-[10px] font-bold">
-                    Hybrid RAG
-                  </span>
-                </div>
-                <p className="text-[10px] text-stone-500 dark:text-stone-400">
-                  Persistent personal memory retrieved on demand via Vector + BM25 search.
-                </p>
-              </div>
+          <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] px-5 py-3.5 bg-white/80 dark:bg-[#181915]/80 backdrop-blur-md">
+            <div className="flex items-center gap-2.5">
+              <Brain className="h-4 w-4 text-[#7E36B2] dark:text-[#DBBFFF]" />
+              <h2 id="notes-modal-title" className="text-base font-bold text-stone-900 dark:text-white">
+                Context Notes
+              </h2>
+              <span className="rounded-full bg-black/[0.05] dark:bg-white/[0.08] px-2 py-0.5 text-[10px] font-bold text-stone-500 dark:text-stone-400">
+                {notes.length}
+              </span>
             </div>
 
             <button
@@ -306,14 +293,8 @@ export function ContextNotesModal({
                 </div>
 
                 {filteredNotes.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-black/[0.08] dark:border-white/[0.1] p-10 text-center text-xs text-stone-400 space-y-2">
-                    <BookOpen className="h-8 w-8 mx-auto text-stone-300 dark:text-stone-600" />
-                    <p className="font-semibold text-stone-600 dark:text-stone-300">
-                      {searchQuery ? `No notes matching "${searchQuery}"` : 'No context notes indexed yet'}
-                    </p>
-                    <p className="max-w-xs mx-auto text-[10px]">
-                      Add personal facts, student ID details, advisor names, or project specs for automatic RAG injection.
-                    </p>
+                  <div className="rounded-2xl border border-dashed border-black/[0.08] dark:border-white/[0.1] p-8 text-center text-xs text-stone-400">
+                    {searchQuery ? `No notes matching "${searchQuery}"` : 'No context notes yet'}
                   </div>
                 ) : (
                   <div className="space-y-3">

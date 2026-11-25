@@ -101,6 +101,8 @@ async function del(req: Request, res: Response) {
 }
 
 // Standard Multi-Chat Endpoints (Root matching /api/chats)
+chatRouter.post("/stream", chatOps.streamChat);
+chatRouter.post("/chats/stream", chatOps.streamChat);
 chatRouter.get("/", chatOps.getApiChats);
 chatRouter.get("/chats", chatOps.getApiChats);
 chatRouter.get("/chats/:id", chatOps.getApiChatById);

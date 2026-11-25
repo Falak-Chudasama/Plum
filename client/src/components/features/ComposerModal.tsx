@@ -5,15 +5,10 @@ import {
   Save,
   Sparkles,
   ChevronDown,
-  Paperclip,
-  CheckCircle2,
-  Tag,
   Bold,
   Italic,
   List,
   Quote,
-  ShieldCheck,
-  Trash2,
 } from 'lucide-react';
 import { usePlumStore } from '../../store/usePlumStore';
 import { api } from '../../lib/api';
@@ -22,7 +17,7 @@ import { Button } from '../ui/Button';
 import { playBack, playEnter } from '../../lib/sound';
 
 export function ComposerModal() {
-  const { isComposerOpen, composerData, closeComposer, mailboxes, activeMailbox, user } = usePlumStore();
+  const { isComposerOpen, composerData, closeComposer, mailboxes, activeMailbox } = usePlumStore();
   const toast = useToast();
 
   const [fromMailbox, setFromMailbox] = useState('');
@@ -252,7 +247,6 @@ export function ComposerModal() {
                   </option>
                 ))}
               </select>
-              {/* Sender Avatar Icon */}
               <div className="pointer-events-none absolute left-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#B266E6]/20 text-[#7E36B2] dark:text-[#DBBFFF] font-bold text-[9px] overflow-hidden">
                 {currentMailboxObj?.picture ? (
                   <img src={currentMailboxObj.picture} alt="" className="h-full w-full object-cover" />
@@ -262,11 +256,6 @@ export function ComposerModal() {
               </div>
               <ChevronDown className="pointer-events-none absolute right-2 h-3 w-3 text-stone-400" />
             </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            <span>Google OAuth Authenticated</span>
           </div>
         </div>
 
@@ -353,16 +342,9 @@ export function ComposerModal() {
           </div>
 
           {/* AI Writing Assistant Input Bar */}
-          <div className="rounded-2xl border border-[#B266E6]/30 bg-gradient-to-r from-[#B266E6]/[0.06] via-transparent to-[#89D66D]/[0.04] p-3 shadow-soft space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#7E36B2] dark:text-[#DBBFFF]">
-              <Sparkles className="h-4 w-4 text-[#B266E6]" />
-              <span>Basket AI Writing Assistant</span>
-              <span className="text-[10px] font-normal text-stone-500">
-                (Context-aware: recipient, subject & current draft)
-              </span>
-            </div>
-
+          <div className="rounded-2xl border border-[#B266E6]/25 bg-[#B266E6]/[0.04] p-2.5 shadow-2xs">
             <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-[#7E36B2] dark:text-[#DBBFFF] shrink-0 ml-1" />
               <input
                 type="text"
                 value={aiPrompt}
@@ -376,10 +358,10 @@ export function ComposerModal() {
                 disabled={isAiGenerating}
                 placeholder={
                   body.trim()
-                    ? "Ask AI to refine, expand, polish tone, or follow up on this draft..."
-                    : "Describe the email to write (e.g. 'Formal leave request for Monday', 'Follow up on project')..."
+                    ? 'Ask AI to refine or rewrite this draft...'
+                    : 'Draft with AI (e.g. "Follow up on internship application")...'
                 }
-                className="flex-1 rounded-xl border border-black/[0.1] dark:border-white/[0.12] bg-white dark:bg-stone-900/90 px-3.5 py-2 text-xs text-stone-900 dark:text-white placeholder-stone-400 shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#B266E6]"
+                className="flex-1 bg-transparent px-1.5 py-1.5 text-xs text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none"
               />
               <Button
                 variant="primary"
@@ -387,9 +369,9 @@ export function ComposerModal() {
                 onClick={handleGenerateAiEmail}
                 disabled={isAiGenerating || !aiPrompt.trim()}
                 isLoading={isAiGenerating}
-                icon={<Sparkles className="h-3.5 w-3.5" />}
+                className="!py-1.5 !px-3.5 !min-h-[32px]"
               >
-                {body.trim() ? 'Refine Email' : 'Write Email'}
+                {body.trim() ? 'Refine' : 'Draft'}
               </Button>
             </div>
           </div>
@@ -440,11 +422,10 @@ export function ComposerModal() {
               className="flex-1 w-full resize-none p-4 text-xs sm:text-sm text-stone-900 dark:text-[#F3F4F1] placeholder-stone-400 bg-transparent focus:outline-none leading-relaxed font-normal"
             />
 
-            {/* Character & word counter */}
-            <div className="flex items-center justify-between px-4 py-2 border-t border-black/[0.03] dark:border-white/[0.04] text-[10px] text-stone-400">
-              <span>Markdown supported</span>
+            {/* Word counter */}
+            <div className="flex items-center justify-end px-4 py-2 border-t border-black/[0.03] dark:border-white/[0.04] text-[10px] text-stone-400">
               <span>
-                {body.length} character{body.length === 1 ? '' : 's'} • {body.split(/\s+/).filter(Boolean).length} word{body.split(/\s+/).filter(Boolean).length === 1 ? '' : 's'}
+                {body.split(/\s+/).filter(Boolean).length} words
               </span>
             </div>
           </div>

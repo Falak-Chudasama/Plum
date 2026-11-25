@@ -8,7 +8,7 @@ import { formatDateTime } from '../utils/utils';
 const filePath = '/src/controllers/contextNote.controllers.ts';
 const BASKET_SYNC_URL = process.env.BASKET_SYNC_URL || 'https://api.basket.jam/context/notes/sync';
 
-async function syncNoteWithBasket(action: 'upsert' | 'delete', noteId: string, note?: any) {
+export async function syncNoteWithBasket(action: 'upsert' | 'delete', noteId: string, note?: any) {
     try {
         const payload: Record<string, any> = {
             application: 'plum',

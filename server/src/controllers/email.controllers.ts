@@ -510,8 +510,13 @@ const updateIsViewed = async (req: Request, res: Response) => {
             throw Error("Email's ID was not given");
         }
 
+        const targetMailbox = await resolveTargetMailbox(
+            userEmail,
+            (req.headers['x-mailbox-email'] as string) || (req.body?.mailboxEmail as string)
+        );
+
         const response = await models.InboundEmail.updateOne(
-            { id, email: userEmail },
+            { id, email: { $in: [targetMailbox, userEmail] } },
             {
                 $set: {
                     isViewed: true

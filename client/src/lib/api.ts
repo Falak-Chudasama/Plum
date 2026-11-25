@@ -14,7 +14,7 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   try {
     const activeMailbox = localStorage.getItem('plum_active_mailbox');
-    if (activeMailbox && !config.headers['x-mailbox-email']) {
+    if (activeMailbox && config.headers && !config.headers['x-mailbox-email']) {
       config.headers['x-mailbox-email'] = activeMailbox;
     }
   } catch (e) {
@@ -114,12 +114,20 @@ export interface ChatMessage {
   timestamp?: string;
 }
 
+export interface ChatToolEvent {
+  tool: string;
+  label: string;
+  summary?: string;
+  success: boolean;
+}
+
 export interface ChatSession {
   _id: string;
   session_id?: string;
   title: string;
   application?: string;
   email?: string;
+  mailboxEmail?: string;
   lastMessageAt?: string;
   messageCount?: number;
   createdAt?: string;
@@ -129,6 +137,10 @@ export interface ChatSession {
   messages?: Array<{
     role: 'user' | 'assistant' | 'system';
     content: string;
+    craftedMail?: any;
+    toolEvents?: ChatToolEvent[];
+    ragNotes?: Array<{ id: string; title: string; content?: string; denseScore?: number; bm25Score?: number }>;
+    thought?: string;
     created_at?: string;
   }>;
   userPrompts?: any[];
@@ -268,8 +280,8 @@ export const api = {
   },
 
   // --- Categories ---
-  async getCategories(userEmail: string): Promise<CategoryItem[]> {
-    const res = await apiClient.get(`/category/find`);
+  async getCategories(_userEmail?: string): Promise<CategoryItem[]> {
+    const res = await apiClient.get<any>(`/category/find`);
     return res.data?.categories || res.data?.result || [];
   },
 
@@ -312,6 +324,82 @@ export const api = {
   async deleteChat(id: string): Promise<any> {
     const res = await apiClient.delete(`/api/chats/${id}`);
     return res.data;
+  },
+
+  async streamPlumChat(params: {
+    prompt: string;
+    chatId?: string | null;
+    mailboxEmail?: string;
+    email?: string;
+    onEvent: (event: any) => void;
+    signal?: AbortSignal;
+  }): Promise<void> {
+    const activeMailbox =
+      params.mailboxEmail ||
+      (() => {
+        try {
+          return localStorage.getItem('plum_active_mailbox') || undefined;
+        } catch {
+          return undefined;
+        }
+      })();
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (activeMailbox) {
+      headers['x-mailbox-email'] = activeMailbox;
+    }
+
+    const response = await fetch(`${API_BASE}/api/chats/stream`, {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify({
+        prompt: params.prompt,
+        chatId: params.chatId || null,
+        mailboxEmail: activeMailbox,
+        email: params.email,
+      }),
+      signal: params.signal,
+    });
+
+    if (!response.ok) {
+      let errMsg = `Plum AI error (${response.status})`;
+      try {
+        const errJson = await response.json();
+        errMsg = errJson.error || errJson.detail || errJson.message || errMsg;
+      } catch (_) {}
+      throw new Error(errMsg);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No readable stream available');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data: ')) continue;
+        const jsonStr = trimmed.slice(6).trim();
+        if (!jsonStr) continue;
+        try {
+          const payload = JSON.parse(jsonStr);
+          params.onEvent(payload);
+        } catch (err) {
+          console.warn('Failed to parse Plum SSE event:', jsonStr, err);
+        }
+      }
+    }
   },
 
   async streamChatText(params: {
@@ -476,19 +564,19 @@ export const api = {
 
   // --- Context Notes & RAG ---
   async getNotes(email?: string): Promise<ContextNoteItem[]> {
-    const res = await apiClient.get('/user/notes', {
+    const res = await apiClient.get<{ notes?: ContextNoteItem[] }>('/user/notes', {
       params: email ? { email } : undefined,
     });
     return res.data.notes || [];
   },
 
   async createNote(data: { title: string; content: string; tags?: string[]; email?: string }): Promise<ContextNoteItem> {
-    const res = await apiClient.post('/user/notes', data);
+    const res = await apiClient.post<{ note: ContextNoteItem }>('/user/notes', data);
     return res.data.note;
   },
 
   async updateNote(id: string, data: { title?: string; content?: string; tags?: string[]; email?: string }): Promise<ContextNoteItem> {
-    const res = await apiClient.put(`/user/notes/${id}`, data);
+    const res = await apiClient.put<{ note: ContextNoteItem }>(`/user/notes/${id}`, data);
     return res.data.note;
   },
 
@@ -497,7 +585,7 @@ export const api = {
   },
 
   async searchNotesRAG(query: string, email?: string): Promise<any[]> {
-    const res = await apiClient.get('/user/notes/search', {
+    const res = await apiClient.get<{ results?: any[] }>('/user/notes/search', {
       params: { q: query, email },
     });
     return res.data.results || [];

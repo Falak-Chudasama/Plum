@@ -70,11 +70,11 @@ export function SegmentedControl<T extends string = string>({
       aria-label="Navigation Segments"
       className={`glass-capsule relative flex items-center gap-1 rounded-full ${padClass} ${className}`}
     >
-      {/* 300ms Apple-like Gliding Active Indicator Pill */}
+      {/* 300ms Apple-like Gliding Flat Active Indicator Pill */}
       {indicatorStyle.width > 0 && (
         <span
           aria-hidden="true"
-          className="absolute top-1 bottom-1 rounded-full bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 shadow-xs transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
+          className="absolute top-1 bottom-1 rounded-full bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 shadow-none transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
           style={{
             left: `${indicatorStyle.left}px`,
             width: `${indicatorStyle.width}px`,

@@ -15,6 +15,27 @@ import basketClient from "../ai/basket.client";
 
 const filePath: string = '/src/controllers/email.controllers.ts'
 
+const isGoogleAuthError = (err: any): boolean => {
+    const status = err?.code || err?.status || err?.response?.status;
+    const raw = `${err?.message || ''} ${JSON.stringify(err?.response?.data || '')}`.toLowerCase();
+    return (
+        status === 401 ||
+        raw.includes('invalid_grant') ||
+        raw.includes('invalid_token') ||
+        raw.includes('no google credentials') ||
+        raw.includes('invalid credentials') ||
+        raw.includes('token has been expired or revoked')
+    );
+};
+
+const markMailboxExpired = async (mailboxEmail: string) => {
+    if (!mailboxEmail) return;
+    await Mailbox.updateMany(
+        { email: mailboxEmail },
+        { $set: { status: 'expired' } }
+    ).catch(() => {});
+};
+
 /**
  * Resolves and verifies that a target mailbox belongs to the user,
  * falling back to the primary mailbox or user's login email.
@@ -235,7 +256,10 @@ const fetchEmailsUtil = async (OAuth: object, numberOfEmails: number = 50) => {
         const emails = await Promise.all(emailPromises);
         return emails;
     } catch (err) {
-        handleErrorUtil(filePath, 'fetchEmailsUtil', err, 'Fetching Emails (Utility)')
+        handleErrorUtil(filePath, 'fetchEmailsUtil', err, 'Fetching Emails (Utility)');
+        if (isGoogleAuthError(err)) {
+            throw err;
+        }
     }
 };
 
@@ -395,10 +419,10 @@ const fetchEmails = async (req: Request, res: Response) => {
             await saveInboundEmails(categorizedEmails);
         }
 
-        // Update lastSyncAt for this mailbox
+        // Update lastSyncAt and confirm connected status for this mailbox
         await Mailbox.updateOne(
             { userEmail, email: targetMailbox },
-            { $set: { lastSyncAt: new Date() } }
+            { $set: { lastSyncAt: new Date(), status: 'connected' } }
         );
 
         return res.status(200).json({
@@ -407,7 +431,17 @@ const fetchEmails = async (req: Request, res: Response) => {
             mailboxEmail: targetMailbox,
             success: true,
         });
-    } catch (err) {
+    } catch (err: any) {
+        if (isGoogleAuthError(err)) {
+            await markMailboxExpired(targetMailbox);
+            return res.status(401).json({
+                success: false,
+                code: 'TOKEN_EXPIRED',
+                needsReauthorization: true,
+                mailboxEmail: targetMailbox,
+                error: `Google authorization expired for ${targetMailbox}. Please reauthorize in Accounts.`,
+            });
+        }
         handleError(filePath, 'fetchEmails', res, err, 'Fetching Emails via Gmail');
     }
 };
@@ -687,7 +721,17 @@ const sendEmail = async (req: Request, res: Response) => {
             gmailResponse: result.data,
             outboundRecord: record,
         });
-    } catch (err) {
+    } catch (err: any) {
+        if (isGoogleAuthError(err)) {
+            await markMailboxExpired(targetMailbox);
+            return res.status(401).json({
+                success: false,
+                code: 'TOKEN_EXPIRED',
+                needsReauthorization: true,
+                mailboxEmail: targetMailbox,
+                error: `Google authorization expired for ${targetMailbox}. Please reauthorize in Accounts.`,
+            });
+        }
         return handleError(filePath, "sendEmail", res, err, "Sending Email");
     }
 };

@@ -19,6 +19,7 @@ export interface IChatRagNote {
 export interface IChatMessage {
     role: 'user' | 'assistant' | 'system';
     content: string;
+    turnId?: string;
     craftedMail?: Record<string, any>;
     toolEvents?: IChatToolEvent[];
     ragNotes?: IChatRagNote[];
@@ -52,6 +53,10 @@ export const ChatMessageSchema = new Schema<IChatMessage>(
         content: {
             type: String,
             default: '',
+        },
+        turnId: {
+            type: String,
+            default: undefined,
         },
         craftedMail: {
             type: Schema.Types.Mixed,

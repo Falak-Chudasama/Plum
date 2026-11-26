@@ -101,23 +101,28 @@ const createUser = async (res: Response, data: any, tokens: { access_token: stri
 
         // Keep Mailbox collection synchronized for primary account
         const fullName = [data.given_name, data.family_name].filter(Boolean).join(' ') || data.name || data.email;
+        const primarySetFields: any = {
+            userEmail: data.email,
+            email: data.email,
+            name: fullName,
+            picture: data.picture || '',
+            'tokens.access_token': tokens.access_token,
+            'tokens.id_token': tokens.id_token,
+            status: 'connected',
+            isPrimary: true,
+        };
+        if (tokens.refresh_token) {
+            primarySetFields['tokens.refresh_token'] = tokens.refresh_token;
+            primarySetFields.refreshTokenIssuedAt = new Date();
+        }
+        if (tokens.expiry_date) {
+            primarySetFields['tokens.expiry_date'] = tokens.expiry_date;
+        }
         await Mailbox.findOneAndUpdate(
             { userEmail: data.email, email: data.email },
             {
-                $set: {
-                    userEmail: data.email,
-                    email: data.email,
-                    name: fullName,
-                    picture: data.picture || '',
-                    tokens: {
-                        access_token: tokens.access_token,
-                        refresh_token: tokens.refresh_token || undefined,
-                        id_token: tokens.id_token,
-                        expiry_date: tokens.expiry_date,
-                    },
-                    status: 'connected',
-                    isPrimary: true,
-                }
+                $set: primarySetFields,
+                $setOnInsert: { createdAt: new Date() },
             },
             { upsert: true }
         );
@@ -285,6 +290,7 @@ const googleCallback = async (req: Request, res: Response) => {
             };
             if (refresh_token) {
                 updateFields['tokens.refresh_token'] = refresh_token;
+                updateFields.refreshTokenIssuedAt = new Date();
             }
             if (expiry_date) {
                 updateFields['tokens.expiry_date'] = expiry_date;
@@ -305,6 +311,7 @@ const googleCallback = async (req: Request, res: Response) => {
             };
             if (refresh_token) {
                 syncFields['tokens.refresh_token'] = refresh_token;
+                syncFields.refreshTokenIssuedAt = new Date();
             }
             if (expiry_date) {
                 syncFields['tokens.expiry_date'] = expiry_date;
@@ -338,6 +345,7 @@ const googleCallback = async (req: Request, res: Response) => {
         };
         if (refresh_token) {
             syncMailboxFields['tokens.refresh_token'] = refresh_token;
+            syncMailboxFields.refreshTokenIssuedAt = new Date();
         }
         if (expiry_date) {
             syncMailboxFields['tokens.expiry_date'] = expiry_date;
@@ -397,6 +405,7 @@ const googleHandoff = async (req: Request, res: Response) => {
             };
             if (refresh_token) {
                 updateFields['tokens.refresh_token'] = refresh_token;
+                updateFields.refreshTokenIssuedAt = new Date();
             }
             if (expiry_date) {
                 updateFields['tokens.expiry_date'] = expiry_date;
@@ -417,6 +426,7 @@ const googleHandoff = async (req: Request, res: Response) => {
             };
             if (refresh_token) {
                 syncFields['tokens.refresh_token'] = refresh_token;
+                syncFields.refreshTokenIssuedAt = new Date();
             }
             if (expiry_date) {
                 syncFields['tokens.expiry_date'] = expiry_date;
@@ -450,6 +460,7 @@ const googleHandoff = async (req: Request, res: Response) => {
         };
         if (refresh_token) {
             syncMailboxFields['tokens.refresh_token'] = refresh_token;
+            syncMailboxFields.refreshTokenIssuedAt = new Date();
         }
         if (expiry_date) {
             syncMailboxFields['tokens.expiry_date'] = expiry_date;

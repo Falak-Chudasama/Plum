@@ -90,11 +90,11 @@ export function Badge({
   if (customColor) {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border shadow-2xs select-none max-w-full truncate ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.02em] border select-none max-w-full ${className}`}
         style={{
-          backgroundColor: `${customColor}18`,
+          backgroundColor: `${customColor}14`,
           color: customColor,
-          borderColor: `${customColor}35`,
+          borderColor: `${customColor}30`,
           ...style,
         }}
         {...props}
@@ -114,7 +114,7 @@ export function Badge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border shadow-2xs select-none max-w-full truncate ${v.bg} ${v.text} ${v.border} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.02em] border select-none max-w-full ${v.bg} ${v.text} ${v.border} ${className}`}
       style={style}
       {...props}
     >

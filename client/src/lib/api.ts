@@ -23,6 +23,29 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    const data = error?.response?.data;
+    if (
+      status === 401 &&
+      (data?.needsReauthorization || data?.code === 'TOKEN_EXPIRED') &&
+      typeof window !== 'undefined'
+    ) {
+      window.dispatchEvent(
+        new CustomEvent('plum-token-expired', {
+          detail: {
+            mailboxEmail: data?.mailboxEmail,
+            error: data?.error || data?.message,
+          },
+        })
+      );
+    }
+    return Promise.reject(error);
+  }
+);
+
 export interface MailboxItem {
   id: string;
   email: string;
@@ -35,6 +58,10 @@ export interface MailboxItem {
   expiryDate?: number | null;
   expiresInSeconds?: number | null;
   tokenHealth: 'valid' | 'expiring_soon' | 'expired' | 'offline_permanent';
+  refreshTokenIssuedAt?: string;
+  refreshTokenExpiresAt?: string | null;
+  refreshTokenRemainingSeconds?: number | null;
+  refreshTokenTtlDays?: number;
   createdAt?: string;
 }
 
@@ -329,6 +356,7 @@ export const api = {
   async streamPlumChat(params: {
     prompt: string;
     chatId?: string | null;
+    turnId?: string;
     mailboxEmail?: string;
     email?: string;
     onEvent: (event: any) => void;
@@ -358,6 +386,7 @@ export const api = {
       body: JSON.stringify({
         prompt: params.prompt,
         chatId: params.chatId || null,
+        turnId: params.turnId || undefined,
         mailboxEmail: activeMailbox,
         email: params.email,
       }),
@@ -399,6 +428,12 @@ export const api = {
           console.warn('Failed to parse Plum SSE event:', jsonStr, err);
         }
       }
+    }
+
+    if (buffer.trim().startsWith('data: ')) {
+      try {
+        params.onEvent(JSON.parse(buffer.trim().slice(6).trim()));
+      } catch {}
     }
   },
 

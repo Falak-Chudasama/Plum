@@ -14,6 +14,7 @@ export interface IMailbox extends Document {
     name?: string;           // Display name
     picture?: string;        // Avatar URL
     tokens: IMailboxTokens;
+    refreshTokenIssuedAt?: Date;
     status: 'connected' | 'expired' | 'revoked';
     lastSyncAt?: Date;
     isPrimary: boolean;
@@ -46,6 +47,9 @@ export const mailboxSchema = new Schema<IMailbox>({
         id_token: { type: String },
         expiry_date: { type: Number },
         scope: { type: String },
+    },
+    refreshTokenIssuedAt: {
+        type: Date,
     },
     status: {
         type: String,

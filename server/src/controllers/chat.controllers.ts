@@ -50,6 +50,19 @@ function buildAuthChatFilter(authorizedEmails?: string[]) {
     };
 }
 
+function parseSortableChatTimestamp(c: any): number {
+    if (c?.lastMessageAt) {
+        const t = new Date(c.lastMessageAt).getTime();
+        if (!Number.isNaN(t)) return t;
+    }
+    const raw = c?.updated_at || c?.created_at || c?.updatedAt || c?.createdAt;
+    if (!raw) return 0;
+    const str = String(raw);
+    const normalized = str.includes(" ") && !str.includes("T") ? str.replace(" ", "T") : str;
+    const parsed = new Date(normalized).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 /**
  * Standard Multi-Chat Endpoint: GET /api/chats
  */
@@ -60,18 +73,29 @@ async function getApiChats(req: Request, res: Response) {
         const filter = buildAuthChatFilter(authorized);
 
         const chats = await Chats.find(filter)
-            .select("_id session_id title updated_at created_at email mailboxEmail")
-            .sort({ updated_at: -1, created_at: -1 })
+            .select("_id session_id title updated_at created_at lastMessageAt messageCount email mailboxEmail")
+            .sort({ lastMessageAt: -1, updated_at: -1, created_at: -1 })
             .lean();
 
-        const formatted = chats.map((c: any) => ({
-            _id: c._id.toString(),
-            session_id: c.session_id || c._id.toString(),
-            title: c.title || "New Chat",
-            updated_at: c.updated_at || c.created_at || formatDateTime(),
-            email: c.email,
-            mailboxEmail: c.mailboxEmail,
-        }));
+        chats.sort((a: any, b: any) => parseSortableChatTimestamp(b) - parseSortableChatTimestamp(a));
+
+        const seenIds = new Set<string>();
+        const formatted: any[] = [];
+        for (const c of chats as any[]) {
+            const idStr = String(c._id);
+            if (seenIds.has(idStr)) continue;
+            seenIds.add(idStr);
+            formatted.push({
+                _id: idStr,
+                session_id: c.session_id || idStr,
+                title: c.title || "New Chat",
+                updated_at: c.updated_at || c.created_at || formatDateTime(),
+                ...(c.lastMessageAt ? { lastMessageAt: new Date(c.lastMessageAt).toISOString() } : {}),
+                ...(typeof c.messageCount === "number" ? { messageCount: c.messageCount } : {}),
+                email: c.email,
+                mailboxEmail: c.mailboxEmail,
+            });
+        }
 
         return res.status(200).json(formatted);
     } catch (err: any) {
@@ -147,7 +171,12 @@ async function streamChat(req: Request, res: Response) {
             return res.status(400).json({ success: false, error: "Prompt is required" });
         }
 
-        const chatId = req.body?.chatId || req.body?.chat_id || null;
+        const rawChatId = req.body?.chatId || req.body?.chat_id || null;
+        const resolvedChatId =
+            rawChatId && String(rawChatId).trim()
+                ? String(rawChatId).trim()
+                : new mongoose.Types.ObjectId().toString();
+        const turnId = req.body?.turnId ? String(req.body.turnId).trim() : undefined;
         const chatCount = Number(req.body?.chatCount || 0);
         const requestedMailbox =
             (req.headers["x-mailbox-email"] as string) ||
@@ -183,6 +212,12 @@ async function streamChat(req: Request, res: Response) {
             isOpen: () => !clientClosed && !res.writableEnded,
         };
 
+        sender.send({
+            type: "SYSTEM",
+            subtype: "SESSION",
+            chatId: resolvedChatId,
+        });
+
         await handleChatPrompt({
             prompt,
             chatCount,
@@ -192,7 +227,8 @@ async function streamChat(req: Request, res: Response) {
                 name: userName,
                 lastName: userLastName,
             },
-            chatId: chatId ? String(chatId) : null,
+            chatId: resolvedChatId,
+            turnId,
             socket: sender,
             abortSignal: abortController.signal,
         });
@@ -220,10 +256,29 @@ async function streamChat(req: Request, res: Response) {
 async function create(chatData: any) {
     try {
         const now = formatDateTime();
-        const id = new mongoose.Types.ObjectId();
+        const requestedId = chatData._id && mongoose.Types.ObjectId.isValid(String(chatData._id))
+            ? new mongoose.Types.ObjectId(String(chatData._id))
+            : null;
+        const requestedSession = chatData.session_id ? String(chatData.session_id).trim() : null;
+
+        // Idempotently reuse an existing authorized doc if _id or session_id matches
+        if (requestedId || requestedSession) {
+            const lookupId = requestedId ? requestedId.toString() : requestedSession!;
+            const existing = await getById(lookupId, chatData.email);
+            if (existing) {
+                const { _id, email, ...safePatch } = chatData;
+                return await Chats.findByIdAndUpdate(
+                    existing._id,
+                    { $set: { ...safePatch, updated_at: now } },
+                    { new: true }
+                );
+            }
+        }
+
+        const id = requestedId || new mongoose.Types.ObjectId();
         const doc = new Chats({
             _id: id,
-            session_id: chatData.session_id || id.toString(),
+            session_id: requestedSession || id.toString(),
             ...chatData,
             application: "plum",
             created_at: chatData.created_at || now,
@@ -238,12 +293,9 @@ async function create(chatData: any) {
 
 async function getById(id: string, email?: string) {
     try {
-        const queryFilter: any = {};
-        if (mongoose.Types.ObjectId.isValid(id)) {
-            queryFilter.$or = [{ _id: new mongoose.Types.ObjectId(id) }, { session_id: id }];
-        } else {
-            queryFilter.$or = [{ session_id: id }, { _id: id }];
-        }
+        const queryFilter: any = mongoose.Types.ObjectId.isValid(id)
+            ? { $or: [{ _id: new mongoose.Types.ObjectId(id) }, { session_id: id }] }
+            : { session_id: id };
         const chat: any = await Chats.findOne(queryFilter).lean();
         if (!chat) return null;
 
@@ -272,8 +324,10 @@ async function getList(email?: string, limit: number = 30, cursor: string | null
             query.$or = [{ email: { $in: regexes } }, { mailboxEmail: { $in: regexes } }];
         }
         const chats = await Chats.find(query)
-            .sort({ updated_at: -1, created_at: -1 })
+            .sort({ lastMessageAt: -1, updated_at: -1, created_at: -1 })
             .limit(limit);
+
+        chats.sort((a: any, b: any) => parseSortableChatTimestamp(b) - parseSortableChatTimestamp(a));
 
         return {
             chats,

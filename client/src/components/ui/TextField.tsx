@@ -37,9 +37,9 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
             ref={ref}
             value={value}
             disabled={disabled}
-            className={`focus-ring w-full min-h-[44px] sm:min-h-[48px] rounded-xl glass-card py-2.5 text-sm font-medium text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 border transition hover:border-stone-300 dark:hover:border-stone-700 disabled:opacity-50 disabled:cursor-not-allowed ${
-              icon ? 'pl-10' : 'pl-4'
-            } ${onClear && value ? 'pr-10' : 'pr-4'} ${
+            className={`focus-ring w-full h-9 rounded-xl bg-white dark:bg-stone-900/80 py-2 text-[13px] font-medium text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 border transition hover:border-stone-300 dark:hover:border-stone-700 disabled:opacity-50 disabled:cursor-not-allowed ${
+              icon ? 'pl-9' : 'pl-3.5'
+            } ${onClear && value ? 'pr-9' : 'pr-3.5'} ${
               error
                 ? 'border-red-600 dark:border-red-400 ring-2 ring-red-500/20'
                 : 'border-black/[0.08] dark:border-white/[0.10]'

@@ -41,23 +41,22 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       onClick?.(e);
     };
 
-    // Strict 7-step typography (Caption 12px for sm, Body 14px for md/lg)
+    // Balanced SaaS 4px/8px control scale, 100% flat (no shadows/glow)
     const sizeClasses = {
-      sm: 'text-xs py-1.5 px-3.5 gap-1.5 min-h-[36px]',
-      md: 'text-sm py-2 px-5 gap-2 min-h-[40px]',
-      lg: 'text-sm py-2.5 px-6 gap-2.5 min-h-[48px]',
+      sm: 'text-xs h-8 px-3 gap-1.5',
+      md: 'text-[13px] h-9 px-4 gap-2',
+      lg: 'text-sm h-10 px-5 gap-2',
     }[size];
 
-    // Optional 48dp minimum touch target guarantee on mobile
-    const touchClass = touchTarget ? 'sm:min-h-0 min-h-[48px]' : '';
+    const touchClass = touchTarget ? 'sm:min-h-0 min-h-[40px]' : '';
 
     const variantClasses = {
-      primary: 'btn-glass-primary',
-      secondary: 'btn-glass-secondary',
+      primary: 'btn-glass-primary shadow-none',
+      secondary: 'btn-glass-secondary shadow-none',
       ghost:
-        'btn-interactive inline-flex items-center justify-center font-medium rounded-full text-stone-700 dark:text-stone-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] hover:text-stone-900 dark:hover:text-white',
+        'btn-interactive shadow-none inline-flex items-center justify-center font-medium rounded-full text-stone-600 dark:text-stone-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] active:bg-black/[0.09] dark:active:bg-white/[0.13] hover:text-stone-900 dark:hover:text-white whitespace-nowrap',
       danger:
-        'btn-interactive inline-flex items-center justify-center font-bold rounded-full bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-xs',
+        'btn-interactive shadow-none inline-flex items-center justify-center font-semibold rounded-full bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white whitespace-nowrap',
     }[variant];
 
     return (

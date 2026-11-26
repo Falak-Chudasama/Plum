@@ -1,13 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import {
-  X,
-  Plus,
-  Trash2,
-  Edit3,
-  Search,
-  Check,
-  Brain,
-} from 'lucide-react';
+import { X, Plus, Trash2, Edit3, Search } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { ContextNoteItem } from '../../lib/api';
 import { useToast } from '../ui/ToastProvider';
@@ -15,6 +7,7 @@ import { ConfirmationModal } from '../ui/ConfirmationModal';
 import { Button } from '../ui/Button';
 import { TextField } from '../ui/TextField';
 import { Badge } from '../ui/Badge';
+import { DynamicIslandModal } from '../ui/DynamicIslandModal';
 import { playBack, playEnter } from '../../lib/sound';
 
 interface ContextNotesModalProps {
@@ -43,24 +36,17 @@ export function ContextNotesModal({
   const [isSaving, setIsSaving] = useState(false);
   const [deleteConfirmNote, setDeleteConfirmNote] = useState<ContextNoteItem | null>(null);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        playBack();
-        resetForm();
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+  const resetForm = () => {
+    setIsEditing(false);
+    setEditingId(null);
+    setTitle('');
+    setContent('');
+    setTagsInput('');
+  };
 
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isOpen, onClose]);
+  useEffect(() => {
+    if (!isOpen) resetForm();
+  }, [isOpen]);
 
   const filteredNotes = useMemo(() => {
     if (!searchQuery.trim()) return notes;
@@ -73,18 +59,7 @@ export function ContextNotesModal({
     );
   }, [notes, searchQuery]);
 
-  if (!isOpen) return null;
-
-  const resetForm = () => {
-    setIsEditing(false);
-    setEditingId(null);
-    setTitle('');
-    setContent('');
-    setTagsInput('');
-  };
-
   const handleClose = () => {
-    playBack();
     resetForm();
     onClose();
   };
@@ -126,7 +101,7 @@ export function ContextNotesModal({
           tags,
           email: userEmail,
         });
-        toast.success(`Note "${title}" updated and re-indexed with RAG`);
+        toast.success(`Updated "${title.trim()}"`);
       } else {
         await api.createNote({
           title: title.trim(),
@@ -134,7 +109,7 @@ export function ContextNotesModal({
           tags,
           email: userEmail,
         });
-        toast.success(`Note "${title}" indexed with Basket Vector + BM25 RAG`);
+        toast.success(`Saved "${title.trim()}"`);
       }
       resetForm();
       onNotesChanged();
@@ -149,219 +124,198 @@ export function ContextNotesModal({
     if (!deleteConfirmNote) return;
     try {
       await api.deleteNote(deleteConfirmNote._id);
-      toast.success(`Deleted note "${deleteConfirmNote.title}"`);
+      toast.success(`Deleted "${deleteConfirmNote.title}"`);
       setDeleteConfirmNote(null);
       onNotesChanged();
-    } catch (err: any) {
+    } catch {
       toast.error('Failed to delete note');
     }
   };
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5">
-        {/* Dimmed backdrop scrim (Section 2.9: 150ms ease-out) */}
-        <div
-          className="fixed inset-0 bg-stone-900/45 dark:bg-black/60 backdrop-blur-sm transition-opacity animate-fade-in"
-          onClick={handleClose}
-          aria-hidden="true"
-        />
+      <DynamicIslandModal
+        isOpen={isOpen}
+        onClose={handleClose}
+        maxWidthClass="max-w-xl"
+        ariaLabelledBy="notes-modal-title"
+      >
+        {/* Translucent Cherry Header */}
+        <div className="flex items-center justify-between px-6 h-14 border-b border-black/[0.06] dark:border-white/[0.08] bg-white/80 dark:bg-[#161714]/80 backdrop-blur-xl shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 id="notes-modal-title" className="text-[15px] font-semibold tracking-[-0.01em] text-stone-900 dark:text-white">
+              Notes
+            </h2>
+            <span className="rounded-full bg-stone-100 dark:bg-stone-800 px-2 py-0.5 text-[11px] font-semibold text-stone-500 dark:text-stone-400">
+              {notes.length}
+            </span>
+          </div>
 
-        {/* Modal Shell (Section 2.9 & 5.8: 32px radius, 180ms cubic-bezier(0.16, 1, 0.3, 1)) */}
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="notes-modal-title"
-          className="relative z-10 flex flex-col w-full max-w-2xl max-h-[88vh] rounded-[2rem] glass-panel border border-black/[0.08] dark:border-white/[0.1] bg-[#F8F9F5] dark:bg-[#121310] shadow-lift overflow-hidden text-stone-900 dark:text-[#F3F4F1] font-sans animate-scale-in"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] px-5 py-3.5 bg-white/80 dark:bg-[#181915]/80 backdrop-blur-md">
-            <div className="flex items-center gap-2.5">
-              <Brain className="h-4 w-4 text-[#7E36B2] dark:text-[#DBBFFF]" />
-              <h2 id="notes-modal-title" className="text-base font-bold text-stone-900 dark:text-white">
-                Context Notes
-              </h2>
-              <span className="rounded-full bg-black/[0.05] dark:bg-white/[0.08] px-2 py-0.5 text-[10px] font-bold text-stone-500 dark:text-stone-400">
-                {notes.length}
-              </span>
-            </div>
-
+          <div className="flex items-center gap-1.5 shrink-0">
+            {!isEditing && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={startCreate}
+                icon={<Plus className="h-3.5 w-3.5" />}
+              >
+                New
+              </Button>
+            )}
             <button
               type="button"
-              onClick={handleClose}
+              onClick={() => {
+                playBack();
+                handleClose();
+              }}
               aria-label="Close"
-              className="focus-ring flex h-8 w-8 items-center justify-center rounded-full text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition"
+              className="focus-ring btn-interactive shadow-none flex h-8 w-8 items-center justify-center rounded-full text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
-
-          {/* Modal Body */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 scrollbar-clean">
-            {isEditing ? (
-              <form onSubmit={handleSave} className="rounded-2xl border border-[#B266E6]/30 bg-white dark:bg-[#181915] p-5 shadow-soft space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between pb-2 border-b border-black/[0.04] dark:border-white/[0.05]">
-                  <span className="text-xs font-bold text-[#7E36B2] dark:text-[#DBBFFF]">
-                    {editingId ? 'Edit Context Note' : 'Create Context Note'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="text-xs font-semibold text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition"
-                  >
-                    Cancel
-                  </button>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1">
-                    Title *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. My College Major & Advisor, Office Hours Schedule"
-                    className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-stone-50/70 dark:bg-stone-900/90 px-3.5 py-2 text-xs sm:text-sm text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#B266E6]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1">
-                    Tags (comma separated)
-                  </label>
-                  <input
-                    type="text"
-                    value={tagsInput}
-                    onChange={(e) => setTagsInput(e.target.value)}
-                    placeholder="e.g. academic, schedule, advisor, bio"
-                    className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-stone-50/70 dark:bg-stone-900/90 px-3.5 py-2 text-xs text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#B266E6]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1">
-                    Content *
-                  </label>
-                  <textarea
-                    required
-                    rows={6}
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="Write detailed factual context here that Basket AI can retrieve during email drafting or conversation answering..."
-                    className="w-full rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-stone-50/70 dark:bg-stone-900/90 p-3.5 text-xs sm:text-sm text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-[#B266E6] leading-relaxed resize-none"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <Button variant="ghost" size="sm" onClick={resetForm}>
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    type="submit"
-                    disabled={isSaving}
-                    isLoading={isSaving}
-                    icon={<Check className="h-3.5 w-3.5" />}
-                  >
-                    {editingId ? 'Update & Re-Index' : 'Save & Index with RAG'}
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="relative flex-1">
-                    <TextField
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onClear={() => setSearchQuery('')}
-                      placeholder="Search memory notes..."
-                      icon={<Search />}
-                    />
-                  </div>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={startCreate}
-                    icon={<Plus className="h-3.5 w-3.5" />}
-                  >
-                    Add Note
-                  </Button>
-                </div>
-
-                {filteredNotes.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-black/[0.08] dark:border-white/[0.1] p-8 text-center text-xs text-stone-400">
-                    {searchQuery ? `No notes matching "${searchQuery}"` : 'No context notes yet'}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredNotes.map((note) => (
-                      <div
-                        key={note._id}
-                        className="rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] p-4 shadow-soft space-y-2 transition hover:border-[#B266E6]/30"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-xs font-bold text-stone-900 dark:text-white truncate">
-                            {note.title}
-                          </h3>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => startEdit(note)}
-                              className="p-1 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition rounded-lg"
-                              title="Edit note"
-                            >
-                              <Edit3 className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                playBack();
-                                setDeleteConfirmNote(note);
-                              }}
-                              className="p-1 text-stone-400 hover:text-rose-500 transition rounded-lg"
-                              title="Delete note"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-stone-600 dark:text-stone-300 line-clamp-3 leading-relaxed whitespace-pre-wrap">
-                          {note.content}
-                        </p>
-
-                        {note.tags && note.tags.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                            {note.tags.map((tag) => (
-                              <Badge key={tag} variant="neutral">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
         </div>
-      </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-4 scrollbar-clean">
+          {isEditing ? (
+            <form onSubmit={handleSave} className="space-y-4 animate-fade-in">
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500 dark:text-stone-400">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Office Hours & Advisor"
+                  className="focus-ring w-full h-10 rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-stone-50 dark:bg-stone-900/80 px-3.5 text-[13px] font-medium text-stone-900 dark:text-white placeholder-stone-400"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500 dark:text-stone-400">
+                  Tags
+                </label>
+                <input
+                  type="text"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  placeholder="Comma separated (optional)"
+                  className="focus-ring w-full h-10 rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-stone-50 dark:bg-stone-900/80 px-3.5 text-[13px] text-stone-900 dark:text-white placeholder-stone-400"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-500 dark:text-stone-400">
+                  Content
+                </label>
+                <textarea
+                  required
+                  rows={5}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Facts, links, or preferences Plum can reference..."
+                  className="focus-ring w-full rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-stone-50 dark:bg-stone-900/80 p-3.5 text-[13px] text-stone-900 dark:text-white placeholder-stone-400 leading-relaxed resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/[0.05] dark:border-white/[0.08]">
+                <Button variant="ghost" size="sm" onClick={resetForm}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  type="submit"
+                  disabled={isSaving}
+                  isLoading={isSaving}
+                >
+                  {editingId ? 'Save Changes' : 'Save Note'}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <TextField
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery('')}
+                placeholder="Search notes..."
+                icon={<Search />}
+              />
+
+              {filteredNotes.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-black/[0.08] dark:border-white/[0.1] py-10 text-center text-[13px] text-stone-400">
+                  {searchQuery ? `No notes matching "${searchQuery}"` : 'No notes saved yet'}
+                </div>
+              ) : (
+                <div className="divide-y divide-black/[0.05] dark:divide-white/[0.06] rounded-2xl border border-black/[0.06] dark:border-white/[0.08] overflow-hidden">
+                  {filteredNotes.map((note) => (
+                    <div
+                      key={note._id}
+                      className="group p-4 space-y-1.5 hover:bg-stone-50 dark:hover:bg-white/[0.03] transition"
+                    >
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <h3 className="text-[13.5px] font-semibold text-stone-900 dark:text-white truncate">
+                          {note.title}
+                        </h3>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(note)}
+                            className="focus-ring btn-interactive shadow-none p-1.5 rounded-lg text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+                            title="Edit"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              playBack();
+                              setDeleteConfirmNote(note);
+                            }}
+                            className="focus-ring btn-interactive shadow-none p-1.5 rounded-lg text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-500/10"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="text-[13px] text-stone-600 dark:text-stone-300 line-clamp-3 leading-relaxed whitespace-pre-wrap break-words">
+                        {note.content}
+                      </p>
+
+                      {note.tags && note.tags.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          {note.tags.map((tag) => (
+                            <Badge key={tag} variant="neutral" dot={false}>
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </DynamicIslandModal>
 
       <ConfirmationModal
         isOpen={Boolean(deleteConfirmNote)}
         onClose={() => setDeleteConfirmNote(null)}
         onConfirm={confirmDelete}
-        title="Delete Context Note"
+        title="Delete Note"
         isDestructive
         description={
           <span>
-            Are you sure you want to delete <strong className="text-stone-900 dark:text-white">{deleteConfirmNote?.title}</strong>? It will be removed from your Basket RAG index.
+            Delete <strong className="text-stone-900 dark:text-white">"{deleteConfirmNote?.title}"</strong>?
           </span>
         }
       />

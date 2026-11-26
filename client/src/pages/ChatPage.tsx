@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -26,27 +28,18 @@ import {
 } from 'lucide-react';
 import { usePlumStore } from '../store/usePlumStore';
 import { api } from '../lib/api';
-import type { ChatSession, ChatToolEvent, ContextNoteItem } from '../lib/api';
+import type { ChatSession, ContextNoteItem } from '../lib/api';
 import { useToast } from '../components/ui/ToastProvider';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { ContextNotesModal } from '../components/features/ContextNotesModal';
+import { TokenExpiredBanner } from '../components/features/TokenExpiredBanner';
+import { Button } from '../components/ui/Button';
 import { playEnter, playScroll, playNotification, playBack } from '../lib/sound';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  thought?: string;
-  craftedMail?: any;
-  toolEvents?: ChatToolEvent[];
-  ragNotes?: Array<{ id: string; title: string; content?: string; denseScore?: number; bm25Score?: number }>;
-  timestamp?: string;
-}
 
 const PROMPT_SUGGESTIONS = [
   {
     title: "Summarize today's mail",
-    prompt: "Summarize the important emails I received today",
+    prompt: 'Summarize the important emails I received today',
     icon: Sparkles,
   },
   {
@@ -66,70 +59,139 @@ const PROMPT_SUGGESTIONS = [
   },
 ];
 
+function parseChatTimestamp(dateStr?: string): number {
+  if (!dateStr) return Date.now();
+  // Normalize "YYYY-MM-DD HH:mm:ss" cleanly across browsers
+  const normalized = dateStr.includes(' ') && !dateStr.includes('T') ? dateStr.replace(' ', 'T') : dateStr;
+  const parsed = new Date(normalized).getTime();
+  return Number.isNaN(parsed) ? Date.now() : parsed;
+}
+
 export function ChatPage() {
-  const { user, activeMailbox, openComposer } = usePlumStore();
+  const {
+    user,
+    activeMailbox,
+    openComposer,
+    chats,
+    activeChatId,
+    chatMessages,
+    isChatLoading,
+    isChatGenerating,
+    chatStatusMessage,
+    chatPromptInput,
+    isChatSidebarOpen: isSidebarOpen,
+    chatSearchQuery,
+    chatOpenThoughts: openThoughts,
+    chatScrollPositions,
+    loadChatsList,
+    hydrateActiveChat,
+    selectChat,
+    startNewChat,
+    setChatPromptInput,
+    setChatSidebarOpen: setIsSidebarOpen,
+    setChatSearchQuery,
+    toggleChatThought,
+    setChatScrollPosition,
+    sendChatMessage,
+    stopChatGeneration,
+    updateChatMessageCraftedMail,
+    deleteChatThread,
+  } = usePlumStore();
+
   const toast = useToast();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isOnChatRoute = location.pathname.startsWith('/chat');
 
-  const [chats, setChats] = useState<ChatSession[]>([]);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const activeChatIdRef = useRef<string | null>(null);
-
-  const setChatId = (id: string | null) => {
-    activeChatIdRef.current = id;
-    setActiveChatId(id);
-  };
-
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [promptInput, setPromptInput] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [deleteChatModal, setDeleteChatModal] = useState<ChatSession | null>(null);
-  const [openThoughts, setOpenThoughts] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sendingDraftId, setSendingDraftId] = useState<string | null>(null);
   const [savingDraftId, setSavingDraftId] = useState<string | null>(null);
 
-  // Collapsible sleek sidebar (open on large screens, drawer on small)
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() =>
-    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
-  );
-  const [chatSearchQuery, setChatSearchQuery] = useState('');
-
-  // Context Notes
   const [notes, setNotes] = useState<ContextNoteItem[]>([]);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
 
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const pendingToolsRef = useRef<ChatToolEvent[]>([]);
-  const pendingRagNotesRef = useRef<any[]>([]);
-  const pendingDraftRef = useRef<any>(null);
+  const stickToBottomRef = useRef<boolean>(true);
+  const hasRestoredScrollRef = useRef<string | null>(null);
+  const scrollThreadKey = activeChatId || '__new__';
 
-  // Auto-resize composer textarea cleanly
+  // Auto-resize composer textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-  }, [promptInput]);
+    el.style.height = `${Math.min(el.scrollHeight, 144)}px`;
+  }, [chatPromptInput]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, statusMessage]);
+  // Restore saved scrollTop when returning to /chat or switching threads; otherwise stick to bottom while streaming
+  useLayoutEffect(() => {
+    if (!isOnChatRoute) return;
+    const container = scrollContainerRef.current;
+    if (!container || chatMessages.length === 0) return;
 
-  const reloadChats = async () => {
-    try {
-      const data = await api.getChats();
-      setChats(data || []);
-    } catch {
-      // non-fatal
+    if (hasRestoredScrollRef.current !== scrollThreadKey) {
+      hasRestoredScrollRef.current = scrollThreadKey;
+      const savedTop = chatScrollPositions[scrollThreadKey];
+      if (typeof savedTop === 'number') {
+        requestAnimationFrame(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = savedTop;
+            const el = scrollContainerRef.current;
+            stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64;
+          }
+        });
+        return;
+      }
+      stickToBottomRef.current = true;
+      container.scrollTop = container.scrollHeight;
+      return;
     }
-  };
 
+    if (stickToBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: isChatGenerating ? 'auto' : 'smooth' });
+    }
+  }, [isOnChatRoute, scrollThreadKey, chatMessages, chatStatusMessage, isChatGenerating]);
+
+  // Persist scroll offset continuously + on unmount
   useEffect(() => {
-    reloadChats();
-  }, [activeMailbox, user?.email]);
+    if (!isOnChatRoute) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 64;
+      stickToBottomRef.current = nearBottom;
+      setChatScrollPosition(scrollThreadKey, container.scrollTop);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      setChatScrollPosition(scrollThreadKey, container.scrollTop);
+    };
+  }, [isOnChatRoute, scrollThreadKey, setChatScrollPosition]);
+
+  // Load chats & restore active chat across navigation / reloads (guarded from leaving transition clone)
+  useEffect(() => {
+    if (!isOnChatRoute) return;
+    loadChatsList();
+    const urlId = searchParams.get('id');
+    hydrateActiveChat(urlId);
+  }, [isOnChatRoute, activeMailbox, user?.email]);
+
+  // Keep ?id= synced ONLY while actively viewing /chat route
+  useEffect(() => {
+    if (!isOnChatRoute) return;
+    const currentUrlId = searchParams.get('id');
+    if (activeChatId && currentUrlId !== activeChatId) {
+      setSearchParams({ id: activeChatId }, { replace: true });
+    } else if (!activeChatId && currentUrlId) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [isOnChatRoute, activeChatId, searchParams, setSearchParams]);
 
   const loadNotes = async () => {
     const email = activeMailbox || user?.email;
@@ -151,71 +213,17 @@ export function ChatPage() {
     return chats.find((c) => c._id === activeChatId)?.title || 'Chat';
   }, [chats, activeChatId]);
 
-  const loadChat = async (id: string) => {
+  const handleSelectThread = async (id: string) => {
     playScroll();
-    setChatId(id);
-    setStatusMessage(null);
     if (window.innerWidth < 1024) {
       setIsSidebarOpen(false);
     }
-    try {
-      const chat = await api.getChatById(id);
-      if (!chat) return;
-
-      const loadedMessages: Message[] = [];
-
-      if (Array.isArray(chat.messages) && chat.messages.length > 0) {
-        chat.messages.forEach((m: any, idx: number) => {
-          loadedMessages.push({
-            id: `msg-${idx}-${Date.now()}`,
-            role: m.role || 'user',
-            content: m.content || '',
-            craftedMail: m.craftedMail,
-            toolEvents: m.toolEvents,
-            ragNotes: m.ragNotes,
-            thought: m.thought && m.thought !== '<no_thoughts>' ? m.thought : undefined,
-            timestamp: m.created_at,
-          });
-        });
-      } else {
-        const prompts = chat.userPrompts || [];
-        const responses = chat.responses || [];
-        const maxLen = Math.max(prompts.length, responses.length);
-
-        for (let i = 0; i < maxLen; i++) {
-          if (prompts[i]) {
-            loadedMessages.push({
-              id: `prompt-${i}`,
-              role: 'user',
-              content: prompts[i].prompt,
-            });
-          }
-          if (responses[i]) {
-            const resp = responses[i];
-            if (resp.response || resp.craftedMail) {
-              loadedMessages.push({
-                id: `resp-${i}`,
-                role: 'assistant',
-                content: resp.response || '',
-                craftedMail: resp.craftedMail,
-                thought: resp.thought && resp.thought !== '<no_thoughts>' ? resp.thought : undefined,
-              });
-            }
-          }
-        }
-      }
-
-      setMessages(loadedMessages);
-    } catch {
-      toast.error('Failed to load conversation');
-    }
+    await selectChat(id);
   };
 
-  const startNewChat = () => {
+  const handleNewChat = () => {
     playEnter();
-    setChatId(null);
-    setMessages([]);
-    setStatusMessage(null);
+    startNewChat();
     if (window.innerWidth < 1024) {
       setIsSidebarOpen(false);
     }
@@ -223,124 +231,16 @@ export function ChatPage() {
   };
 
   const handleSendMessage = async (textToSend?: string) => {
-    const text = (textToSend !== undefined ? textToSend : promptInput).trim();
-    if (!text || isGenerating) return;
+    const text = (textToSend !== undefined ? textToSend : chatPromptInput).trim();
+    if (!text || isChatGenerating) return;
 
+    stickToBottomRef.current = true;
     playEnter();
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: text,
-      timestamp: new Date().toISOString(),
-    };
-
-    const assistantMessageId = `asst-${Date.now()}`;
-    pendingToolsRef.current = [];
-    pendingRagNotesRef.current = [];
-    pendingDraftRef.current = null;
-
-    setMessages((prev) => [
-      ...prev,
-      userMessage,
-      {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-    setPromptInput('');
-    setIsGenerating(true);
-    setStatusMessage('Thinking...');
-
-    const currentChatId = activeChatIdRef.current ?? activeChatId;
-
-    try {
-      abortControllerRef.current = new AbortController();
-
-      await api.streamPlumChat({
-        prompt: text,
-        chatId: currentChatId,
-        mailboxEmail: activeMailbox || user?.email,
-        email: user?.email,
-        signal: abortControllerRef.current.signal,
-        onEvent: (payload) => {
-          if (payload.type === 'INFO') {
-            setStatusMessage(payload.showMessage || payload.message || 'Working...');
-          } else if (payload.type === 'SYSTEM') {
-            if (payload.subtype === 'RAG_CONTEXT' && Array.isArray(payload.notes)) {
-              pendingRagNotesRef.current = payload.notes;
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMessageId ? { ...m, ragNotes: [...payload.notes] } : m
-                )
-              );
-            } else if (payload.subtype === 'EMAIL' && payload.email) {
-              pendingDraftRef.current = payload.email;
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMessageId ? { ...m, craftedMail: payload.email } : m
-                )
-              );
-            } else if (payload.subtype === 'TOOL_RESULT') {
-              const ev: ChatToolEvent = {
-                tool: payload.tool,
-                label: payload.label,
-                summary: payload.summary,
-                success: Boolean(payload.success),
-              };
-              pendingToolsRef.current = [...pendingToolsRef.current, ev];
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMessageId
-                    ? { ...m, toolEvents: [...pendingToolsRef.current] }
-                    : m
-                )
-              );
-              if (payload.notesChanged) {
-                loadNotes();
-              }
-            } else if (payload.subtype === 'TITLE' && payload.title?.title) {
-              reloadChats();
-            }
-          } else if (payload.type === 'RESPONSE' && payload.response) {
-            setStatusMessage(null);
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantMessageId
-                  ? { ...m, content: m.content + payload.response }
-                  : m
-              )
-            );
-          } else if (payload.type === 'RESPONSE_COMPLETE') {
-            if (payload.chatId) {
-              setChatId(payload.chatId);
-            }
-            reloadChats();
-          } else if (payload.type === 'ERROR') {
-            toast.error(payload.error || 'Plum AI error');
-          }
-        },
-      });
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        toast.error(err.message || 'Failed to get response from Plum AI');
-      }
-    } finally {
-      setIsGenerating(false);
-      setStatusMessage(null);
-      reloadChats();
-    }
-  };
-
-  const stopGeneration = () => {
-    playBack();
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    setIsGenerating(false);
-    setStatusMessage(null);
+    await sendChatMessage({
+      text,
+      onToastError: (msg) => toast.error(msg),
+      onNotesChanged: loadNotes,
+    });
   };
 
   const handleDirectSendDraft = async (msgId: string, mail: any) => {
@@ -377,13 +277,7 @@ export function ChatPage() {
         activeMailbox || mail.from
       );
       toast.success(`Email sent to ${recipients[0]}`);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === msgId && m.craftedMail
-            ? { ...m, craftedMail: { ...m.craftedMail, status: 'sent' } }
-            : m
-        )
-      );
+      updateChatMessageCraftedMail(msgId, 'sent');
     } catch (err: any) {
       toast.error(err?.response?.data?.error || err.message || 'Failed to send email');
     } finally {
@@ -407,13 +301,7 @@ export function ChatPage() {
         activeMailbox || mail.from
       );
       toast.success('Saved to Drafts');
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === msgId && m.craftedMail
-            ? { ...m, craftedMail: { ...m.craftedMail, status: 'draft' } }
-            : m
-        )
-      );
+      updateChatMessageCraftedMail(msgId, 'draft');
     } catch {
       toast.error('Failed to save draft');
     } finally {
@@ -424,13 +312,9 @@ export function ChatPage() {
   const confirmDeleteChat = async () => {
     if (!deleteChatModal) return;
     try {
-      await api.deleteChat(deleteChatModal._id);
+      await deleteChatThread(deleteChatModal._id);
       toast.success('Deleted');
-      if (activeChatIdRef.current === deleteChatModal._id || activeChatId === deleteChatModal._id) {
-        startNewChat();
-      }
       setDeleteChatModal(null);
-      reloadChats();
     } catch {
       toast.error('Failed to delete chat');
     }
@@ -461,9 +345,9 @@ export function ChatPage() {
     };
 
     filtered.forEach((chat) => {
-      const dateStr = chat.updated_at || chat.created_at || chat.updatedAt || chat.createdAt;
-      const parsedTime = dateStr ? new Date(dateStr).getTime() : Date.now();
-      const chatTime = Number.isNaN(parsedTime) ? Date.now() : parsedTime;
+      const chatTime = parseChatTimestamp(
+        chat.lastMessageAt || chat.updated_at || chat.created_at || chat.updatedAt || chat.createdAt
+      );
       if (chatTime >= todayStart) groups.Today.push(chat);
       else if (chatTime >= yesterdayStart) groups.Yesterday.push(chat);
       else if (chatTime >= weekStart) groups['7 Days'].push(chat);
@@ -476,14 +360,14 @@ export function ChatPage() {
   const activeMailboxShort = (activeMailbox || user?.email || '').split('@')[0];
 
   const SidebarContent = (
-    <div className="flex h-full flex-col">
-      {/* Top Action */}
-      <div className="p-3 space-y-2">
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Top Actions */}
+      <div className="p-3 space-y-2 shrink-0">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={startNewChat}
-            className="focus-ring btn-interactive flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 py-2 px-3 text-xs font-semibold shadow-2xs"
+            onClick={handleNewChat}
+            className="focus-ring btn-interactive shadow-none flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 active:bg-stone-950 dark:bg-stone-100 dark:hover:bg-stone-200 dark:active:bg-stone-300 text-white dark:text-stone-900 h-9 px-3 text-xs font-semibold"
           >
             <Plus className="h-3.5 w-3.5" />
             <span>New Chat</span>
@@ -494,7 +378,7 @@ export function ChatPage() {
               playBack();
               setIsSidebarOpen(false);
             }}
-            className="lg:hidden flex h-8 w-8 items-center justify-center rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
+            className="focus-ring btn-interactive shadow-none lg:hidden flex h-9 w-9 items-center justify-center rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] shrink-0"
             aria-label="Close sidebar"
           >
             <X className="h-4 w-4" />
@@ -508,7 +392,7 @@ export function ChatPage() {
             value={chatSearchQuery}
             onChange={(e) => setChatSearchQuery(e.target.value)}
             placeholder="Search..."
-            className="w-full rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white/60 dark:bg-stone-900/50 pl-8 pr-7 py-1.5 text-xs text-stone-800 dark:text-stone-200 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-[#B266E6]"
+            className="w-full h-8 rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white/70 dark:bg-stone-900/60 pl-8 pr-7 text-xs text-stone-800 dark:text-stone-200 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-[#B266E6]"
           />
           {chatSearchQuery && (
             <button
@@ -523,7 +407,7 @@ export function ChatPage() {
       </div>
 
       {/* Thread List */}
-      <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-4 scrollbar-clean">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-3 space-y-4 scrollbar-clean">
         {chats.length === 0 ? (
           <div className="px-3 py-8 text-center text-xs text-stone-400">
             No conversations yet
@@ -532,8 +416,8 @@ export function ChatPage() {
           Object.entries(groupedChats).map(([groupTitle, items]) => {
             if (items.length === 0) return null;
             return (
-              <div key={groupTitle} className="space-y-0.5">
-                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+              <div key={groupTitle} className="space-y-0.5 min-w-0">
+                <div className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-stone-400 dark:text-stone-500">
                   {groupTitle}
                 </div>
                 {items.map((c) => {
@@ -541,7 +425,7 @@ export function ChatPage() {
                   return (
                     <div
                       key={c._id}
-                      className={`group flex items-center justify-between rounded-xl px-2.5 py-1.5 text-xs transition ${
+                      className={`group flex items-center justify-between gap-1 rounded-xl px-2.5 h-8 text-[13px] transition min-w-0 ${
                         isActive
                           ? 'bg-[#B266E6]/12 text-[#7E36B2] dark:text-[#DBBFFF] font-semibold'
                           : 'text-stone-600 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.05]'
@@ -549,8 +433,8 @@ export function ChatPage() {
                     >
                       <button
                         type="button"
-                        onClick={() => loadChat(c._id)}
-                        className="flex-1 text-left truncate py-0.5"
+                        onClick={() => handleSelectThread(c._id)}
+                        className="flex-1 text-left truncate min-w-0"
                       >
                         {c.title}
                       </button>
@@ -561,10 +445,10 @@ export function ChatPage() {
                           playBack();
                           setDeleteChatModal(c);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-stone-400 hover:text-rose-500 transition"
+                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded-lg text-stone-400 hover:text-rose-500 transition shrink-0"
                         title="Delete"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   );
@@ -574,60 +458,42 @@ export function ChatPage() {
           })
         )}
       </div>
-
-      {/* Footer Notes Trigger */}
-      <div className="p-2.5 border-t border-black/[0.05] dark:border-white/[0.06]">
-        <button
-          type="button"
-          onClick={() => {
-            playEnter();
-            setIsNotesModalOpen(true);
-          }}
-          className="focus-ring btn-interactive w-full flex items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
-        >
-          <span className="flex items-center gap-2">
-            <Brain className="h-3.5 w-3.5 text-[#7E36B2] dark:text-[#DBBFFF]" />
-            <span>Context Notes</span>
-          </span>
-          {notes.length > 0 && (
-            <span className="rounded-full bg-[#B266E6]/12 text-[#7E36B2] dark:text-[#DBBFFF] px-1.5 py-0.5 text-[10px] font-bold">
-              {notes.length}
-            </span>
-          )}
-        </button>
-      </div>
     </div>
   );
 
   return (
     <div className="h-[100dvh] pt-14 sm:pt-[72px] pb-16 sm:pb-0 flex overflow-hidden font-sans antialiased">
-      {/* Desktop Docked Collapsible Sidebar */}
+      {/* Desktop Collapsible Sidebar */}
       {isSidebarOpen && (
-        <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-black/[0.06] dark:border-white/[0.08] bg-white/35 dark:bg-[#141512]/55 backdrop-blur-md">
+        <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-black/[0.06] dark:border-white/[0.08] bg-white/40 dark:bg-[#141512]/55 backdrop-blur-md">
           {SidebarContent}
         </aside>
       )}
 
-      {/* Mobile / Tablet Slide-over Drawer */}
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div
-            className="fixed inset-0 bg-stone-900/40 dark:bg-black/60 backdrop-blur-xs animate-fade-in"
-            onClick={() => {
-              playBack();
-              setIsSidebarOpen(false);
-            }}
-          />
-          <aside className="relative z-10 w-72 max-w-[82vw] h-full glass-panel bg-white/95 dark:bg-[#181915]/95 border-r border-black/[0.08] dark:border-white/[0.1] animate-slide-from-left">
-            {SidebarContent}
-          </aside>
-        </div>
-      )}
+      {/* Mobile Drawer Sidebar (Portaled to document.body above mobile top bar & bottom dock) */}
+      {isSidebarOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[95] flex lg:hidden">
+            <div
+              className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-md animate-fade-in"
+              onClick={() => {
+                playBack();
+                setIsSidebarOpen(false);
+              }}
+              aria-hidden="true"
+            />
+            <aside className="relative z-10 w-72 max-w-[82vw] h-full bg-white dark:bg-[#161714] border-r border-black/[0.08] dark:border-white/[0.1] animate-slide-from-left">
+              {SidebarContent}
+            </aside>
+          </div>,
+          document.body
+        )}
 
       {/* Center Conversation Canvas */}
-      <div className="flex-1 flex flex-col min-w-0 relative">
-        {/* Minimal Workspace Top Strip */}
-        <div className="h-11 shrink-0 px-4 flex items-center justify-between border-b border-black/[0.04] dark:border-white/[0.06]">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Minimal Workspace Strip with Single Notes Action */}
+        <div className="h-11 shrink-0 px-4 sm:px-6 flex items-center justify-between gap-2 border-b border-black/[0.05] dark:border-white/[0.06]">
           <div className="flex items-center gap-2 min-w-0">
             <button
               type="button"
@@ -635,7 +501,7 @@ export function ChatPage() {
                 playScroll();
                 setIsSidebarOpen((prev) => !prev);
               }}
-              className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition"
+              className="focus-ring btn-interactive shadow-none flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.07] shrink-0"
               title="Toggle sidebar"
               aria-label="Toggle sidebar"
             >
@@ -645,8 +511,8 @@ export function ChatPage() {
             {!isSidebarOpen && (
               <button
                 type="button"
-                onClick={startNewChat}
-                className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition"
+                onClick={handleNewChat}
+                className="focus-ring btn-interactive shadow-none flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.07] shrink-0"
                 title="New chat"
                 aria-label="New chat"
               >
@@ -654,42 +520,48 @@ export function ChatPage() {
               </button>
             )}
 
-            <span className="text-xs font-medium text-stone-500 dark:text-stone-400 truncate">
+            <span className="text-[13px] font-medium text-stone-600 dark:text-stone-300 truncate">
               {activeChatTitle}
             </span>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                playEnter();
-                setIsNotesModalOpen(true);
-              }}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold text-stone-600 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
-              title="Context Notes"
-            >
-              <Brain className="h-3.5 w-3.5 text-[#7E36B2] dark:text-[#DBBFFF]" />
-              <span className="hidden sm:inline">Notes</span>
-              {notes.length > 0 && (
-                <span className="text-[10px] text-[#7E36B2] dark:text-[#DBBFFF] font-bold">
-                  {notes.length}
-                </span>
-              )}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              playEnter();
+              setIsNotesModalOpen(true);
+            }}
+            className="focus-ring btn-interactive shadow-none inline-flex items-center gap-1.5 rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-white/80 dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 active:bg-stone-200/70 dark:active:bg-stone-700 px-3 h-7 text-xs font-medium text-stone-700 dark:text-stone-200 shrink-0"
+            title="Notes"
+          >
+            <Brain className="h-3.5 w-3.5 text-[#7E36B2] dark:text-[#DBBFFF]" />
+            <span>Notes</span>
+            {notes.length > 0 && (
+              <span className="rounded-full bg-[#B266E6]/12 text-[#7E36B2] dark:text-[#DBBFFF] px-1.5 text-[11px] font-semibold">
+                {notes.length}
+              </span>
+            )}
+          </button>
         </div>
 
+        {/* Expired Token Alert */}
+        <TokenExpiredBanner className="mx-4 sm:mx-6 mt-3 shrink-0" />
+
         {/* Scrollable Message Stream */}
-        <div className="flex-1 overflow-y-auto scrollbar-clean">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 h-full">
-            {messages.length === 0 ? (
-              <div className="min-h-full flex flex-col items-center justify-center py-8 text-center animate-fade-in">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#B266E6]/12 text-[#7E36B2] dark:text-[#DBBFFF] mb-4">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-clean">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 min-h-full flex flex-col">
+            {isChatLoading && chatMessages.length === 0 ? (
+              <div className="py-8 space-y-4">
+                <div className="h-10 w-2/3 ml-auto rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] animate-pulse" />
+                <div className="h-24 w-4/5 rounded-2xl bg-black/[0.04] dark:bg-white/[0.05] animate-pulse" />
+              </div>
+            ) : chatMessages.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-8 text-center animate-fade-in">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#B266E6]/12 text-[#7E36B2] dark:text-[#DBBFFF] mb-4">
                   <Sparkles className="h-5 w-5" />
                 </div>
 
-                <h1 className="font-heading text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-white">
+                <h1 className="font-heading text-2xl sm:text-[26px] font-bold tracking-[-0.02em] text-stone-900 dark:text-white">
                   How can I help?
                 </h1>
 
@@ -704,10 +576,10 @@ export function ChatPage() {
                           playScroll();
                           handleSendMessage(item.prompt);
                         }}
-                        className="focus-ring row-interactive group flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl glass-card border border-black/[0.06] dark:border-white/[0.08] hover:border-stone-300 dark:hover:border-stone-700 text-left"
+                        className="focus-ring btn-interactive shadow-none group flex items-center gap-2.5 px-3.5 h-10 rounded-xl bg-white/90 dark:bg-[#181915]/90 border border-black/[0.07] dark:border-white/[0.09] hover:bg-stone-100/80 dark:hover:bg-white/[0.05] hover:border-stone-300 dark:hover:border-stone-700 text-left min-w-0"
                       >
                         <Icon className="h-4 w-4 text-stone-400 group-hover:text-[#7E36B2] dark:group-hover:text-[#DBBFFF] shrink-0 transition-colors" />
-                        <span className="text-xs font-semibold text-stone-700 dark:text-stone-200 truncate">
+                        <span className="text-[13px] font-medium text-stone-700 dark:text-stone-200 truncate">
                           {item.title}
                         </span>
                       </button>
@@ -717,28 +589,28 @@ export function ChatPage() {
               </div>
             ) : (
               <div className="py-6 space-y-6">
-                {messages.map((msg, index) => {
+                {chatMessages.map((msg, index) => {
                   if (msg.role === 'user') {
                     return (
                       <div key={msg.id || index} className="flex justify-end animate-fade-in">
-                        <div className="rounded-2xl rounded-br-xs bg-[#7E36B2] text-white px-4 py-2.5 text-sm leading-relaxed max-w-[82%] shadow-2xs">
+                        <div className="rounded-2xl rounded-br-sm bg-[#7E36B2] dark:bg-[#DBBFFF] text-white dark:text-[#121310] px-4 py-2.5 text-[13.5px] leading-relaxed max-w-[82%] break-words">
                           {msg.content}
                         </div>
                       </div>
                     );
                   }
 
-                  const isLastAssistant = index === messages.length - 1;
-                  const showStreamingCursor = isGenerating && isLastAssistant && !msg.content && !msg.craftedMail;
+                  const isLastAssistant = index === chatMessages.length - 1;
+                  const showStreamingCursor = isChatGenerating && isLastAssistant && !msg.content && !msg.craftedMail;
 
                   return (
-                    <div key={msg.id || index} className="group flex items-start gap-3 animate-fade-in">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#B266E6]/12 text-[#7E36B2] dark:text-[#DBBFFF] shrink-0 mt-0.5">
+                    <div key={msg.id || index} className="group flex items-start gap-3 animate-fade-in min-w-0">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#B266E6]/12 text-[#7E36B2] dark:text-[#DBBFFF] shrink-0 mt-0.5">
                         <Sparkles className="h-3.5 w-3.5" />
                       </div>
 
                       <div className="flex-1 min-w-0 space-y-2.5">
-                        {/* Compact Tool & Memory Chips */}
+                        {/* Tool & Memory Chips */}
                         {((msg.toolEvents && msg.toolEvents.length > 0) ||
                           (msg.ragNotes && msg.ragNotes.length > 0)) && (
                           <div className="flex flex-wrap items-center gap-1.5">
@@ -748,7 +620,7 @@ export function ChatPage() {
                                 title={ev.summary}
                                 className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium border ${
                                   ev.success
-                                    ? 'bg-black/[0.03] dark:bg-white/[0.04] border-black/[0.06] dark:border-white/[0.08] text-stone-600 dark:text-stone-300'
+                                    ? 'bg-stone-100/80 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/[0.08] text-stone-600 dark:text-stone-300'
                                     : 'bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400'
                                 }`}
                               >
@@ -757,58 +629,50 @@ export function ChatPage() {
                                 ) : (
                                   <AlertCircle className="h-3 w-3 text-rose-500 shrink-0" />
                                 )}
-                                <span>{ev.label}</span>
+                                <span className="truncate max-w-[240px]">{ev.label}</span>
                               </span>
                             ))}
 
                             {msg.ragNotes && msg.ragNotes.length > 0 && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-[#B266E6]/10 border border-[#B266E6]/20 px-2.5 py-0.5 text-[11px] font-medium text-[#7E36B2] dark:text-[#DBBFFF]">
                                 <Brain className="h-3 w-3 shrink-0" />
-                                <span>{msg.ragNotes.map((n) => n.title).join(', ')}</span>
+                                <span className="truncate max-w-[220px]">{msg.ragNotes.map((n) => n.title).join(', ')}</span>
                               </span>
                             )}
                           </div>
                         )}
 
-                        {/* Collapsible Thought */}
                         {msg.thought && (
                           <div>
                             <button
                               type="button"
-                              onClick={() =>
-                                setOpenThoughts((prev) => ({
-                                  ...prev,
-                                  [msg.id]: !prev[msg.id],
-                                }))
-                              }
-                              className="inline-flex items-center gap-1 text-[11px] font-medium text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition"
+                              onClick={() => toggleChatThought(msg.id)}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition"
                             >
                               {openThoughts[msg.id] ? (
-                                <ChevronDown className="h-3 w-3" />
+                                <ChevronDown className="h-3.5 w-3.5" />
                               ) : (
-                                <ChevronRight className="h-3 w-3" />
+                                <ChevronRight className="h-3.5 w-3.5" />
                               )}
                               <span>Reasoning</span>
                             </button>
                             {openThoughts[msg.id] && (
-                              <div className="mt-1.5 pl-3 border-l-2 border-black/[0.08] dark:border-white/[0.1] text-xs text-stone-500 dark:text-stone-400 font-mono whitespace-pre-wrap">
+                              <div className="mt-1.5 pl-3 border-l-2 border-black/[0.08] dark:border-white/[0.1] text-xs text-stone-500 dark:text-stone-400 font-mono whitespace-pre-wrap break-words">
                                 {msg.thought}
                               </div>
                             )}
                           </div>
                         )}
 
-                        {/* Live Status Indicator */}
-                        {showStreamingCursor && statusMessage && (
+                        {showStreamingCursor && chatStatusMessage && (
                           <div className="flex items-center gap-2 text-xs font-medium text-stone-500 dark:text-stone-400">
-                            <span className="h-2 w-2 rounded-full bg-[#B266E6] animate-pulse" />
-                            <span>{statusMessage}</span>
+                            <span className="h-2 w-2 rounded-full bg-[#B266E6] animate-pulse shrink-0" />
+                            <span>{chatStatusMessage}</span>
                           </div>
                         )}
 
-                        {/* Open Editorial Markdown Response */}
                         {msg.content && (
-                          <div className="markdown-body text-sm leading-relaxed text-stone-800 dark:text-stone-100">
+                          <div className="markdown-body text-[14px] leading-relaxed text-stone-800 dark:text-stone-100 break-words">
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm, remarkBreaks]}
                               components={{
@@ -838,8 +702,8 @@ export function ChatPage() {
                                   const codeString = String(children).replace(/\n$/, '');
                                   if (!inline && (match || codeString.includes('\n'))) {
                                     return (
-                                      <div className="my-3 rounded-xl overflow-hidden border border-black/[0.08] dark:border-white/[0.1] bg-stone-900 text-stone-100 text-xs font-mono">
-                                        <div className="flex items-center justify-between px-3 py-1.5 bg-stone-950/60 border-b border-white/[0.06] text-[10px] text-stone-400">
+                                      <div className="my-3 rounded-xl overflow-hidden border border-black/[0.08] dark:border-white/[0.1] bg-stone-900 text-stone-100 text-xs font-mono max-w-full">
+                                        <div className="flex items-center justify-between px-3 py-1.5 bg-stone-950/60 border-b border-white/[0.06] text-[11px] text-stone-400">
                                           <span className="uppercase tracking-wider">{match?.[1] || 'code'}</span>
                                           <button
                                             type="button"
@@ -860,7 +724,7 @@ export function ChatPage() {
                                     );
                                   }
                                   return (
-                                    <code className="rounded-md bg-black/[0.05] dark:bg-white/[0.08] px-1.5 py-0.5 text-xs font-mono text-[#7E36B2] dark:text-[#DBBFFF]" {...props}>
+                                    <code className="rounded-md bg-black/[0.05] dark:bg-white/[0.08] px-1.5 py-0.5 text-xs font-mono text-[#7E36B2] dark:text-[#DBBFFF] break-all" {...props}>
                                       {children}
                                     </code>
                                   );
@@ -872,14 +736,14 @@ export function ChatPage() {
                           </div>
                         )}
 
-                        {/* Interactive Email Draft Execution Card */}
+                        {/* Interactive Email Draft Card */}
                         {msg.craftedMail && (
-                          <div className="glass-card rounded-2xl border border-black/[0.08] dark:border-white/[0.1] p-4 space-y-3 mt-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-bold text-stone-900 dark:text-white truncate">
+                          <div className="rounded-2xl bg-white dark:bg-[#181915] border border-black/[0.08] dark:border-white/[0.1] p-4 space-y-3 mt-2">
+                            <div className="flex items-center justify-between gap-2 min-w-0">
+                              <span className="text-[13px] font-semibold text-stone-900 dark:text-white truncate">
                                 {msg.craftedMail.subject || 'Draft'}
                               </span>
-                              <span className="rounded-full bg-black/[0.05] dark:bg-white/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 shrink-0">
+                              <span className="rounded-full bg-stone-100 dark:bg-stone-800 px-2 py-0.5 text-[11px] font-medium text-stone-500 dark:text-stone-400 shrink-0">
                                 {msg.craftedMail.status === 'sent'
                                   ? 'Sent'
                                   : msg.craftedMail.status === 'draft'
@@ -894,13 +758,14 @@ export function ChatPage() {
                               </div>
                             )}
 
-                            <div className="rounded-xl bg-black/[0.025] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06] p-3 text-xs text-stone-700 dark:text-stone-300 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto scrollbar-clean">
+                            <div className="rounded-xl bg-stone-50 dark:bg-stone-900/70 border border-black/[0.05] dark:border-white/[0.06] p-3 text-[13px] text-stone-700 dark:text-stone-300 whitespace-pre-wrap break-words leading-relaxed max-h-48 overflow-y-auto scrollbar-clean">
                               {msg.craftedMail.body}
                             </div>
 
                             <div className="flex flex-wrap items-center justify-end gap-2 pt-0.5">
-                              <button
-                                type="button"
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => {
                                   playEnter();
                                   openComposer({
@@ -911,41 +776,39 @@ export function ChatPage() {
                                     body: msg.craftedMail.body,
                                   });
                                 }}
-                                className="focus-ring btn-interactive inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.07]"
+                                icon={<PenSquare className="h-3.5 w-3.5" />}
                               >
-                                <PenSquare className="h-3.5 w-3.5" />
-                                <span>Edit</span>
-                              </button>
+                                Edit
+                              </Button>
 
                               {msg.craftedMail.status !== 'sent' && (
                                 <>
-                                  <button
-                                    type="button"
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
                                     disabled={savingDraftId === msg.id}
                                     onClick={() => handleDirectSaveDraft(msg.id, msg.craftedMail)}
-                                    className="focus-ring btn-glass-secondary !py-1.5 !px-3 !text-xs"
+                                    icon={<Save className="h-3.5 w-3.5" />}
                                   >
-                                    <Save className="h-3.5 w-3.5" />
-                                    <span>{msg.craftedMail.status === 'draft' ? 'Saved' : 'Save Draft'}</span>
-                                  </button>
+                                    {msg.craftedMail.status === 'draft' ? 'Saved' : 'Save Draft'}
+                                  </Button>
 
-                                  <button
-                                    type="button"
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
                                     disabled={sendingDraftId === msg.id}
                                     onClick={() => handleDirectSendDraft(msg.id, msg.craftedMail)}
-                                    className="focus-ring btn-glass-primary !py-1.5 !px-3.5 !text-xs"
+                                    icon={<Send className="h-3.5 w-3.5" />}
                                   >
-                                    <Send className="h-3.5 w-3.5" />
-                                    <span>{sendingDraftId === msg.id ? 'Sending...' : 'Send'}</span>
-                                  </button>
+                                    {sendingDraftId === msg.id ? 'Sending...' : 'Send'}
+                                  </Button>
                                 </>
                               )}
                             </div>
                           </div>
                         )}
 
-                        {/* Hover Copy Action */}
-                        {msg.content && !(isGenerating && isLastAssistant) && (
+                        {msg.content && !(isChatGenerating && isLastAssistant) && (
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity pt-0.5">
                             <button
                               type="button"
@@ -972,10 +835,10 @@ export function ChatPage() {
                   );
                 })}
 
-                {isGenerating && statusMessage && messages[messages.length - 1]?.content !== '' && (
-                  <div className="flex items-center gap-2 pl-9 text-xs text-stone-400">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#B266E6] animate-pulse" />
-                    <span>{statusMessage}</span>
+                {isChatGenerating && chatStatusMessage && chatMessages[chatMessages.length - 1]?.content !== '' && (
+                  <div className="flex items-center gap-2 pl-10 text-xs text-stone-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#B266E6] animate-pulse shrink-0" />
+                    <span>{chatStatusMessage}</span>
                   </div>
                 )}
 
@@ -985,15 +848,15 @@ export function ChatPage() {
           </div>
         </div>
 
-        {/* Minimal Floating Composer Dock */}
-        <div className="shrink-0 px-4 pb-3 sm:pb-5 pt-2 bg-gradient-to-t from-[#F8F9F5] via-[#F8F9F5]/80 to-transparent dark:from-[#121310] dark:via-[#121310]/80">
+        {/* Flat Floating Composer Dock */}
+        <div className="shrink-0 px-4 pb-3 sm:pb-5 pt-2 bg-gradient-to-t from-[#F8F9F5] via-[#F8F9F5]/85 to-transparent dark:from-[#121310] dark:via-[#121310]/85">
           <div className="max-w-2xl mx-auto">
-            <div className="glass-panel rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white/80 dark:bg-[#181915]/85 px-3.5 py-2.5 shadow-floating flex flex-col gap-1.5">
+            <div className="rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-white/95 dark:bg-[#181915]/95 backdrop-blur-md px-3.5 py-2.5 flex flex-col gap-1.5">
               <textarea
                 ref={textareaRef}
                 rows={1}
-                value={promptInput}
-                onChange={(e) => setPromptInput(e.target.value)}
+                value={chatPromptInput}
+                onChange={(e) => setChatPromptInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -1001,20 +864,23 @@ export function ChatPage() {
                   }
                 }}
                 placeholder="Message Plum..."
-                className="w-full resize-none border-0 bg-transparent text-sm text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none leading-relaxed max-h-40 overflow-y-auto scrollbar-clean"
+                className="w-full resize-none border-0 bg-transparent text-[13.5px] text-stone-900 dark:text-white placeholder-stone-400 focus:outline-none leading-relaxed max-h-36 overflow-y-auto scrollbar-clean"
               />
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[11px] text-stone-400 dark:text-stone-500 min-w-0">
-                  <Mail className="h-3 w-3 shrink-0" />
-                  <span className="truncate font-mono">{activeMailboxShort || 'mailbox'}</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs text-stone-400 dark:text-stone-500 min-w-0">
+                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate font-mono text-[11px]">{activeMailboxShort || 'mailbox'}</span>
                 </div>
 
-                {isGenerating ? (
+                {isChatGenerating ? (
                   <button
                     type="button"
-                    onClick={stopGeneration}
-                    className="focus-ring btn-interactive inline-flex h-8 items-center gap-1.5 rounded-full bg-stone-900 dark:bg-stone-100 text-white dark:text-stone-900 px-3 text-xs font-semibold"
+                    onClick={() => {
+                      playBack();
+                      stopChatGeneration();
+                    }}
+                    className="focus-ring btn-interactive shadow-none inline-flex h-8 items-center gap-1.5 rounded-full bg-stone-900 hover:bg-stone-800 active:bg-stone-950 dark:bg-stone-100 dark:hover:bg-stone-200 dark:active:bg-stone-300 text-white dark:text-stone-900 px-3 text-xs font-semibold shrink-0"
                     title="Stop generating"
                   >
                     <Square className="h-3 w-3 fill-current" />
@@ -1024,9 +890,9 @@ export function ChatPage() {
                   <button
                     type="button"
                     onClick={() => handleSendMessage()}
-                    disabled={!promptInput.trim()}
+                    disabled={!chatPromptInput.trim()}
                     aria-label="Send message"
-                    className="focus-ring btn-interactive flex h-8 w-8 items-center justify-center rounded-full bg-[#7E36B2] dark:bg-[#DBBFFF] text-white dark:text-[#121310] disabled:opacity-35 disabled:cursor-not-allowed shadow-xs"
+                    className="focus-ring btn-interactive shadow-none flex h-8 w-8 items-center justify-center rounded-full bg-[#7E36B2] hover:bg-[#6D2C9C] active:bg-[#5C207E] dark:bg-[#DBBFFF] dark:hover:bg-[#E8D5FF] dark:active:bg-[#C8A6FA] text-white dark:text-[#121310] disabled:opacity-35 disabled:cursor-not-allowed shrink-0"
                   >
                     <ArrowUp className="h-4 w-4" />
                   </button>

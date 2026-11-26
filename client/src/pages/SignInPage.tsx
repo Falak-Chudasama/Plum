@@ -6,7 +6,6 @@ import constants from '../constants/constants';
 import { api } from '../lib/api';
 import { usePlumStore } from '../store/usePlumStore';
 import { useToast } from '../components/ui/ToastProvider';
-import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { playEnter } from '../lib/sound';
 
@@ -53,9 +52,8 @@ export function SignInPage() {
       <div className="w-full max-w-md space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-3">
-          <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-white dark:bg-[#181915] p-2.5 shadow-floating border border-black/[0.06] dark:border-white/[0.08]">
-            <div className="absolute inset-0 rounded-3xl bg-[#B266E6]/10 blur-xl" />
-            <img src={plumLogo} alt="Plum" className="relative h-11 w-11 object-contain" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white dark:bg-[#181915] p-2.5 border border-black/[0.07] dark:border-white/[0.09]">
+            <img src={plumLogo} alt="Plum" className="h-9 w-9 object-contain" />
           </div>
 
           <div>
@@ -77,7 +75,7 @@ export function SignInPage() {
         )}
 
         {/* Auth Card */}
-        <Card radius="3xl" elevation="lift" className="p-7 space-y-6">
+        <Card radius="3xl" elevation="none" className="p-6 space-y-5">
           <div className="space-y-1">
             <h2 className="font-heading text-sm font-bold text-stone-900 dark:text-white">
               Access Your Workspace
@@ -91,7 +89,7 @@ export function SignInPage() {
           <button
             type="button"
             onClick={handleGoogleSignIn}
-            className="focus-ring w-full flex items-center justify-center gap-3 rounded-full border border-black/[0.1] dark:border-white/[0.12] bg-stone-900 hover:bg-stone-800 text-white dark:bg-white dark:hover:bg-stone-100 dark:text-stone-900 py-3 px-4 text-xs font-semibold shadow-soft transition active:scale-98"
+            className="focus-ring btn-interactive shadow-none w-full flex items-center justify-center gap-3 rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-stone-900 hover:bg-stone-800 active:bg-stone-950 text-white dark:bg-white dark:hover:bg-stone-200 dark:active:bg-stone-300 dark:text-stone-900 h-10 px-4 text-[13px] font-semibold"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path
@@ -124,7 +122,7 @@ export function SignInPage() {
                 type="button"
                 onClick={() => handleQuickLogin('falak.chudasama@somaiya.edu', 'Falak', 'Chudasama')}
                 disabled={isLoading}
-                className="focus-ring flex items-center justify-between rounded-2xl border border-black/[0.06] dark:border-white/[0.08] p-3 text-left text-xs hover:border-[#B266E6] hover:bg-[#B266E6]/5 transition disabled:opacity-50"
+                className="focus-ring btn-interactive shadow-none flex items-center justify-between rounded-2xl border border-black/[0.06] dark:border-white/[0.08] p-3 text-left text-xs hover:border-[#B266E6] hover:bg-[#B266E6]/5 disabled:opacity-50"
               >
                 <div>
                   <div className="font-semibold text-stone-900 dark:text-white">
@@ -141,7 +139,7 @@ export function SignInPage() {
                 type="button"
                 onClick={() => handleQuickLogin('falakchudasama7766@gmail.com', 'Falak', 'Chudasama')}
                 disabled={isLoading}
-                className="focus-ring flex items-center justify-between rounded-2xl border border-black/[0.06] dark:border-white/[0.08] p-3 text-left text-xs hover:border-[#B266E6] hover:bg-[#B266E6]/5 transition disabled:opacity-50"
+                className="focus-ring btn-interactive shadow-none flex items-center justify-between rounded-2xl border border-black/[0.06] dark:border-white/[0.08] p-3 text-left text-xs hover:border-[#B266E6] hover:bg-[#B266E6]/5 disabled:opacity-50"
               >
                 <div>
                   <div className="font-semibold text-stone-900 dark:text-white">

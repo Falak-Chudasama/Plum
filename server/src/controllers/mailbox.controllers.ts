@@ -24,13 +24,15 @@ export const getMailboxes = async (req: Request, res: Response) => {
 
         const mailboxes = await Mailbox.find({ userEmail }).sort({ isPrimary: -1, createdAt: 1 });
 
-        const formatted = mailboxes.map((m) => {
-            const hasTokens = Boolean(m.tokens?.access_token || m.tokens?.refresh_token);
+        const ttlDays = Math.max(1, Number(process.env.GOOGLE_REFRESH_TOKEN_TTL_DAYS || 7));
+        const ttlMs = ttlDays * 24 * 60 * 60 * 1000;
+
+        const formatted = await Promise.all(mailboxes.map(async (m) => {
             let tokenHealth: 'valid' | 'expiring_soon' | 'expired' | 'offline_permanent' = 'offline_permanent';
             let expiresInSeconds: number | null = null;
+            const now = Date.now();
 
             if (m.tokens?.expiry_date) {
-                const now = Date.now();
                 expiresInSeconds = Math.round((m.tokens.expiry_date - now) / 1000);
                 if (expiresInSeconds <= 0) {
                     tokenHealth = m.tokens.refresh_token ? 'valid' : 'expired';
@@ -42,6 +44,27 @@ export const getMailboxes = async (req: Request, res: Response) => {
             } else if (m.tokens?.refresh_token) {
                 tokenHealth = 'offline_permanent';
             }
+
+            if (m.status === 'expired' || m.status === 'revoked' || !m.tokens?.refresh_token) {
+                tokenHealth = 'expired';
+            }
+
+            let issuedDate = m.refreshTokenIssuedAt ? new Date(m.refreshTokenIssuedAt) : null;
+            if (!issuedDate) {
+                const created = new Date(m.createdAt || now);
+                issuedDate = (now - created.getTime()) < ttlMs ? created : new Date(now);
+                await Mailbox.updateOne(
+                    { _id: m._id, refreshTokenIssuedAt: { $exists: false } },
+                    { $set: { refreshTokenIssuedAt: issuedDate } }
+                ).catch(() => {});
+            }
+
+            const issuedMs = issuedDate.getTime();
+            const refreshExpiresMs = issuedMs + ttlMs;
+            const refreshRemainingSeconds =
+                m.status === 'expired' || m.status === 'revoked' || !m.tokens?.refresh_token
+                    ? 0
+                    : Math.max(0, Math.round((refreshExpiresMs - now) / 1000));
 
             return {
                 id: (m as any)._id.toString(),
@@ -55,9 +78,13 @@ export const getMailboxes = async (req: Request, res: Response) => {
                 expiryDate: m.tokens?.expiry_date || null,
                 expiresInSeconds,
                 tokenHealth,
+                refreshTokenIssuedAt: new Date(issuedMs).toISOString(),
+                refreshTokenExpiresAt: new Date(refreshExpiresMs).toISOString(),
+                refreshTokenRemainingSeconds: refreshRemainingSeconds,
+                refreshTokenTtlDays: ttlDays,
                 createdAt: m.createdAt,
             };
-        });
+        }));
 
         return res.status(200).json({
             mailboxes: formatted,
@@ -104,6 +131,10 @@ export const getMailboxStatus = async (req: Request, res: Response) => {
                 try {
                     const refreshed = await oauth2Client.refreshAccessToken();
                     mailbox.tokens.access_token = refreshed.credentials.access_token || mailbox.tokens.access_token;
+                    if (refreshed.credentials.refresh_token) {
+                        mailbox.tokens.refresh_token = refreshed.credentials.refresh_token;
+                        mailbox.refreshTokenIssuedAt = new Date();
+                    }
                     mailbox.tokens.expiry_date = refreshed.credentials.expiry_date || mailbox.tokens.expiry_date;
                     mailbox.status = 'connected';
                     await mailbox.save();
@@ -258,22 +289,31 @@ export const refreshMailboxToken = async (req: Request, res: Response) => {
             const refreshed = await oauth2Client.refreshAccessToken();
             const newAccessToken = refreshed.credentials.access_token;
             const newExpiryDate = refreshed.credentials.expiry_date;
+            const newRefreshToken = refreshed.credentials.refresh_token;
 
             mailbox.tokens.access_token = newAccessToken || mailbox.tokens.access_token;
             mailbox.tokens.expiry_date = newExpiryDate || mailbox.tokens.expiry_date;
+            if (newRefreshToken) {
+                mailbox.tokens.refresh_token = newRefreshToken;
+                mailbox.refreshTokenIssuedAt = new Date();
+            }
             mailbox.status = 'connected';
             await mailbox.save();
+
+            const multiSet: Record<string, any> = {
+                'tokens.access_token': newAccessToken,
+                'tokens.expiry_date': newExpiryDate,
+                status: 'connected',
+            };
+            if (newRefreshToken) {
+                multiSet['tokens.refresh_token'] = newRefreshToken;
+                multiSet['refreshTokenIssuedAt'] = mailbox.refreshTokenIssuedAt;
+            }
 
             // Also update any matching User records or other mailbox references
             await Mailbox.updateMany(
                 { email: mailbox.email },
-                {
-                    $set: {
-                        'tokens.access_token': newAccessToken,
-                        'tokens.expiry_date': newExpiryDate,
-                        status: 'connected',
-                    }
-                }
+                { $set: multiSet }
             );
 
             await User.updateOne(
@@ -295,6 +335,7 @@ export const refreshMailboxToken = async (req: Request, res: Response) => {
             });
         } catch (refreshErr: any) {
             // Refresh token is revoked or expired (e.g. invalid_grant)
+            await Mailbox.updateMany({ email: mailbox.email }, { $set: { status: 'expired' } }).catch(() => {});
             mailbox.status = 'expired';
             await mailbox.save();
 

@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../ui/ThemeProvider';
 import { usePlumStore } from '../../store/usePlumStore';
-import { playEnter, playScroll } from '../../lib/sound';
+import { api } from '../../lib/api';
+import { playEnter, playPageNav, playScroll } from '../../lib/sound';
 
 const plumLogo = 'https://basket.jam/icons/plum-icon.svg';
 
@@ -30,8 +31,19 @@ const NAV_ITEMS = [
 
 export function Header() {
   const { isDark, toggleTheme } = useTheme();
-  const { user, mailboxes, activeMailbox, setActiveMailbox, openComposer, logout } = usePlumStore();
+  const {
+    user,
+    mailboxes,
+    activeMailbox,
+    activeChatId,
+    setActiveMailbox,
+    openComposer,
+    logout,
+  } = usePlumStore();
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
+
+  const getNavDestination = (to: string) =>
+    to === '/chat' && activeChatId ? `/chat?id=${encodeURIComponent(activeChatId)}` : to;
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navContainerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
@@ -92,19 +104,19 @@ export function Header() {
           e.preventDefault();
           const prevIndex = (activeIdx - 1 + NAV_ITEMS.length) % NAV_ITEMS.length;
           playScroll();
-          navigate(NAV_ITEMS[prevIndex].to);
+          navigate(getNavDestination(NAV_ITEMS[prevIndex].to));
         } else if (e.key === 'ArrowRight') {
           e.preventDefault();
           const nextIndex = (activeIdx + 1) % NAV_ITEMS.length;
           playScroll();
-          navigate(NAV_ITEMS[nextIndex].to);
+          navigate(getNavDestination(NAV_ITEMS[nextIndex].to));
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, activeChatId]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -120,7 +132,7 @@ export function Header() {
   const activeAccountObj = mailboxes.find((m) => m.email === activeMailbox);
 
   const handleNavClick = () => {
-    playScroll();
+    playPageNav();
   };
 
   const handleCompose = () => {
@@ -150,7 +162,7 @@ export function Header() {
             onClick={handleNavClick}
             className="focus-ring flex items-center gap-2 rounded-full pr-1.5 transition hover:opacity-90 shrink-0"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-stone-800 p-1 shadow-2xs border border-black/[0.05] dark:border-white/[0.08]">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-stone-800 p-1 shadow-none border border-black/[0.06] dark:border-white/[0.08]">
               <img src={plumLogo} alt="Plum" className="h-6 w-6 object-contain" />
             </div>
             <span className="font-display text-sm font-black text-stone-900 dark:text-white tracking-tight">
@@ -161,9 +173,9 @@ export function Header() {
           {/* Navigation Links with Smooth Indicator & SFX */}
           <nav className="flex items-center gap-1" aria-label="Primary Desktop Navigation">
             <div ref={navContainerRef} className="relative flex items-center gap-1">
-              {/* Dynamic Sliding Active Indicator Pill (Section 2.9 & 5.6: 300ms cubic-bezier(0.2, 0.8, 0.2, 1)) */}
+              {/* Dynamic Sliding Active Indicator Pill */}
               <div
-                className={`absolute rounded-full bg-stone-900 dark:bg-stone-100 shadow-xs pointer-events-none ${
+                className={`absolute rounded-full bg-stone-900 dark:bg-stone-100 pointer-events-none ${
                   isReady ? 'transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]' : ''
                 }`}
                 style={{
@@ -179,7 +191,7 @@ export function Header() {
               {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
                 <NavLink
                   key={to}
-                  to={to}
+                  to={getNavDestination(to)}
                   ref={(el) => {
                     itemRefs.current[to] = el;
                   }}
@@ -199,13 +211,13 @@ export function Header() {
             </div>
           </nav>
 
-          {/* Actions: Compose, Accounts, Sound Toggle, Theme Toggle */}
-          <div className="flex items-center gap-2">
-            {/* Compose Button (Plum Accessible Primary Action #7E36B2) */}
+          {/* Actions: Compose, Accounts, Theme Toggle */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Compose Button (100% flat, zero shadow/glow) */}
             <button
               type="button"
               onClick={handleCompose}
-              className="focus-ring btn-interactive inline-flex items-center gap-1.5 rounded-full bg-[#7E36B2] hover:bg-[#8F40C7] text-white px-3.5 py-1.5 text-xs font-bold shadow-xs transition"
+              className="focus-ring btn-interactive shadow-none inline-flex items-center gap-1.5 rounded-full bg-[#7E36B2] hover:bg-[#6D2C9C] active:bg-[#5C207E] dark:bg-[#DBBFFF] dark:hover:bg-[#E8D5FF] dark:active:bg-[#C8A6FA] text-white dark:text-[#121310] px-3.5 h-8 text-xs font-semibold"
             >
               <PenSquare className="h-3.5 w-3.5" />
               <span>Compose</span>
@@ -216,7 +228,7 @@ export function Header() {
               <button
                 type="button"
                 onClick={() => setIsAccountDropdownOpen((prev) => !prev)}
-                className="focus-ring flex items-center gap-2 rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-white/80 dark:bg-stone-800/80 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] px-2.5 py-1 text-xs transition shadow-2xs"
+                className="focus-ring btn-interactive shadow-none flex items-center gap-2 rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-white/90 dark:bg-stone-800/90 hover:bg-stone-100 dark:hover:bg-stone-700/70 active:bg-stone-200/70 dark:active:bg-stone-700 px-2.5 h-8 text-xs"
                 title={`Active Mailbox: ${activeMailbox || 'None'}`}
               >
                 <div className="relative inline-flex shrink-0">
@@ -299,7 +311,28 @@ export function Header() {
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             {isExpired && (
-                              <span className="rounded-lg bg-amber-500/15 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  playEnter();
+                                  try {
+                                    const url = await api.getConnectUrl(mb.email);
+                                    if (url) {
+                                      window.location.href = url;
+                                      return;
+                                    }
+                                  } catch {}
+                                  window.location.href = `https://api.plum.jam/user/mailboxes/connect?mailboxEmail=${encodeURIComponent(mb.email)}`;
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    (e.currentTarget as HTMLElement).click();
+                                  }
+                                }}
+                                className="rounded-lg bg-rose-500/12 border border-rose-500/25 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition"
+                              >
                                 Reauth
                               </span>
                             )}
@@ -337,11 +370,11 @@ export function Header() {
 
             <div className="mx-0.5 h-4 w-px bg-stone-200 dark:bg-stone-700" aria-hidden="true" />
 
-            {/* Dark/Light Mode Switcher with Tactile Hover Transforms */}
+            {/* Dark/Light Mode Switcher */}
             <button
               type="button"
               onClick={handleThemeToggle}
-              className="focus-ring flex h-8 w-8 items-center justify-center rounded-full text-stone-600 dark:text-stone-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition"
+              className="focus-ring btn-interactive shadow-none flex h-8 w-8 items-center justify-center rounded-full text-stone-600 dark:text-stone-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] active:bg-black/[0.09] dark:active:bg-white/[0.12]"
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
@@ -358,7 +391,7 @@ export function Header() {
       {/* Mobile Top Header Bar (Fixed at top-0, stationary during scroll) */}
       <header className="fixed top-0 inset-x-0 z-40 flex items-center justify-between border-b border-black/[0.05] dark:border-white/[0.08] bg-white/95 dark:bg-[#181915]/95 px-4 py-3 backdrop-blur-md transition-colors duration-200 sm:hidden">
         <Link to="/inbox" onClick={handleNavClick} className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white dark:bg-stone-800 p-0.5 shadow-2xs border border-black/[0.05] dark:border-white/[0.08]">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white dark:bg-stone-800 p-0.5 shadow-none border border-black/[0.06] dark:border-white/[0.08]">
             <img src={plumLogo} alt="Plum" className="h-5 w-5 object-contain" />
           </div>
           <span className="font-display text-sm font-extrabold text-stone-900 dark:text-white">Plum</span>
@@ -374,7 +407,7 @@ export function Header() {
           <button
             type="button"
             onClick={handleCompose}
-            className="flex h-8 w-8 min-h-[32px] min-w-[32px] items-center justify-center rounded-full bg-[#7E36B2] text-white shadow-xs"
+            className="focus-ring btn-interactive shadow-none flex h-8 w-8 items-center justify-center rounded-full bg-[#7E36B2] hover:bg-[#6D2C9C] active:bg-[#5C207E] dark:bg-[#DBBFFF] dark:hover:bg-[#E8D5FF] dark:active:bg-[#C8A6FA] text-white dark:text-[#121310]"
             aria-label="Compose"
           >
             <PenSquare className="h-4 w-4" />
@@ -383,7 +416,7 @@ export function Header() {
           <button
             type="button"
             onClick={handleThemeToggle}
-            className="focus-ring flex h-8 w-8 min-h-[32px] min-w-[32px] items-center justify-center rounded-full text-stone-600 dark:text-stone-300"
+            className="focus-ring btn-interactive shadow-none flex h-8 w-8 min-h-[32px] min-w-[32px] items-center justify-center rounded-full text-stone-600 dark:text-stone-300 hover:bg-black/[0.05] dark:hover:bg-white/[0.08]"
             aria-label="Toggle theme"
           >
             {isDark ? <Sun className="h-4 w-4 text-[#DBBFFF]" /> : <Moon className="h-4 w-4 text-[#7E36B2]" />}
@@ -393,13 +426,13 @@ export function Header() {
 
       {/* Mobile Floating Bottom Dock (Section 4.1 & 6.3 - 48dp Touch Targets) */}
       <nav
-        className="fixed bottom-3 inset-x-3 z-50 flex justify-around rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-[#181915]/95 py-1 px-1 shadow-lift backdrop-blur-lg transition-colors duration-200 sm:hidden"
+        className="fixed bottom-3 inset-x-3 z-40 flex justify-around rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-[#181915]/95 py-1 px-1 shadow-lift backdrop-blur-lg transition-colors duration-200 sm:hidden"
         aria-label="Primary Mobile Navigation"
       >
         {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
-            to={to}
+            to={getNavDestination(to)}
             onClick={handleNavClick}
             className={({ isActive }) =>
               `flex min-h-[48px] flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-1 text-[10px] font-semibold transition ${

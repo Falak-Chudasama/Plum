@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import http from "http";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import logger from "../utils/logger.utils";
 import { handleChatPrompt } from "../ai/services/chat.service";
 import User from "../models/user.models";
@@ -152,7 +153,20 @@ clientWss.on("connection", async (socket: AuthenticatedWebSocket, req: http.Inco
                     resolvedChatId = socket.activeChatId;
                 }
 
+                if (!resolvedChatId) {
+                    resolvedChatId = new mongoose.Types.ObjectId().toString();
+                }
+
                 socket.activeChatId = resolvedChatId;
+                const turnId = message.turnId ? String(message.turnId).trim() : undefined;
+
+                if (socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({
+                        type: "SYSTEM",
+                        subtype: "SESSION",
+                        chatId: resolvedChatId,
+                    }));
+                }
 
                 await handleChatPrompt({
                     prompt,
@@ -164,6 +178,7 @@ clientWss.on("connection", async (socket: AuthenticatedWebSocket, req: http.Inco
                         lastName: socket.userLastName,
                     },
                     chatId: resolvedChatId,
+                    turnId,
                     socket,
                 });
             }

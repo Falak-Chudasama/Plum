@@ -59,7 +59,10 @@ export const createOAuthClientForMailbox = async (
             try {
                 const updateFields: any = {};
                 if (newTokens.access_token) updateFields["tokens.access_token"] = newTokens.access_token;
-                if (newTokens.refresh_token) updateFields["tokens.refresh_token"] = newTokens.refresh_token;
+                if (newTokens.refresh_token) {
+                    updateFields["tokens.refresh_token"] = newTokens.refresh_token;
+                    updateFields["refreshTokenIssuedAt"] = new Date();
+                }
                 if (newTokens.id_token) updateFields["tokens.id_token"] = newTokens.id_token;
                 if (newTokens.expiry_date) updateFields["tokens.expiry_date"] = newTokens.expiry_date;
                 updateFields["status"] = "connected";
@@ -132,6 +135,15 @@ const authenticateUserGoogle = async (req: Request, res: Response, next: NextFun
 
         next();
     } catch (err: any) {
+        const msg = String(err?.message || '');
+        if (msg.toLowerCase().includes('no google credentials') || msg.toLowerCase().includes('invalid_grant')) {
+            return res.status(401).json({
+                success: false,
+                code: 'TOKEN_EXPIRED',
+                needsReauthorization: true,
+                error: msg || 'Google authorization expired. Please reauthorize.',
+            });
+        }
         handleError(filePath, "authenticateUserGoogle", res, err, "Authenticating user with Google tokens", 401);
     }
 };

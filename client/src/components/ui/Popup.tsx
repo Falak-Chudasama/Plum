@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { playBack } from '../../lib/sound';
 
@@ -46,18 +47,18 @@ export function Popup({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
   const handleClose = () => {
     playBack();
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Dimmed backdrop scrim with optical blur (Section 2.9: 150ms ease-out) */}
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      {/* Dimmed full-viewport backdrop scrim blurring navbar & dock (Section 2.9: 150ms ease-out) */}
       <div
-        className="fixed inset-0 bg-stone-900/45 dark:bg-black/60 backdrop-blur-sm transition-opacity animate-fade-in"
+        className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-md transition-opacity animate-fade-in"
         onClick={handleClose}
         aria-hidden="true"
       />
@@ -101,6 +102,7 @@ export function Popup({
 
         {footer && <div className="mt-6 flex items-center justify-end gap-3">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

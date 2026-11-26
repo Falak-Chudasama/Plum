@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/TextField';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { TokenExpiredBanner } from '../components/features/TokenExpiredBanner';
 import { playEnter } from '../lib/sound';
 
 export function SentPage() {
@@ -81,6 +82,7 @@ export function SentPage() {
       }
     >
       <div className="space-y-3.5">
+        <TokenExpiredBanner />
         <div className="max-w-sm">
           <TextField
             value={searchQuery}
@@ -88,7 +90,6 @@ export function SentPage() {
             onClear={() => setSearchQuery('')}
             placeholder="Search sent..."
             icon={<Search />}
-            className="!min-h-[40px] !py-2"
           />
         </div>
 
@@ -98,10 +99,10 @@ export function SentPage() {
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-18 rounded-2xl border border-black/[0.05] dark:border-white/[0.06] bg-white/60 dark:bg-[#181915]/60 animate-pulse p-4 flex items-center gap-3.5"
+                className="h-[72px] rounded-2xl border border-black/[0.06] dark:border-white/[0.07] bg-white/70 dark:bg-[#181915]/70 animate-pulse p-4 flex items-center gap-3.5"
               >
-                <div className="h-9 w-9 rounded-full bg-stone-200 dark:bg-stone-800 shrink-0" />
-                <div className="flex-1 space-y-2">
+                <div className="h-9 w-9 rounded-xl bg-stone-200 dark:bg-stone-800 shrink-0" />
+                <div className="flex-1 space-y-2 min-w-0">
                   <div className="h-3 w-1/4 rounded bg-stone-200 dark:bg-stone-800" />
                   <div className="h-2.5 w-2/3 rounded bg-stone-200 dark:bg-stone-800" />
                 </div>
@@ -109,11 +110,11 @@ export function SentPage() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <Card radius="3xl" elevation="soft" className="p-10 text-center">
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
+          <Card radius="3xl" elevation="none" className="p-10 text-center">
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF]">
               <Send className="h-5 w-5" />
             </div>
-            <h3 className="mt-3 text-sm font-bold text-stone-900 dark:text-white">
+            <h3 className="mt-3 text-sm font-semibold text-stone-900 dark:text-white">
               {searchQuery ? 'No matching sent messages' : 'No sent messages today'}
             </h3>
             <div className="mt-4 flex justify-center">
@@ -123,31 +124,31 @@ export function SentPage() {
             </div>
           </Card>
         ) : (
-          <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-[#181915] shadow-soft divide-y divide-black/[0.04] dark:divide-white/[0.06] overflow-hidden">
+          <div className="rounded-2xl border border-black/[0.07] dark:border-white/[0.08] bg-white dark:bg-[#181915] divide-y divide-black/[0.05] dark:divide-white/[0.06] overflow-hidden">
             {filtered.map((item, idx) => (
               <div
                 key={item._id || idx}
-                className="row-interactive flex items-start gap-3.5 p-4 sm:p-5 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
+                className="row-interactive flex items-start gap-3.5 p-4 hover:bg-stone-50 dark:hover:bg-white/[0.03] min-w-0"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF] text-xs font-bold">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#B266E6]/10 text-[#7E36B2] dark:text-[#DBBFFF] mt-0.5">
                   <Send className="h-4 w-4" />
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-stone-900 dark:text-white truncate">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <span className="text-[13.5px] font-semibold text-stone-900 dark:text-white truncate">
                       To: {item.to?.join(', ') || 'No recipient'}
                     </span>
-                    <span className="text-[10px] text-stone-400 dark:text-stone-500 shrink-0">
+                    <span className="text-[11px] text-stone-400 dark:text-stone-500 shrink-0 font-medium">
                       {item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                     </span>
                   </div>
 
-                  <div className="text-xs font-semibold text-stone-800 dark:text-stone-200 truncate mt-0.5">
+                  <div className="text-[13px] font-medium text-stone-800 dark:text-stone-200 truncate mt-0.5">
                     {item.subject || '(No Subject)'}
                   </div>
 
-                  <p className="text-[10px] text-stone-500 dark:text-stone-400 line-clamp-1 mt-0.5">
+                  <p className="text-xs text-stone-500 dark:text-stone-400 line-clamp-1 mt-0.5 break-words">
                     {item.body || 'No text preview.'}
                   </p>
 

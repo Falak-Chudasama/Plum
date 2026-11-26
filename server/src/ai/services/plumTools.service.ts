@@ -32,7 +32,22 @@ export interface PlumToolExecutionResult {
     categoriesChanged?: boolean;
     notesChanged?: boolean;
     emailsChanged?: boolean;
+    tokenExpired?: boolean;
+    mailboxEmail?: string;
     terminate?: boolean;
+}
+
+function isGoogleAuthFailure(err: any): boolean {
+    const status = err?.code || err?.status || err?.response?.status;
+    const raw = `${err?.message || ""} ${JSON.stringify(err?.response?.data || "")}`.toLowerCase();
+    return (
+        status === 401 ||
+        raw.includes("invalid_grant") ||
+        raw.includes("invalid_token") ||
+        raw.includes("no google credentials") ||
+        raw.includes("invalid credentials") ||
+        raw.includes("token has been expired or revoked")
+    );
 }
 
 export const PLUM_AGENT_TOOLS = [
@@ -715,12 +730,18 @@ async function execSendEmail(args: any, ctx: PlumToolContext): Promise<PlumToolE
         };
     } catch (err: any) {
         logger.error(`[PlumTools] send_email failed: ${err.message}`);
+        const tokenExpired = isGoogleAuthFailure(err);
+        if (tokenExpired) {
+            await Mailbox.updateMany({ email: ctx.activeMailbox }, { $set: { status: 'expired' } }).catch(() => {});
+        }
         return {
             success: false,
             label: "Send failed",
             summary: err.message || "Could not send email via Gmail OAuth",
+            tokenExpired,
+            mailboxEmail: ctx.activeMailbox,
             data: {
-                error: err.message || "Gmail authorization missing or expired. You can inspect or send from the composer.",
+                error: err.message || "Gmail authorization missing or expired. Reauthorize in Accounts.",
             },
         };
     }
@@ -770,10 +791,16 @@ async function execSyncGmail(args: any, ctx: PlumToolContext): Promise<PlumToolE
         };
     } catch (err: any) {
         logger.error(`[PlumTools] sync_gmail failed: ${err.message}`);
+        const tokenExpired = isGoogleAuthFailure(err);
+        if (tokenExpired) {
+            await Mailbox.updateMany({ email: ctx.activeMailbox }, { $set: { status: 'expired' } }).catch(() => {});
+        }
         return {
             success: false,
             label: "Gmail sync failed",
             summary: err.message || "Gmail credentials may need renewal",
+            tokenExpired,
+            mailboxEmail: ctx.activeMailbox,
             data: { error: err.message || "Gmail sync failed" },
         };
     }

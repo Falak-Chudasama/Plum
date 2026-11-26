@@ -113,6 +113,7 @@ export interface ChatProcessOptions {
     chatCount: number;
     user: ChatUserContext;
     chatId?: string | null;
+    turnId?: string;
     socket: ChatMessageSender;
     abortSignal?: AbortSignal;
 }
@@ -130,36 +131,251 @@ const TOOL_STATUS_LABELS: Record<string, string> = {
     respond_to_user: "Writing response...",
 };
 
+function formatAssistantTurnContext(content: string, craftedMail?: any, toolEvents?: any[]): string {
+    const parts: string[] = [];
+    const text = String(content || "").trim();
+    if (text) {
+        parts.push(text.slice(0, 2200));
+    }
+    if (craftedMail && (craftedMail.subject || craftedMail.body || craftedMail.to)) {
+        const recipients = Array.isArray(craftedMail.to)
+            ? craftedMail.to.join(", ")
+            : String(craftedMail.to || "");
+        const status = craftedMail.status || "crafted";
+        const bodySnippet = String(craftedMail.body || "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 700);
+        parts.push(
+            `[Attached email draft (${status}): To: ${recipients || "unspecified"} | Subject: ${craftedMail.subject || "No Subject"} | Body: ${bodySnippet}]`
+        );
+    }
+    if (Array.isArray(toolEvents) && toolEvents.length > 0) {
+        const toolLine = toolEvents
+            .slice(0, 6)
+            .map((t: any) => `${t.tool}(${t.success ? "ok" : "failed"}${t.summary ? `: ${String(t.summary).slice(0, 120)}` : ""})`)
+            .join("; ");
+        parts.push(`[Tools: ${toolLine}]`);
+    }
+    return parts.join("\n").slice(0, 2800);
+}
+
 function buildConversationMessages(existingChat: any): BasketMessage[] {
     if (!existingChat) return [];
 
     if (Array.isArray(existingChat.messages) && existingChat.messages.length > 0) {
-        return existingChat.messages
-            .filter((m: any) => (m.role === "user" || m.role === "assistant") && m.content)
-            .slice(-6)
-            .map((m: any) => ({
-                role: m.role as "user" | "assistant",
-                content: String(m.content).slice(0, 1200),
-            }));
+        const formatted: BasketMessage[] = [];
+        for (const m of existingChat.messages) {
+            if (m.role === "user") {
+                const text = String(m.content || "").trim();
+                if (text) formatted.push({ role: "user", content: text.slice(0, 2000) });
+            } else if (m.role === "assistant") {
+                const enriched = formatAssistantTurnContext(m.content, m.craftedMail, m.toolEvents);
+                if (enriched) formatted.push({ role: "assistant", content: enriched });
+            }
+        }
+        return formatted.slice(-10);
     }
 
     const history: BasketMessage[] = [];
     const prompts = existingChat.userPrompts || [];
     const responses = existingChat.responses || [];
-    const startIdx = Math.max(0, Math.max(prompts.length, responses.length) - 3);
-    for (let i = startIdx; i < Math.max(prompts.length, responses.length); i++) {
+    const totalTurns = Math.max(prompts.length, responses.length);
+    const startIdx = Math.max(0, totalTurns - 5);
+    for (let i = startIdx; i < totalTurns; i++) {
         if (prompts[i]?.prompt) {
-            history.push({ role: "user", content: String(prompts[i].prompt).slice(0, 800) });
+            history.push({ role: "user", content: String(prompts[i].prompt).slice(0, 2000) });
         }
-        if (responses[i]?.response) {
-            history.push({ role: "assistant", content: String(responses[i].response).slice(0, 1200) });
+        const resp = responses[i];
+        if (resp) {
+            const enriched = formatAssistantTurnContext(resp.response || "", resp.craftedMail, resp.toolEvents);
+            if (enriched) {
+                history.push({ role: "assistant", content: enriched });
+            }
         }
     }
-    return history;
+    return history.slice(-10);
+}
+
+function buildLegacyMessagesArray(existingChat: any, fallbackNow: string): any[] {
+    const legacyMsgs: any[] = [];
+    const pArr = existingChat?.userPrompts || [];
+    const rArr = existingChat?.responses || [];
+    const maxLen = Math.max(pArr.length, rArr.length);
+    for (let i = 0; i < maxLen; i++) {
+        if (pArr[i]?.prompt) {
+            legacyMsgs.push({
+                role: "user",
+                content: String(pArr[i].prompt),
+                created_at: existingChat?.created_at || fallbackNow,
+            });
+        }
+        if (rArr[i]?.response || rArr[i]?.craftedMail) {
+            legacyMsgs.push({
+                role: "assistant",
+                content: String(rArr[i].response || ""),
+                ...(rArr[i].craftedMail ? { craftedMail: rArr[i].craftedMail } : {}),
+                ...(rArr[i].thought && rArr[i].thought !== "<no_thoughts>" ? { thought: rArr[i].thought } : {}),
+                created_at: existingChat?.created_at || fallbackNow,
+            });
+        }
+    }
+    return legacyMsgs;
+}
+
+async function persistConversationTurn(params: {
+    existingChat: any;
+    chatId?: string | null;
+    turnId?: string;
+    userEmail: string;
+    activeMailbox: string;
+    prompt: string;
+    userMsgEntry: any;
+    assistantMsgEntry: any;
+    generatedTitle: string;
+    isUntitled: boolean;
+    socket: ChatMessageSender;
+}): Promise<{ savedChatId: string | undefined; finalTitle: string }> {
+    const {
+        chatId,
+        turnId,
+        userEmail,
+        activeMailbox,
+        prompt,
+        userMsgEntry,
+        assistantMsgEntry,
+        generatedTitle,
+        isUntitled,
+        socket,
+    } = params;
+    let existingChat = params.existingChat;
+    const nowFormatted = formatDateTime();
+
+    const pushTurnToExistingChat = async (doc: any) => {
+        if (
+            turnId &&
+            Array.isArray(doc.messages) &&
+            doc.messages.some((m: any) => m?.turnId && m.turnId === turnId)
+        ) {
+            return {
+                savedChatId: doc._id.toString(),
+                finalTitle: doc.title || generatedTitle || "New Chat",
+            };
+        }
+
+        const updateDoc: any = {
+            $inc: { messageCount: 1 },
+            $set: {
+                updated_at: nowFormatted,
+                lastMessageAt: new Date(),
+                mailboxEmail: activeMailbox,
+                ...(!doc.email ? { email: userEmail } : {}),
+            },
+        };
+
+        const hasLegacyOnly =
+            (!Array.isArray(doc.messages) || doc.messages.length === 0) &&
+            ((doc.userPrompts?.length || 0) > 0 || (doc.responses?.length || 0) > 0);
+
+        if (hasLegacyOnly) {
+            const legacyMsgs = buildLegacyMessagesArray(doc, nowFormatted);
+            updateDoc.$set.messages = [...legacyMsgs, userMsgEntry, assistantMsgEntry];
+        } else {
+            updateDoc.$push = {
+                messages: { $each: [userMsgEntry, assistantMsgEntry] },
+            };
+        }
+
+        let resolvedTitle = doc.title || "New Chat";
+        if (generatedTitle && isUntitled) {
+            updateDoc.$set.title = generatedTitle;
+            resolvedTitle = generatedTitle;
+        }
+
+        const guardFilter: any = { _id: doc._id };
+        if (turnId) {
+            guardFilter["messages.turnId"] = { $ne: turnId };
+        }
+
+        const updated = await Chats.findOneAndUpdate(guardFilter, updateDoc, { new: true });
+        if (!updated) {
+            const current: any = await Chats.findById(doc._id).select("title").lean();
+            return {
+                savedChatId: doc._id.toString(),
+                finalTitle: current?.title || resolvedTitle,
+            };
+        }
+
+        return {
+            savedChatId: updated._id.toString(),
+            finalTitle: updated.title || resolvedTitle,
+        };
+    };
+
+    if (!existingChat && chatId) {
+        existingChat = await resolveAuthorizedChat(chatId, userEmail);
+    }
+
+    let result: { savedChatId: string | undefined; finalTitle: string };
+    if (existingChat) {
+        result = await pushTurnToExistingChat(existingChat);
+    } else {
+        const candidateId =
+            chatId && mongoose.Types.ObjectId.isValid(chatId)
+                ? new mongoose.Types.ObjectId(chatId)
+                : new mongoose.Types.ObjectId();
+
+        // Check collision before creating so same-user concurrent races merge instead of minting duplicate ObjectIds
+        const existingCollision = await Chats.findById(candidateId).select("_id").lean();
+        if (existingCollision) {
+            const authorizedExisting = await resolveAuthorizedChat(candidateId.toString(), userEmail);
+            if (!authorizedExisting) {
+                throw new Error("Unauthorized chat session ID");
+            }
+            result = await pushTurnToExistingChat(authorizedExisting);
+        } else {
+            try {
+                const fallbackTitle = generatedTitle || prompt.slice(0, 42).trim() || "New Chat";
+                const newChat = await Chats.create({
+                    _id: candidateId,
+                    session_id: candidateId.toString(),
+                    title: fallbackTitle,
+                    application: "plum",
+                    email: userEmail,
+                    mailboxEmail: activeMailbox,
+                    messages: [userMsgEntry, assistantMsgEntry],
+                    messageCount: 1,
+                    lastMessageAt: new Date(),
+                    created_at: nowFormatted,
+                    updated_at: nowFormatted,
+                });
+                result = {
+                    savedChatId: newChat._id.toString(),
+                    finalTitle: newChat.title,
+                };
+            } catch (createErr: any) {
+                if (createErr?.code === 11000) {
+                    const raced = await resolveAuthorizedChat(candidateId.toString(), userEmail);
+                    if (raced) {
+                        result = await pushTurnToExistingChat(raced);
+                    } else {
+                        throw createErr;
+                    }
+                } else {
+                    throw createErr;
+                }
+            }
+        }
+    }
+
+    if (socket && result.savedChatId) {
+        (socket as any).activeChatId = result.savedChatId;
+    }
+    return result;
 }
 
 export async function handleChatPrompt(options: ChatProcessOptions): Promise<void> {
-    const { prompt, chatCount, user, chatId, socket, abortSignal } = options;
+    const { prompt, chatCount, user, chatId, turnId, socket, abortSignal } = options;
     const userEmail = user.email;
 
     const safeSend = (payload: any) => {
@@ -209,11 +425,59 @@ export async function handleChatPrompt(options: ChatProcessOptions): Promise<voi
             });
         }
 
-        // 2. Load existing chat history
+        // 2. Load existing chat history & check turn idempotency
         let existingChat: any = null;
         if (chatId) {
             existingChat = await resolveAuthorizedChat(chatId, userEmail);
         }
+
+        if (turnId && Array.isArray(existingChat?.messages)) {
+            const dupAsst = existingChat.messages.find(
+                (m: any) => m?.role === "assistant" && m?.turnId === turnId
+            );
+            if (dupAsst) {
+                if (dupAsst.craftedMail) {
+                    safeSend({
+                        type: "SYSTEM",
+                        subtype: "EMAIL",
+                        message: "Draft loaded",
+                        email: dupAsst.craftedMail,
+                        done: true,
+                        success: true,
+                    });
+                }
+                if (Array.isArray(dupAsst.toolEvents)) {
+                    for (const ev of dupAsst.toolEvents) {
+                        safeSend({
+                            type: "SYSTEM",
+                            subtype: "TOOL_RESULT",
+                            tool: ev.tool,
+                            label: ev.label,
+                            summary: ev.summary,
+                            success: Boolean(ev.success),
+                        });
+                    }
+                }
+                if (dupAsst.content) {
+                    safeSend({
+                        type: "RESPONSE",
+                        response: dupAsst.content,
+                        model: "basket",
+                        done: false,
+                    });
+                }
+                safeSend({
+                    type: "RESPONSE_COMPLETE",
+                    chatId: existingChat._id.toString(),
+                    title: existingChat.title || "New Chat",
+                    done: true,
+                    success: true,
+                    deduplicated: true,
+                });
+                return;
+            }
+        }
+
         const historyMessages = buildConversationMessages(existingChat);
         const conversationContext = historyMessages.map((m) => `${m.role === "user" ? "User" : "Plum"}: ${m.content}`).join("\n");
 
@@ -272,8 +536,48 @@ Rules:
         const toolEvents: IChatToolEvent[] = [];
         const executedActionsSummary: string[] = [];
         let lastCraftedMail: any = null;
+        let fullAssistantResponse = "";
 
-        for (let step = 0; step < MAX_AGENT_STEPS; step++) {
+        const isUntitled =
+            !existingChat ||
+            !existingChat.title ||
+            existingChat.title === "New Chat" ||
+            existingChat.title === "New Conversation" ||
+            existingChat.title === "Untitled Conversation";
+
+        const buildTurnEntries = () => {
+            const nowFormatted = formatDateTime();
+            const userMsgEntry: any = {
+                role: "user" as const,
+                content: prompt,
+                created_at: nowFormatted,
+                ...(turnId ? { turnId } : {}),
+            };
+            const assistantMsgEntry: any = {
+                role: "assistant" as const,
+                content: fullAssistantResponse,
+                created_at: formatDateTime(),
+                ...(turnId ? { turnId } : {}),
+            };
+            if (lastCraftedMail) {
+                assistantMsgEntry.craftedMail = lastCraftedMail;
+            }
+            if (toolEvents.length > 0) {
+                assistantMsgEntry.toolEvents = toolEvents;
+            }
+            if (relevantNotes.length > 0) {
+                assistantMsgEntry.ragNotes = relevantNotes.map((n) => ({
+                    id: n.id,
+                    title: n.title,
+                    denseScore: n.denseScore,
+                    bm25Score: n.bm25Score,
+                }));
+            }
+            return { userMsgEntry, assistantMsgEntry };
+        };
+
+        try {
+            for (let step = 0; step < MAX_AGENT_STEPS; step++) {
             if (abortSignal?.aborted) break;
 
             safeSend({
@@ -349,6 +653,8 @@ Rules:
                 categoriesChanged: Boolean(execResult.categoriesChanged),
                 notesChanged: Boolean(execResult.notesChanged),
                 emailsChanged: Boolean(execResult.emailsChanged),
+                tokenExpired: Boolean(execResult.tokenExpired),
+                mailboxEmail: execResult.mailboxEmail || activeMailbox,
             });
 
             const boundedData = JSON.stringify(execResult.data).slice(0, 6000);
@@ -380,6 +686,22 @@ Rules:
         }
 
         if (abortSignal?.aborted) {
+            if (fullAssistantResponse.trim() || lastCraftedMail || toolEvents.length > 0) {
+                const { userMsgEntry, assistantMsgEntry } = buildTurnEntries();
+                await persistConversationTurn({
+                    existingChat,
+                    chatId,
+                    turnId,
+                    userEmail,
+                    activeMailbox,
+                    prompt,
+                    userMsgEntry,
+                    assistantMsgEntry,
+                    generatedTitle: isUntitled ? prompt.slice(0, 42).trim() || "New Chat" : "",
+                    isUntitled,
+                    socket,
+                });
+            }
             return;
         }
 
@@ -411,7 +733,6 @@ Style guidelines:
             responseSystemPrompt += `\n\nEXECUTED TOOL RESULTS:\n${executedActionsSummary.join("\n\n")}`;
         }
 
-        let fullAssistantResponse = "";
         await basketClient.stream(
             {
                 messages: [
@@ -436,18 +757,54 @@ Style guidelines:
         );
 
         if (abortSignal?.aborted) {
+            if (fullAssistantResponse.trim() || lastCraftedMail || toolEvents.length > 0) {
+                const { userMsgEntry, assistantMsgEntry } = buildTurnEntries();
+                await persistConversationTurn({
+                    existingChat,
+                    chatId,
+                    turnId,
+                    userEmail,
+                    activeMailbox,
+                    prompt,
+                    userMsgEntry,
+                    assistantMsgEntry,
+                    generatedTitle: isUntitled ? prompt.slice(0, 42).trim() || "New Chat" : "",
+                    isUntitled,
+                    socket,
+                });
+            }
             return;
+        }
+        } catch (runErr: any) {
+            if (abortSignal?.aborted || runErr?.name === "CanceledError" || runErr?.code === "ERR_CANCELED") {
+                if (fullAssistantResponse.trim() || lastCraftedMail || toolEvents.length > 0) {
+                    try {
+                        const { userMsgEntry, assistantMsgEntry } = buildTurnEntries();
+                        await persistConversationTurn({
+                            existingChat,
+                            chatId,
+                            turnId,
+                            userEmail,
+                            activeMailbox,
+                            prompt,
+                            userMsgEntry,
+                            assistantMsgEntry,
+                            generatedTitle: isUntitled ? prompt.slice(0, 42).trim() || "New Chat" : "",
+                            isUntitled,
+                            socket,
+                        });
+                    } catch (partialErr: any) {
+                        logger.warn(`[ChatService] Failed partial persist on abort: ${partialErr.message}`);
+                    }
+                }
+                logger.info(`[ChatService] Request aborted for user=${userEmail}`);
+                return;
+            }
+            throw runErr;
         }
 
         // 5. Title Generation for New/Untitled Chat
         let generatedTitle = "";
-        const isUntitled =
-            !existingChat ||
-            !existingChat.title ||
-            existingChat.title === "New Chat" ||
-            existingChat.title === "New Conversation" ||
-            existingChat.title === "Untitled Conversation";
-
         if (isUntitled) {
             try {
                 const rawTitle = await basketClient.complete({
@@ -466,96 +823,45 @@ Style guidelines:
                     max_tokens: 30,
                 });
                 generatedTitle = parseChatTitle(rawTitle);
+            } catch (titleErr: any) {
+                logger.warn(`[ChatService] Title generation fallback: ${titleErr.message}`);
+                generatedTitle = prompt.slice(0, 42).trim() || "New Chat";
+            }
+
+            if (generatedTitle) {
                 safeSend({
                     type: "SYSTEM",
                     subtype: "TITLE",
+                    chatId: existingChat ? existingChat._id.toString() : chatId || undefined,
                     message: "Chat Title Generated",
                     title: { title: generatedTitle },
                     done: true,
                     success: true,
                 });
-            } catch (titleErr: any) {
-                logger.warn(`[ChatService] Title generation fallback: ${titleErr.message}`);
-                generatedTitle = prompt.slice(0, 42).trim() || "New Chat";
             }
         }
 
         // 6. Persist conversation turn atomically into Chats.messages
         let savedChatId = existingChat ? existingChat._id.toString() : chatId || undefined;
         let finalTitle = generatedTitle || existingChat?.title || "New Chat";
-        const nowFormatted = formatDateTime();
 
         try {
-            const userMsgEntry = {
-                role: "user" as const,
-                content: prompt,
-                created_at: nowFormatted,
-            };
-
-            const assistantMsgEntry: any = {
-                role: "assistant" as const,
-                content: fullAssistantResponse,
-                created_at: formatDateTime(),
-            };
-            if (lastCraftedMail) {
-                assistantMsgEntry.craftedMail = lastCraftedMail;
-            }
-            if (toolEvents.length > 0) {
-                assistantMsgEntry.toolEvents = toolEvents;
-            }
-            if (relevantNotes.length > 0) {
-                assistantMsgEntry.ragNotes = relevantNotes.map((n) => ({
-                    id: n.id,
-                    title: n.title,
-                    denseScore: n.denseScore,
-                    bm25Score: n.bm25Score,
-                }));
-            }
-
-            if (existingChat) {
-                const updateDoc: any = {
-                    $push: {
-                        messages: { $each: [userMsgEntry, assistantMsgEntry] },
-                    },
-                    $inc: { messageCount: 1 },
-                    $set: {
-                        updated_at: nowFormatted,
-                        lastMessageAt: new Date(),
-                        mailboxEmail: activeMailbox,
-                        ...(!existingChat.email ? { email: userEmail } : {}),
-                    },
-                };
-
-                if (generatedTitle && isUntitled) {
-                    updateDoc.$set.title = generatedTitle;
-                    finalTitle = generatedTitle;
-                }
-
-                const updated = await Chats.findByIdAndUpdate(existingChat._id, updateDoc, { new: true });
-                savedChatId = existingChat._id.toString();
-                if (updated?.title) finalTitle = updated.title;
-            } else {
-                const newId = new mongoose.Types.ObjectId();
-                const newChat = await Chats.create({
-                    _id: newId,
-                    session_id: newId.toString(),
-                    title: generatedTitle || prompt.slice(0, 42).trim() || "New Chat",
-                    application: "plum",
-                    email: userEmail,
-                    mailboxEmail: activeMailbox,
-                    messages: [userMsgEntry, assistantMsgEntry],
-                    messageCount: 1,
-                    lastMessageAt: new Date(),
-                    created_at: nowFormatted,
-                    updated_at: nowFormatted,
-                });
-                savedChatId = newChat._id.toString();
-                finalTitle = newChat.title;
-            }
-
-            if (socket) {
-                (socket as any).activeChatId = savedChatId;
-            }
+            const { userMsgEntry, assistantMsgEntry } = buildTurnEntries();
+            const persisted = await persistConversationTurn({
+                existingChat,
+                chatId,
+                turnId,
+                userEmail,
+                activeMailbox,
+                prompt,
+                userMsgEntry,
+                assistantMsgEntry,
+                generatedTitle,
+                isUntitled,
+                socket,
+            });
+            savedChatId = persisted.savedChatId;
+            finalTitle = persisted.finalTitle;
         } catch (dbErr: any) {
             logger.error(`[ChatService] Failed to persist chat turn: ${dbErr.message}`);
         }

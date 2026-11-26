@@ -72,7 +72,7 @@ export function Switch({
           {/* 26px Thumb with 22px Travel (Section 2.9: 180ms cubic-bezier(0.16, 1, 0.3, 1)) */}
           <span
             aria-hidden="true"
-            className={`pointer-events-none inline-block h-[26px] w-[26px] rounded-full shadow-xs ring-0 transition-transform duration-180 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            className={`pointer-events-none inline-block h-[26px] w-[26px] rounded-full shadow-none border border-black/[0.06] dark:border-white/[0.14] transition-transform duration-180 ease-[cubic-bezier(0.16,1,0.3,1)] ${
               checked
                 ? 'translate-x-[20px] bg-white dark:bg-[#121310]'
                 : 'translate-x-0 bg-white dark:bg-[#E0DDD5]'
